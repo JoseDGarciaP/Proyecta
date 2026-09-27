@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, Save } from 'lucide-react'
 import { crearProyecto } from '@/lib/api'
-import { AREAS, ESTADOS, ESTADO_LABEL, type Area, type Estado } from '@/lib/types'
+import { AREAS, ESTADOS, ESTADO_LABEL, ODS, type Area, type Estado } from '@/lib/types'
+import { useSesion } from '@/lib/sesion'
 
 const inicial = {
   titulo: '',
   resumen: '',
   descripcion: '',
+  necesidades: '',
   area: AREAS[0] as Area,
   estado: 'idea' as Estado,
   avance: 0,
@@ -17,6 +19,7 @@ const inicial = {
   etiquetas: '',
   fecha_inicio: new Date().toISOString().slice(0, 10),
   fecha_fin: '',
+  ods: [] as number[],
 }
 
 export function NuevoProyecto() {
@@ -24,6 +27,7 @@ export function NuevoProyecto() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navegar = useNavigate()
+  const { usuario } = useSesion()
 
   const set = <K extends keyof typeof form>(clave: K, valor: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [clave]: valor }))
@@ -37,6 +41,7 @@ export function NuevoProyecto() {
         titulo: form.titulo.trim(),
         resumen: form.resumen.trim(),
         descripcion: form.descripcion.trim(),
+        necesidades: form.necesidades.trim(),
         area: form.area,
         estado: form.estado,
         avance: Number(form.avance),
@@ -47,6 +52,7 @@ export function NuevoProyecto() {
         fecha_inicio: form.fecha_inicio,
         fecha_fin: form.fecha_fin || null,
         actores: [],
+        ods: form.ods,
       })
       navegar(`/proyectos/${creado.id}`)
     } catch (err) {
@@ -95,7 +101,7 @@ export function NuevoProyecto() {
           </div>
           <div>
             <label className="label" htmlFor="lider">Líder</label>
-            <input id="lider" required className="input" value={form.lider} onChange={(e) => set('lider', e.target.value)} />
+            <input id="lider" className="input" placeholder={usuario ? `Vacío = ${usuario.nombre}` : ''} value={form.lider} onChange={(e) => set('lider', e.target.value)} />
           </div>
           <div>
             <label className="label" htmlFor="presupuesto">Presupuesto (COP)</label>
@@ -118,6 +124,36 @@ export function NuevoProyecto() {
             <input id="fin" type="date" className="input" value={form.fecha_fin} onChange={(e) => set('fecha_fin', e.target.value)} />
           </div>
         </div>
+
+        <div>
+          <label className="label" htmlFor="necesidades">¿Qué necesita? (perfiles, financiación, equipos…)</label>
+          <textarea id="necesidades" rows={3} className="input" value={form.necesidades} onChange={(e) => set('necesidades', e.target.value)} />
+        </div>
+
+        <fieldset>
+          <legend className="label">Objetivos de Desarrollo Sostenible</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {ODS.map((o) => {
+              const activo = form.ods.includes(o.id)
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  aria-pressed={activo}
+                  title={o.nombre}
+                  onClick={() => set('ods', activo ? form.ods.filter((n) => n !== o.id) : [...form.ods, o.id].sort((a, b) => a - b))}
+                  className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                    activo
+                      ? 'border-brand-600 bg-brand-600 text-white dark:border-brand-400 dark:bg-brand-500'
+                      : 'border-slate-300 text-slate-600 hover:border-brand-400 dark:border-slate-700 dark:text-slate-400'
+                  }`}
+                >
+                  {o.id}. {o.nombre}
+                </button>
+              )
+            })}
+          </div>
+        </fieldset>
 
         <div>
           <label className="label" htmlFor="etiquetas">Etiquetas (separadas por comas)</label>

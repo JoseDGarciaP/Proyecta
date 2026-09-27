@@ -1,9 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_SUPABASE_URL?: string
-  readonly VITE_SUPABASE_ANON_KEY?: string
-  readonly VITE_AI_API_URL?: string
+  /** URL del backend FastAPI, p. ej. http://localhost:8000. Vacío = modo demostración. */
+  readonly VITE_API_URL?: string
 }
 
 interface ImportMeta {

@@ -1,0 +1,334 @@
+{
+ "actores": [
+  {
+   "id": "a-001",
+   "nombre": "Grupo de Investigación en Energía",
+   "tipo": "universidad",
+   "sector": "Academia",
+   "contacto": "energia@ejemplo.edu.co",
+   "proyectos": 3
+  },
+  {
+   "id": "a-002",
+   "nombre": "Secretaría de Planeación Municipal",
+   "tipo": "estado",
+   "sector": "Gobierno local",
+   "contacto": "planeacion@ejemplo.gov.co",
+   "proyectos": 2
+  },
+  {
+   "id": "a-003",
+   "nombre": "Asociación de Productores del Valle",
+   "tipo": "comunidad",
+   "sector": "Agro",
+   "contacto": "asoproductores@ejemplo.org",
+   "proyectos": 2
+  },
+  {
+   "id": "a-004",
+   "nombre": "Fundación Salud para Todos",
+   "tipo": "ong",
+   "sector": "Tercer sector",
+   "contacto": "contacto@ejemplo.org",
+   "proyectos": 2
+  },
+  {
+   "id": "a-005",
+   "nombre": "Industrias del Norte S.A.S.",
+   "tipo": "empresa",
+   "sector": "Manufactura",
+   "contacto": "innovacion@ejemplo.com",
+   "proyectos": 2
+  }
+ ],
+ "oportunidades": [
+  {
+   "id": "o-001",
+   "titulo": "Convocatoria de ciencia aplicada 2026",
+   "entidad": "Ministerio de Ciencia",
+   "tipo": "convocatoria",
+   "monto": 300000000,
+   "cierra_en": "2026-10-15",
+   "areas": [
+    "Tecnología",
+    "Ambiente",
+    "Energía"
+   ],
+   "url": "https://ejemplo.gov.co/convocatoria"
+  },
+  {
+   "id": "o-002",
+   "titulo": "Fondo de innovación agroindustrial",
+   "entidad": "Cámara de Comercio",
+   "tipo": "financiacion",
+   "monto": 120000000,
+   "cierra_en": "2026-09-30",
+   "areas": [
+    "Agroindustria"
+   ],
+   "url": "https://ejemplo.org/fondo"
+  },
+  {
+   "id": "o-003",
+   "titulo": "Mentoría en transferencia tecnológica",
+   "entidad": "Red de Oficinas TT",
+   "tipo": "mentoria",
+   "monto": null,
+   "cierra_en": "2026-11-20",
+   "areas": [
+    "Tecnología",
+    "Salud"
+   ],
+   "url": "https://ejemplo.org/mentoria"
+  },
+  {
+   "id": "o-004",
+   "titulo": "Acceso a laboratorio de materiales",
+   "entidad": "Parque Tecnológico",
+   "tipo": "infraestructura",
+   "monto": null,
+   "cierra_en": "2026-12-05",
+   "areas": [
+    "Energía",
+    "Ambiente"
+   ],
+   "url": "https://ejemplo.org/laboratorio"
+  }
+ ],
+ "proyectos": [
+  {
+   "id": "p-001",
+   "titulo": "Riego inteligente para cultivos de cebolla",
+   "resumen": "Red de sensores de humedad y control automático de riego para pequeños productores.",
+   "descripcion": "Prototipo de nodos IoT de bajo costo que miden humedad, temperatura y conductividad del suelo. Los datos se envían a una plataforma web donde el productor programa el riego. Incluye un piloto con tres fincas y una guía de instalación replicable.",
+   "area": "Agroindustria",
+   "estado": "ejecucion",
+   "avance": 62,
+   "presupuesto": 28500000,
+   "lider": "Laura Sepúlveda",
+   "equipo": [
+    "Laura Sepúlveda",
+    "Andrés Quintero",
+    "Nicolás Pabón"
+   ],
+   "etiquetas": [
+    "IoT",
+    "agua",
+    "sensores"
+   ],
+   "fecha_inicio": "2026-02-10",
+   "fecha_fin": "2026-11-30",
+   "actores": [
+    "a-001",
+    "a-003"
+   ],
+   "creado_en": "2026-04-03"
+  },
+  {
+   "id": "p-002",
+   "titulo": "Observatorio de calidad del aire urbano",
+   "resumen": "Estaciones comunitarias de medición de material particulado con tablero público.",
+   "descripcion": "Instalación de ocho estaciones de bajo costo en puntos críticos de la ciudad, con validación cruzada frente a una estación de referencia. El tablero publica series horarias y alertas por umbrales.",
+   "area": "Ambiente",
+   "estado": "ejecucion",
+   "avance": 45,
+   "presupuesto": 41000000,
+   "lider": "Diego Ramírez",
+   "equipo": [
+    "Diego Ramírez",
+    "Sara Ortega"
+   ],
+   "etiquetas": [
+    "aire",
+    "datos abiertos",
+    "salud pública"
+   ],
+   "fecha_inicio": "2026-01-20",
+   "fecha_fin": "2027-01-20",
+   "actores": [
+    "a-002",
+    "a-004"
+   ],
+   "creado_en": "2026-05-12"
+  },
+  {
+   "id": "p-003",
+   "titulo": "Plataforma de acompañamiento a emprendimientos rurales",
+   "resumen": "Ruta digital de formación y seguimiento para unidades productivas del campo.",
+   "descripcion": "Módulos de formación en costos, mercadeo y formalización, con seguimiento de indicadores por unidad productiva y tablero para los acompañantes.",
+   "area": "Social",
+   "estado": "formulacion",
+   "avance": 18,
+   "presupuesto": 15200000,
+   "lider": "Marcela Torres",
+   "equipo": [
+    "Marcela Torres",
+    "Julián Ascanio"
+   ],
+   "etiquetas": [
+    "emprendimiento",
+    "ruralidad"
+   ],
+   "fecha_inicio": "2026-04-05",
+   "fecha_fin": null,
+   "actores": [
+    "a-003"
+   ],
+   "creado_en": "2026-06-22"
+  },
+  {
+   "id": "p-004",
+   "titulo": "Asistente de lectura para primera infancia",
+   "resumen": "App de refuerzo lector con seguimiento docente y contenidos locales.",
+   "descripcion": "Aplicación con ejercicios de decodificación y comprensión adaptados al ritmo del estudiante, más un panel para el docente con alertas de rezago.",
+   "area": "Educación",
+   "estado": "idea",
+   "avance": 5,
+   "presupuesto": 9800000,
+   "lider": "Camila Navarro",
+   "equipo": [
+    "Camila Navarro"
+   ],
+   "etiquetas": [
+    "lectura",
+    "IA",
+    "primera infancia"
+   ],
+   "fecha_inicio": "2026-06-01",
+   "fecha_fin": null,
+   "actores": [],
+   "creado_en": "2026-07-18"
+  },
+  {
+   "id": "p-005",
+   "titulo": "Microrred solar para sede rural",
+   "resumen": "Sistema fotovoltaico con almacenamiento y monitoreo de consumo.",
+   "descripcion": "Dimensionamiento, instalación y monitoreo de una microrred de 12 kWp para una sede educativa rural, con tablero de generación y consumo en tiempo real.",
+   "area": "Energía",
+   "estado": "finalizado",
+   "avance": 100,
+   "presupuesto": 86000000,
+   "lider": "Óscar Peñaranda",
+   "equipo": [
+    "Óscar Peñaranda",
+    "Valeria Rincón",
+    "Hugo Meza"
+   ],
+   "etiquetas": [
+    "solar",
+    "eficiencia",
+    "monitoreo"
+   ],
+   "fecha_inicio": "2025-03-01",
+   "fecha_fin": "2026-06-28",
+   "actores": [
+    "a-001",
+    "a-005"
+   ],
+   "creado_en": "2025-02-14"
+  },
+  {
+   "id": "p-006",
+   "titulo": "Telemedicina para puestos de salud veredales",
+   "resumen": "Consulta remota asistida y triage con historia clínica simplificada.",
+   "descripcion": "Kit de conectividad y protocolo de atención remota para puestos de salud sin médico permanente, con registro básico y derivación priorizada.",
+   "area": "Salud",
+   "estado": "pausado",
+   "avance": 33,
+   "presupuesto": 52400000,
+   "lider": "Paula Carvajalino",
+   "equipo": [
+    "Paula Carvajalino",
+    "Iván Barbosa"
+   ],
+   "etiquetas": [
+    "telesalud",
+    "conectividad"
+   ],
+   "fecha_inicio": "2025-09-15",
+   "fecha_fin": null,
+   "actores": [
+    "a-004"
+   ],
+   "creado_en": "2026-09-02"
+  },
+  {
+   "id": "p-007",
+   "titulo": "Gemelo digital del campus",
+   "resumen": "Modelo 3D con datos de consumo energético y ocupación de espacios.",
+   "descripcion": "Integra planos, sensores de ocupación y facturación energética en un modelo navegable para apoyar decisiones de mantenimiento y programación de espacios.",
+   "area": "Tecnología",
+   "estado": "ejecucion",
+   "avance": 71,
+   "presupuesto": 63700000,
+   "lider": "Santiago Vega",
+   "equipo": [
+    "Santiago Vega",
+    "Daniela Mora",
+    "Kevin Rojas"
+   ],
+   "etiquetas": [
+    "gemelo digital",
+    "BIM",
+    "eficiencia"
+   ],
+   "fecha_inicio": "2025-11-03",
+   "fecha_fin": "2026-12-15",
+   "actores": [
+    "a-001",
+    "a-002"
+   ],
+   "creado_en": "2025-10-20"
+  },
+  {
+   "id": "p-008",
+   "titulo": "Banco de residuos aprovechables",
+   "resumen": "Plataforma de intercambio de residuos industriales entre empresas.",
+   "descripcion": "Directorio y motor de emparejamiento que conecta a quien genera un residuo con quien puede usarlo como insumo, con trazabilidad de los intercambios.",
+   "area": "Ambiente",
+   "estado": "formulacion",
+   "avance": 24,
+   "presupuesto": 19900000,
+   "lider": "Tatiana Lizcano",
+   "equipo": [
+    "Tatiana Lizcano",
+    "Brayan Suárez"
+   ],
+   "etiquetas": [
+    "economía circular",
+    "residuos"
+   ],
+   "fecha_inicio": "2026-03-10",
+   "fecha_fin": null,
+   "actores": [
+    "a-005"
+   ],
+   "creado_en": "2026-08-27"
+  },
+  {
+   "id": "p-009",
+   "titulo": "Ruta de datos abiertos institucionales",
+   "resumen": "Publicación estandarizada de conjuntos de datos y su catálogo web.",
+   "descripcion": "Definición de un perfil de metadatos, proceso de anonimización y catálogo consultable con descarga en formatos abiertos.",
+   "area": "Tecnología",
+   "estado": "finalizado",
+   "avance": 100,
+   "presupuesto": 12300000,
+   "lider": "Andrea Gallardo",
+   "equipo": [
+    "Andrea Gallardo",
+    "Felipe Arenas"
+   ],
+   "etiquetas": [
+    "datos abiertos",
+    "gobernanza"
+   ],
+   "fecha_inicio": "2025-10-01",
+   "fecha_fin": "2026-08-20",
+   "actores": [
+    "a-002"
+   ],
+   "creado_en": "2025-09-20"
+  }
+ ]
+}

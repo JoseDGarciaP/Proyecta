@@ -31,7 +31,14 @@ export interface Proyecto {
   fecha_fin: string | null
   actores: string[]
   creado_en: string
+  /** Campos que llegan desde la API; los datos de ejemplo pueden no tenerlos. */
+  necesidades?: string
+  ods?: number[]
+  creado_por?: string | null
 }
+
+/** Lo que se envía al registrar un proyecto; `lider` vacío = nombre de quien registra. */
+export type NuevoProyecto = Omit<Proyecto, 'id' | 'creado_en' | 'creado_por'>
 
 export interface Actor {
   id: string
@@ -51,7 +58,44 @@ export interface Oportunidad {
   cierra_en: string
   areas: Area[]
   url: string
+  descripcion?: string
+  ods?: number[]
 }
+
+export const ROLES = ['estudiante', 'docente', 'administrativo', 'aliado', 'admin'] as const
+export type Rol = (typeof ROLES)[number]
+
+export interface Usuario {
+  id: string
+  email: string
+  nombre: string
+  rol: Rol
+  programa: string | null
+  bio: string | null
+  habilidades: string[]
+  intereses: string[]
+}
+
+/** Objetivos de Desarrollo Sostenible (el número es el id que usa la API). */
+export const ODS: { id: number; nombre: string }[] = [
+  { id: 1, nombre: 'Fin de la pobreza' },
+  { id: 2, nombre: 'Hambre cero' },
+  { id: 3, nombre: 'Salud y bienestar' },
+  { id: 4, nombre: 'Educación de calidad' },
+  { id: 5, nombre: 'Igualdad de género' },
+  { id: 6, nombre: 'Agua limpia y saneamiento' },
+  { id: 7, nombre: 'Energía asequible y no contaminante' },
+  { id: 8, nombre: 'Trabajo decente y crecimiento económico' },
+  { id: 9, nombre: 'Industria, innovación e infraestructura' },
+  { id: 10, nombre: 'Reducción de las desigualdades' },
+  { id: 11, nombre: 'Ciudades y comunidades sostenibles' },
+  { id: 12, nombre: 'Producción y consumo responsables' },
+  { id: 13, nombre: 'Acción por el clima' },
+  { id: 14, nombre: 'Vida submarina' },
+  { id: 15, nombre: 'Vida de ecosistemas terrestres' },
+  { id: 16, nombre: 'Paz, justicia e instituciones sólidas' },
+  { id: 17, nombre: 'Alianzas para lograr los objetivos' },
+]
 
 export interface Metricas {
   total: number

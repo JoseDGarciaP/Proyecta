@@ -1,50 +1,42 @@
-import { supabase, supabaseHabilitado } from './supabase'
+import { apiHabilitada, pedir } from './http'
 import { actoresMock, oportunidadesMock, proyectosMock } from '@/data/mock'
-import type { Actor, Metricas, Oportunidad, Proyecto } from './types'
+import type { Actor, Metricas, NuevoProyecto, Oportunidad, Proyecto } from './types'
 import { ESTADOS } from './types'
 import { slug } from './format'
 
 /**
  * Capa de datos única para toda la app.
- * Si hay credenciales de Supabase consulta las tablas; si no, trabaja en memoria
+ * Con VITE_API_URL consulta la API (backend FastAPI); si no, trabaja en memoria
  * sobre los datos de ejemplo para que la maqueta sea navegable sin backend.
  */
 
 let memoria: Proyecto[] = [...proyectosMock]
 
 export async function listarProyectos(): Promise<Proyecto[]> {
-  if (supabaseHabilitado && supabase) {
-    const { data, error } = await supabase
-      .from('proyectos')
-      .select('*')
-      .order('creado_en', { ascending: false })
-    if (error) throw new Error(error.message)
-    return (data ?? []) as Proyecto[]
-  }
+  if (apiHabilitada) return pedir<Proyecto[]>('/proyectos')
   await espera(220)
   return [...memoria]
 }
 
 export async function obtenerProyecto(id: string): Promise<Proyecto | null> {
-  if (supabaseHabilitado && supabase) {
-    const { data, error } = await supabase.from('proyectos').select('*').eq('id', id).maybeSingle()
-    if (error) throw new Error(error.message)
-    return (data as Proyecto) ?? null
+  if (apiHabilitada) {
+    try {
+      return await pedir<Proyecto>(`/proyectos/${id}`)
+    } catch {
+      return null
+    }
   }
   await espera(120)
   return memoria.find((p) => p.id === id) ?? null
 }
 
-export async function crearProyecto(entrada: Omit<Proyecto, 'id' | 'creado_en'>): Promise<Proyecto> {
+export async function crearProyecto(entrada: NuevoProyecto): Promise<Proyecto> {
+  if (apiHabilitada) return pedir<Proyecto>('/proyectos', { method: 'POST', json: entrada })
   const nuevo: Proyecto = {
     ...entrada,
+    lider: entrada.lider || 'Usuario de demostración',
     id: slug(),
     creado_en: new Date().toISOString().slice(0, 10),
-  }
-  if (supabaseHabilitado && supabase) {
-    const { data, error } = await supabase.from('proyectos').insert(nuevo).select().single()
-    if (error) throw new Error(error.message)
-    return data as Proyecto
   }
   await espera(260)
   memoria = [nuevo, ...memoria]
@@ -52,21 +44,13 @@ export async function crearProyecto(entrada: Omit<Proyecto, 'id' | 'creado_en'>)
 }
 
 export async function listarActores(): Promise<Actor[]> {
-  if (supabaseHabilitado && supabase) {
-    const { data, error } = await supabase.from('actores').select('*').order('nombre')
-    if (error) throw new Error(error.message)
-    return (data ?? []) as Actor[]
-  }
+  if (apiHabilitada) return pedir<Actor[]>('/actores')
   await espera(150)
   return actoresMock
 }
 
 export async function listarOportunidades(): Promise<Oportunidad[]> {
-  if (supabaseHabilitado && supabase) {
-    const { data, error } = await supabase.from('oportunidades').select('*').order('cierra_en')
-    if (error) throw new Error(error.message)
-    return (data ?? []) as Oportunidad[]
-  }
+  if (apiHabilitada) return pedir<Oportunidad[]>('/oportunidades')
   await espera(150)
   return oportunidadesMock
 }

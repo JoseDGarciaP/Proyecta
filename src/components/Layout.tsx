@@ -4,6 +4,8 @@ import {
   Building2,
   LayoutDashboard,
   Lightbulb,
+  LogIn,
+  LogOut,
   Menu,
   Moon,
   Plus,
@@ -13,7 +15,8 @@ import {
   X,
 } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
-import { supabaseHabilitado } from '@/lib/supabase'
+import { apiHabilitada } from '@/lib/http'
+import { useSesion } from '@/lib/sesion'
 
 const NAV = [
   { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
@@ -27,6 +30,7 @@ export function Layout() {
   const [abierto, setAbierto] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const navegar = useNavigate()
+  const { usuario, salir } = useSesion()
 
   const buscar = (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,12 +79,12 @@ export function Layout() {
         <div className="mt-4 px-5">
           <div className="rounded-lg border border-dashed border-slate-300 p-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
             <p className="font-medium text-slate-700 dark:text-slate-300">
-              {supabaseHabilitado ? 'Conectado a Supabase' : 'Modo demostración'}
+              {apiHabilitada ? 'Conectado a la API' : 'Modo demostración'}
             </p>
             <p className="mt-1 leading-relaxed">
-              {supabaseHabilitado
-                ? 'Los datos se leen y escriben en la base de datos configurada.'
-                : 'Datos de ejemplo en memoria. Configura las variables de entorno para conectar la base de datos.'}
+              {apiHabilitada
+                ? 'Los datos se leen y escriben a través del backend de Proyecta.'
+                : 'Datos de ejemplo en memoria. Define VITE_API_URL para conectar el backend.'}
             </p>
           </div>
         </div>
@@ -115,6 +119,18 @@ export function Layout() {
             >
               {tema === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
+            {apiHabilitada &&
+              (usuario ? (
+                <button onClick={salir} className="btn-ghost" title={`Salir (${usuario.email})`}>
+                  <span className="hidden max-w-40 truncate md:inline">{usuario.nombre}</span>
+                  <LogOut size={16} aria-label="Salir" />
+                </button>
+              ) : (
+                <NavLink to="/ingresar" className="btn-ghost">
+                  <LogIn size={16} aria-hidden />
+                  <span className="hidden sm:inline">Ingresar</span>
+                </NavLink>
+              ))}
             <NavLink to="/proyectos/nuevo" className="btn-primary">
               <Plus size={16} aria-hidden />
               <span className="hidden sm:inline">Registrar proyecto</span>

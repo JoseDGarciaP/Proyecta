@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarDays, Users, Wallet } from 'lucide-react'
 import { obtenerProyecto, listarActores, listarOportunidades } from '@/lib/api'
-import type { Actor, Oportunidad, Proyecto } from '@/lib/types'
+import { ODS, type Actor, type Oportunidad, type Proyecto } from '@/lib/types'
 import { EstadoBadge, Progress, Skeleton, EmptyState } from '@/components/ui'
 import { PanelIA } from '@/components/PanelIA'
 import { formatCOP, formatDate } from '@/lib/format'
@@ -90,6 +90,26 @@ export function ProyectoDetalle() {
         <section className="card p-6 lg:col-span-2">
           <h2 className="font-semibold text-slate-900 dark:text-white">Descripción</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{proyecto.descripcion}</p>
+
+          {proyecto.necesidades && (
+            <>
+              <h3 className="mt-6 label">Lo que necesita</h3>
+              <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">{proyecto.necesidades}</p>
+            </>
+          )}
+
+          {proyecto.ods && proyecto.ods.length > 0 && (
+            <>
+              <h3 className="mt-6 label">ODS</h3>
+              <ul className="flex flex-wrap gap-2">
+                {proyecto.ods.map((n) => (
+                  <li key={n} className="rounded-full bg-brand-50 px-3 py-1 text-xs text-brand-800 dark:bg-brand-500/12 dark:text-brand-200">
+                    {n}. {ODS.find((o) => o.id === n)?.nombre}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
 
           <h3 className="mt-6 label">Equipo</h3>
           <ul className="flex flex-wrap gap-2">

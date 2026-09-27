@@ -1,6 +1,5 @@
+import { apiHabilitada, pedir } from './http'
 import type { Oportunidad, Proyecto } from './types'
-
-const base = import.meta.env.VITE_AI_API_URL?.replace(/\/$/, '')
 
 export interface Recomendacion {
   oportunidad_id: string
@@ -16,22 +15,16 @@ export interface RespuestaIA {
 }
 
 /**
- * Pide al servicio de IA (carpeta /ai) un resumen ejecutivo y oportunidades afines.
- * Si el servicio no está configurado o no responde, cae a una heurística local
- * para que la maqueta siga siendo demostrable.
+ * Pide a la API un resumen ejecutivo y oportunidades afines (módulo backend/app/modules/ia).
+ * En modo demostración, o si la API no responde, cae a una heurística local.
  */
 export async function analizarProyecto(
   proyecto: Proyecto,
   oportunidades: Oportunidad[],
 ): Promise<RespuestaIA> {
-  if (base) {
+  if (apiHabilitada) {
     try {
-      const res = await fetch(`${base}/analizar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proyecto, oportunidades }),
-      })
-      if (res.ok) return (await res.json()) as RespuestaIA
+      return await pedir<RespuestaIA>(`/ia/proyectos/${proyecto.id}/analisis`, { method: 'POST' })
     } catch {
       // se ignora y se usa el modo local
     }

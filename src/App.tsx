@@ -7,6 +7,9 @@ import { NuevoProyecto } from '@/pages/NuevoProyecto'
 import { Actores } from '@/pages/Actores'
 import { Oportunidades } from '@/pages/Oportunidades'
 import { NoEncontrado } from '@/pages/NoEncontrado'
+import { Ingresar } from '@/pages/Ingresar'
+import { Registro } from '@/pages/Registro'
+import { RequiereSesion } from '@/components/RequiereSesion'
 
 export default function App() {
   return (
@@ -14,10 +17,12 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="proyectos" element={<Proyectos />} />
-        <Route path="proyectos/nuevo" element={<NuevoProyecto />} />
+        <Route path="proyectos/nuevo" element={<RequiereSesion><NuevoProyecto /></RequiereSesion>} />
         <Route path="proyectos/:id" element={<ProyectoDetalle />} />
         <Route path="actores" element={<Actores />} />
         <Route path="oportunidades" element={<Oportunidades />} />
+        <Route path="ingresar" element={<Ingresar />} />
+        <Route path="registro" element={<Registro />} />
         <Route path="*" element={<NoEncontrado />} />
       </Route>
     </Routes>

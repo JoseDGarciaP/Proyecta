@@ -66,8 +66,8 @@ export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oport
 
           {respuesta.simulado && (
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              Resultado simulado localmente. Configura <code>VITE_AI_API_URL</code> y ejecuta el servicio de
-              <code> /ai</code> para usar el modelo real.
+              Resumen generado con reglas locales. Define <code>ANTHROPIC_API_KEY</code> en el backend para que lo
+              redacte un modelo.
             </p>
           )}
         </div>

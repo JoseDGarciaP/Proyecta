@@ -10,6 +10,10 @@ dist-ssr
 .vite
 
 # Python
-ai/.venv/
+.venv/
+backend/.venv/
+.pytest_cache/
+*.db
 __pycache__/
 *.pyc
+*.tsbuildinfo

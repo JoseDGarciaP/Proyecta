@@ -5,8 +5,8 @@ y oportunidades de apoyo. Este repositorio contiene una base funcional: panel de
 registro y consulta de proyectos, directorio de actores, cartelera de oportunidades y un
 asistente de IA que resume proyectos y sugiere convocatorias afines.
 
-> Estado: maqueta funcional navegable. Arranca sin backend (datos de ejemplo en memoria) y se
-> conecta a Supabase en cuanto se definen las variables de entorno.
+> Estado: interfaz navegable conectada a una API en FastAPI con login, roles y base de datos
+> PostgreSQL. Sin backend configurado arranca en modo demostración con datos de ejemplo.
 
 ## Stack
 
@@ -18,67 +18,74 @@ asistente de IA que resume proyectos y sugiere convocatorias afines.
 | Estilos | Tailwind CSS (config CSS-first) | 4.3 |
 | Gráficas | Recharts | 3.10 |
 | Íconos | lucide-react | 1.46 |
-| Datos | Supabase JS | 2.116 |
-| IA | Python · FastAPI | 3.11+ · 0.141 |
+| API | Python · FastAPI · SQLAlchemy · Alembic | 3.11+ · 0.141 · 2.1 · 1.20 |
+| Base de datos | PostgreSQL (Supabase en producción, Docker en local) | 16 |
 
-Todas las versiones fijadas reportan `0 vulnerabilities` en `npm audit` al momento de la
-generación del proyecto.
+La arquitectura completa, el modelo de datos y el plan de sprints están en
+[`docs/arquitectura.md`](docs/arquitectura.md).
 
 ## Puesta en marcha
 
+### Solo la interfaz (modo demostración)
+
 ```bash
 npm install
-cp .env.example .env     # opcional: sin variables arranca en modo demostración
 npm run dev              # http://localhost:5173
 ```
 
+Sin `VITE_API_URL` la app usa los datos de `src/data/mock.ts` en memoria.
 Otros comandos: `npm run build` (producción), `npm run preview`, `npm run typecheck`.
 
-### Conectar Supabase
-
-1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. Ejecuta `supabase/schema.sql` en el editor SQL (crea tablas, índices, vista de métricas y
-   políticas RLS). Opcionalmente `supabase/seed.sql` para datos de prueba.
-3. Copia la URL y la *anon key* del proyecto en `.env`:
-
-```env
-VITE_SUPABASE_URL=https://xxxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=...
-```
-
-La app detecta las credenciales sola: si existen consulta la base de datos, si no usa los datos
-de ejemplo. Toda la conmutación vive en `src/lib/api.ts`, así que las vistas no cambian.
-
-### Servicio de IA
+### Con backend y base de datos
 
 ```bash
-cd ai
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+docker compose up -d db                 # PostgreSQL + pgvector local (o usa la URL de Supabase)
+
+cd backend
+python -m venv .venv
+source .venv/bin/activate               # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+cp .env.example .env                    # ajusta DATABASE_URL y SECRET_KEY
+alembic upgrade head                    # crea las tablas y carga áreas y ODS
+python -m scripts.seed_demo             # opcional: los mismos datos de ejemplo de la maqueta
+python -m scripts.create_admin admin@ufpso.edu.co "Nombre Admin"
+fastapi dev app/main.py                 # http://localhost:8000/docs
+pytest                                  # pruebas (SQLite en memoria, no tocan tu base)
 ```
 
-Luego define `VITE_AI_API_URL=http://localhost:8000` en el `.env` del frontend. Sin API key el
-servicio responde con una heurística local y marca el resultado como simulado. Detalles en
-[`ai/README.md`](ai/README.md).
+Luego, en la raíz, crea `.env` con `VITE_API_URL=http://localhost:8000` y ejecuta `npm run dev`.
+
+### Asistente de IA
+
+El análisis de proyectos vive en el backend (`backend/app/modules/ia`). Sin `ANTHROPIC_API_KEY` el
+resumen sale de reglas locales y se marca como simulado; las recomendaciones de oportunidades
+siempre se calculan en el backend y explican por qué se sugieren (área 0.5, ODS en común 0.2,
+etiquetas 0.15, vigencia 0.15; solo oportunidades abiertas).
 
 ## Estructura
 
 ```
 src/
-  components/   Layout, tarjetas, gráficas, panel de IA, primitivas de UI
-  pages/        Panel, Proyectos, Detalle, Registro, Actores, Oportunidades
-  lib/          api.ts (capa de datos), supabase.ts, ai.ts, types.ts, chartTheme.ts
+  components/   Layout, tarjetas, gráficas, panel de IA, RequiereSesion, primitivas de UI
+  pages/        Panel, Proyectos, Detalle, Registro de proyecto, Actores, Oportunidades, Ingresar, Registro
+  lib/          api.ts (capa de datos), http.ts (cliente de la API), sesion.tsx, ai.ts, types.ts, chartTheme.ts
   hooks/        useDatos, useTheme
   data/         datos de ejemplo del modo demostración
-supabase/       schema.sql (tablas + RLS) y seed.sql
-ai/             servicio FastAPI de resúmenes y recomendaciones
+backend/
+  app/core/     configuración, base de datos, seguridad (JWT), dependencias
+  app/modules/  auth, usuarios, catalogo (áreas y ODS), proyectos, actores, oportunidades, ia
+  alembic/      migraciones
+  scripts/      create_admin, seed_demo
+  tests/        pytest
+docs/           arquitectura y plan de sprints
 ```
 
 ## Decisiones de diseño
 
-- **Una sola capa de datos.** `src/lib/api.ts` decide entre Supabase y datos locales; ninguna
+- **Una sola capa de datos.** `src/lib/api.ts` decide entre la API y datos locales; ninguna
   vista sabe de dónde vienen los registros.
+- **Un solo backend.** FastAPI concentra datos, permisos e IA; la API responde con los mismos
+  nombres de campo que `src/lib/types.ts`.
 - **Identidad azul + fucsia.** Las dos escalas viven como tokens en `src/index.css`
   (`--color-brand-*` azul, `--color-accent-*` fucsia); botones, logo y barras de avance usan el
   degradado entre ambas. Cambiar la marca es editar esas dos escalas.
@@ -89,14 +96,15 @@ ai/             servicio FastAPI de resúmenes y recomendaciones
   cinco categorías a la vez (`src/lib/chartTheme.ts`).
 - **Modo claro y oscuro.** Toma la preferencia del sistema en la primera visita, se puede
   alternar desde la barra superior y la elección queda guardada (`src/hooks/useTheme.ts`).
-- **RLS activo desde el inicio.** Lectura pública del catálogo; creación y edición solo para
-  usuarios autenticados y sobre sus propios registros.
-- **La IA nunca bloquea la demostración.** Si el servicio no está disponible, el frontend cae a
+- **Permisos en la API.** Lectura pública del catálogo; crear proyectos requiere sesión y solo
+  quien lo registró (o un admin) lo edita. Actores y oportunidades los gestiona un admin.
+- **La IA nunca bloquea la demostración.** Si la API no está disponible, el frontend cae a
   una heurística local y lo advierte en pantalla.
 
 ## Siguientes pasos sugeridos
 
-- Autenticación de usuarios (Supabase Auth) y roles por facultad o programa.
-- Gestión de la relación proyecto–actor desde la interfaz (tabla `proyecto_actores`).
-- Búsqueda semántica de proyectos con `pgvector` y embeddings.
-- Carga de anexos con Supabase Storage y control de versiones documentales.
+- Pantallas de administración para cargar actores y oportunidades (hoy solo por la API).
+- Editar proyectos y vincular actores desde la interfaz (la API ya lo permite).
+- Perfiles con habilidades e intereses en la interfaz, para recomendar colaboradores.
+- Búsqueda semántica y recomendación con embeddings (`pgvector`).
+- Solicitudes de alianza y notificaciones.
