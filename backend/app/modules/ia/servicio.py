@@ -6,11 +6,12 @@ El resumen lo redacta el proveedor elegido en IA_PROVEEDOR:
   * reglas: sin modelo.
 Si el proveedor no responde, se usa la heurística y la respuesta se marca como simulada.
 
-La recomendación es explicable: cada sugerencia dice por qué se hace.
-Más adelante se sumará similitud semántica con embeddings (pgvector).
+La recomendación es explicable: cada sugerencia dice por qué se hace. Cuando hay modelo de
+embeddings, la similitud semántica entre proyecto y oportunidad pesa un 30 % del puntaje.
 """
 
 import json
+import uuid
 from datetime import date
 
 import httpx
@@ -22,10 +23,19 @@ from app.modules.proyectos.models import Proyecto
 from app.modules.proyectos.schemas import ProyectoSalida
 
 API_URL = "https://api.anthropic.com/v1/messages"
+SOLO_SEMANTICA = 0.5
 
 
-def puntuar(proyecto: Proyecto, oportunidades: list[Oportunidad], limite: int = 3) -> list[Recomendacion]:
-    """Afinidad: área (0.5) + ODS en común (0.2) + etiquetas (0.15) + vigencia (0.15). Solo oportunidades abiertas."""
+def puntuar(
+    proyecto: Proyecto,
+    oportunidades: list[Oportunidad],
+    limite: int = 3,
+    semantica: dict[uuid.UUID, float] | None = None,
+) -> list[Recomendacion]:
+    """Afinidad: área (0.5) + ODS en común (0.2) + etiquetas (0.15) + vigencia (0.15). Solo oportunidades abiertas.
+
+    Con `semantica` (similitud 0–1 por oportunidad) el puntaje es 70 % reglas + 30 % similitud.
+    """
     hoy = date.today()
     etiquetas = {e.lower() for e in proyecto.etiquetas}
     ods_proyecto = {o.id for o in proyecto.ods}
@@ -51,6 +61,12 @@ def puntuar(proyecto: Proyecto, oportunidades: list[Oportunidad], limite: int = 
             puntaje += 0.15
             razones.append("coincide con las etiquetas del proyecto")
 
+        similitud = (semantica or {}).get(op.id, 0.0)
+        # Sin coincidencias de reglas, solo se sugiere si el parecido semántico es alto.
+        if similitud >= (0.3 if razones else SOLO_SEMANTICA):
+            puntaje = 0.7 * puntaje + 0.3 * similitud
+            razones.append(f"su descripción se parece a la del proyecto ({round(similitud * 100)} %)")
+
         if razones:
             razones.append(f"sigue abierta hasta el {op.cierra_en.isoformat()}")
             salida.append(Recomendacion(
@@ -73,7 +89,9 @@ def resumen_heuristico(proyecto: Proyecto) -> str:
 
 
 def _prompt(proyecto: Proyecto) -> str:
-    datos = ProyectoSalida.de(proyecto).model_dump(mode="json", exclude={"id", "creado_por", "actores"})
+    datos = ProyectoSalida.de(proyecto).model_dump(mode="json", exclude={"id", "creado_por", "actores", "creado_en"})
+    # Sin campos vacíos: evita que el modelo escriba cosas como «presupuesto de $0».
+    datos = {k: v for k, v in datos.items() if v not in ("", [], None, 0)}
     return (
         "Redacta en español un resumen ejecutivo de máximo 60 palabras del siguiente "
         "proyecto universitario. Sé concreto, sin adjetivos promocionales. "
@@ -137,10 +155,12 @@ async def resumen_modelo(proyecto: Proyecto) -> str | None:
         return None
 
 
-async def analizar(proyecto: Proyecto, oportunidades: list[Oportunidad]) -> RespuestaAnalisis:
+async def analizar(
+    proyecto: Proyecto, oportunidades: list[Oportunidad], semantica: dict[uuid.UUID, float] | None = None
+) -> RespuestaAnalisis:
     texto = await resumen_modelo(proyecto)
     return RespuestaAnalisis(
         resumen=texto or resumen_heuristico(proyecto),
-        recomendaciones=puntuar(proyecto, oportunidades),
+        recomendaciones=puntuar(proyecto, oportunidades, semantica=semantica),
         simulado=texto is None,
     )

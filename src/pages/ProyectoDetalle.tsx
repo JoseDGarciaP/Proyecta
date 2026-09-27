@@ -5,6 +5,7 @@ import { obtenerProyecto, listarActores, listarOportunidades } from '@/lib/api'
 import { ODS, type Actor, type Oportunidad, type Proyecto } from '@/lib/types'
 import { EstadoBadge, Progress, Skeleton, EmptyState } from '@/components/ui'
 import { PanelIA } from '@/components/PanelIA'
+import { MiembrosProyecto, RedProyecto } from '@/components/ColaboracionProyecto'
 import { formatCOP, formatDate } from '@/lib/format'
 
 export function ProyectoDetalle() {
@@ -130,24 +131,28 @@ export function ProyectoDetalle() {
           </ul>
         </section>
 
-        <section className="card p-6">
-          <h2 className="font-semibold text-slate-900 dark:text-white">Actores vinculados</h2>
-          {vinculados.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Aún no hay actores articulados a este proyecto.</p>
-          ) : (
-            <ul className="mt-3 space-y-3">
-              {vinculados.map((a) => (
-                <li key={a.id} className="text-sm">
-                  <p className="font-medium text-slate-800 dark:text-slate-200">{a.nombre}</p>
-                  <p className="text-xs text-slate-500 capitalize dark:text-slate-400">{a.tipo} · {a.sector}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <div className="space-y-4">
+          <section className="card p-6">
+            <h2 className="font-semibold text-slate-900 dark:text-white">Actores vinculados</h2>
+            {vinculados.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Aún no hay actores articulados a este proyecto.</p>
+            ) : (
+              <ul className="mt-3 space-y-3">
+                {vinculados.map((a) => (
+                  <li key={a.id} className="text-sm">
+                    <p className="font-medium text-slate-800 dark:text-slate-200">{a.nombre}</p>
+                    <p className="text-xs text-slate-500 capitalize dark:text-slate-400">{a.tipo} · {a.sector}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <MiembrosProyecto proyecto={proyecto} />
+        </div>
       </div>
 
       <PanelIA proyecto={proyecto} oportunidades={oportunidades} />
+      <RedProyecto proyecto={proyecto} />
     </div>
   )
 }

@@ -16,6 +16,8 @@ interface Sesion {
   ingresar: (email: string, password: string) => Promise<void>
   registrar: (datos: DatosRegistro) => Promise<void>
   salir: () => void
+  /** Actualiza los datos del usuario tras editar el perfil. */
+  refrescar: (u: Usuario) => void
 }
 
 const SesionContext = createContext<Sesion | null>(null)
@@ -52,7 +54,7 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <SesionContext.Provider value={{ usuario, cargando, ingresar, registrar, salir }}>{children}</SesionContext.Provider>
+    <SesionContext.Provider value={{ usuario, cargando, ingresar, registrar, salir, refrescar: setUsuario }}>{children}</SesionContext.Provider>
   )
 }
 

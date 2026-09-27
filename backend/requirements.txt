@@ -8,3 +8,7 @@ bcrypt==5.0.0
 email-validator==2.3.0
 pytest==9.1.1
 httpx==0.28.1
+numpy==2.4.6
+pgvector==0.5.0
+# Similitud semántica. Instala PyTorch para CPU (~200 MB en Windows); el modelo se baja al primer uso.
+sentence-transformers==6.1.0

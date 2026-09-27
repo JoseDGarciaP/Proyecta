@@ -10,7 +10,7 @@
 | Base de datos | **Una PostgreSQL** con pgvector: Supabase en producción, Docker en local | Supabase ya es PostgreSQL; no son dos bases. pgvector guardará los embeddings junto a los datos. |
 | Esquema | SQLAlchemy 2 + Alembic | Las migraciones quedan versionadas en el repositorio. |
 | Autenticación | JWT propio con contraseña cifrada (bcrypt). Correo `@ufpso.edu.co` obligatorio salvo para aliados externos | Simple y bajo control del equipo. |
-| Búsqueda semántica (pendiente) | sentence-transformers + pgvector, sin LlamaIndex | pgvector ya resuelve la similitud; LlamaIndex agrega una capa sin necesidad para este alcance. |
+| Similitud semántica | **sentence-transformers** (`paraphrase-multilingual-MiniLM-L12-v2`, CPU) + **pgvector**, sin LlamaIndex. Vectores en la tabla `embeddings`, recalculados solo cuando cambia el texto; similitud léxica si no hay modelo | Gratuito y en español; pgvector ya resuelve la similitud (distancia coseno `<=>`) junto a los datos. |
 | LLM | **Ollama local y gratuito** (`llama3.2:3b`) por defecto; Claude opcional con `IA_PROVEEDOR=anthropic`; reglas locales si no hay modelo | El equipo quiere un modelo gratuito, y la plataforma funciona igual sin modelo. |
 | Oportunidades | Las carga un administrador | Garantiza datos desde el día uno. Importarlas de Minciencias/SENA queda como mejora. |
 
@@ -23,12 +23,16 @@ Navegador (React + TypeScript)
         ▼
 FastAPI (backend/app)
  ├─ auth            registro e ingreso
- ├─ usuarios        perfil, habilidades, intereses
+ ├─ usuarios        datos, habilidades, intereses
+ ├─ perfil          mis proyectos, mis alianzas y resumen en una consulta
  ├─ catalogo        áreas y 17 ODS
  ├─ proyectos       registro, filtros, permisos de autor
+ ├─ alianzas        solicitudes e invitaciones, miembros e historial
  ├─ actores         organizaciones aliadas y su vínculo con proyectos
  ├─ oportunidades   convocatorias, fondos, mentorías, infraestructura
- └─ ia              resumen y recomendación explicable ── Ollama local (o Claude)
+ ├─ similitud       embeddings (sentence-transformers) guardados en pgvector
+ └─ ia              resumen ── Ollama local (o Claude); recomendación explicable,
+                    similares, colaboradores, búsqueda semántica, sugerencias para mí
         │
         ▼
 PostgreSQL (+ pgvector)
@@ -52,6 +56,9 @@ cambian al pasar de los datos de ejemplo a la base real.
 - **proyectos**: título, resumen, descripción, necesidades, área, estado (`idea`, `formulacion`, `ejecucion`, `finalizado`, `pausado`), avance, presupuesto, líder, equipo, etiquetas, fechas, autor; ODS (muchos a muchos) y actores (`proyecto_actores`, con rol).
 - **actores**: nombre, tipo (`universidad`, `empresa`, `estado`, `comunidad`, `ong`), sector, contacto.
 - **oportunidades**: título, entidad, tipo, descripción, monto, fecha de cierre, URL; áreas y ODS (muchos a muchos).
+- **proyecto_miembros**: colaboradores aceptados (proyecto, usuario, rol, desde). Quien registra el proyecto es su responsable.
+- **solicitudes_alianza**: tipo (`solicitud` o `invitacion`), estado (`pendiente`, `aceptada`, `rechazada`, `cancelada`), mensaje, respuesta y fechas. Es el historial de alianzas.
+- **embeddings**: entidad (`proyecto`, `oportunidad`, `usuario`), id, modelo, huella del texto y vector (pgvector).
 
 ## 5. Endpoints
 
@@ -66,7 +73,18 @@ cambian al pasar de los datos de ejemplo a la base real.
 | PATCH/DELETE | `/api/proyectos/{id}` | autor o admin |
 | GET | `/api/actores`, `/api/oportunidades` (filtros `q`, `area`, `ods`, `tipo`, `abiertas`) | público |
 | POST/PUT/DELETE | `/api/actores...`, `/api/oportunidades...` | admin |
+| GET | `/api/perfil` | con sesión |
+| POST | `/api/proyectos/{id}/solicitudes` | con sesión |
+| POST | `/api/proyectos/{id}/invitaciones` | responsable del proyecto |
+| GET | `/api/proyectos/{id}/miembros` | público |
+| DELETE | `/api/proyectos/{id}/miembros/{usuario}` | responsable, admin o el propio miembro |
+| GET | `/api/alianzas` | con sesión |
+| POST | `/api/alianzas/{id}/aceptar`, `/rechazar` | quien debe responder |
+| POST | `/api/alianzas/{id}/cancelar` | quien la envió |
+| GET | `/api/ia/estado` | público |
 | POST | `/api/ia/proyectos/{id}/analisis` | público |
+| GET | `/api/ia/proyectos/{id}/similares`, `/api/ia/buscar?q=` | público |
+| GET | `/api/ia/proyectos/{id}/colaboradores`, `/api/ia/para-mi` | con sesión |
 
 Documentación interactiva en `http://localhost:8000/docs`.
 
@@ -78,8 +96,8 @@ Documentación interactiva en `http://localhost:8000/docs`.
 | 1 | Interfaz base, autenticación, catálogo de áreas y ODS | **hecho** |
 | 2 | Proyectos: registro, explorador, detalle; falta edición y vínculo de actores en la interfaz | **en curso** |
 | 3 | Pantallas de administrador para actores y oportunidades; datos reales de convocatorias | pendiente |
-| 4 | IA: embeddings, recomendación de colaboradores, búsqueda en lenguaje natural | pendiente (ya hay recomendación por reglas) |
-| 5 | Alianzas (solicitar unirse, aceptar/rechazar, historial) y notificaciones | pendiente |
+| 4 | IA: embeddings, recomendación de colaboradores, búsqueda en lenguaje natural | **hecho** (falta medir la calidad con datos reales) |
+| 5 | Alianzas (solicitar unirse, aceptar/rechazar, historial) y notificaciones | **en curso**: alianzas y perfil hechos; faltan notificaciones |
 | 6 | Estadísticas, auditoría, despliegue (API en Render/Railway, base en Supabase, interfaz en Vercel), pruebas con usuarios | pendiente |
 
 ## 7. Pendientes de definir con el equipo
@@ -87,4 +105,4 @@ Documentación interactiva en `http://localhost:8000/docs`.
 - Qué significa "tasa de éxito" para el panel de estadísticas.
 - Cómo se verifica a un aliado externo (hoy se registra con cualquier correo).
 - Aviso de privacidad y autorización de tratamiento de datos (Ley 1581 de 2012) en el registro.
-- Dónde se despliega y qué modelo de lenguaje se usa.
+- Dónde se despliega (el modelo de embeddings necesita ~1 GB de RAM en el servidor).

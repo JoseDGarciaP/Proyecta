@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2:3b"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-opus-5"
+    # Similitud semántica con sentence-transformers (gratuito, corre en la CPU).
+    # El modelo se descarga una sola vez (~470 MB) a la caché de Hugging Face del usuario.
+    # Si no está instalado o no se puede cargar, se usa similitud por palabras en común.
+    embeddings_activos: bool = True
+    embeddings_modelo: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
     @property
     def allowed_domains(self) -> list[str]:

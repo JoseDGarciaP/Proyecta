@@ -72,7 +72,41 @@ resumen sale de reglas locales y la interfaz lo marca como simulado.
 
 Las recomendaciones de oportunidades no dependen del modelo: siempre las calcula el backend y
 explican por qué se sugieren (área 0.5, ODS en común 0.2, etiquetas 0.15, vigencia 0.15; solo
-oportunidades abiertas).
+oportunidades abiertas). Con embeddings, el puntaje final es 70 % reglas + 30 % similitud semántica.
+
+### Similitud semántica (sentence-transformers, gratuito)
+
+Todo lo relacionado con similitud usa [sentence-transformers](https://www.sbert.net) con el modelo
+multilingüe `paraphrase-multilingual-MiniLM-L12-v2` (384 dimensiones, corre en CPU) y guarda los
+vectores en PostgreSQL con **pgvector** (módulo `backend/app/modules/similitud`):
+
+| Función | Dónde se ve |
+|---|---|
+| Proyectos que buscan un perfil como el mío | Mi perfil → Sugerencias para ti |
+| Oportunidades para mis proyectos | Mi perfil y Asistente de articulación |
+| Proyectos similares (articularse o evitar duplicados) | Detalle del proyecto |
+| Posibles colaboradores según «Lo que necesita» | Detalle del proyecto (solo su responsable) |
+| Búsqueda por significado de convocatorias | Oportunidades |
+
+`pip install -r requirements.txt` ya instala la librería (con PyTorch para CPU). El modelo
+(~470 MB) se descarga solo la primera vez; para hacerlo de una vez y dejar calculados los vectores:
+
+```bash
+python -m scripts.indexar_embeddings
+```
+
+Los vectores se recalculan solos cuando cambia el texto de un proyecto, oportunidad o perfil.
+Si el modelo no está disponible (sin internet la primera vez, o `EMBEDDINGS_ACTIVOS=false`), la
+API usa similitud por palabras en común y la interfaz lo avisa. `GET /api/ia/estado` dice cuál se
+está usando.
+
+### Perfil y alianzas
+
+Cada usuario tiene **Mi perfil** (`/perfil`): sus datos, habilidades e intereses, los proyectos
+que registró o donde colabora, sus alianzas y sugerencias personalizadas. Una alianza es una
+solicitud para unirse a un proyecto (la responde quien lo registró) o una invitación (la responde
+el invitado); al aceptarse, la persona queda como colaboradora del proyecto y el historial se
+conserva con su estado.
 
 ## Estructura
 

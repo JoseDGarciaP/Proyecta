@@ -1,5 +1,10 @@
-import { ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { ExternalLink, Loader2, Sparkles, X } from 'lucide-react'
 import { useDatos } from '@/hooks/useDatos'
+import { buscarSemantico } from '@/lib/colaboracion'
+import { apiHabilitada } from '@/lib/http'
+import type { RespuestaSugerencias } from '@/lib/types'
+import { NotaMetodo } from '@/components/Sugerencias'
 import { Badge, Skeleton } from '@/components/ui'
 import { diasRestantes, formatCompactCOP, formatDate } from '@/lib/format'
 
@@ -12,6 +17,29 @@ const TIPO_CLASS: Record<string, string> = {
 
 export function Oportunidades() {
   const { oportunidades, cargando } = useDatos()
+  const [consulta, setConsulta] = useState('')
+  const [busqueda, setBusqueda] = useState<RespuestaSugerencias | null>(null)
+  const [buscando, setBuscando] = useState(false)
+  const [error, setError] = useState('')
+
+  const buscar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (consulta.trim().length < 3) return
+    setBuscando(true)
+    setError('')
+    try {
+      setBusqueda(await buscarSemantico(consulta.trim()))
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBuscando(false)
+    }
+  }
+
+  const relevancia = new Map(busqueda?.resultados.map((r) => [r.id, r.similitud]))
+  const visibles = busqueda
+    ? oportunidades.filter((o) => relevancia.has(o.id)).sort((a, b) => relevancia.get(b.id)! - relevancia.get(a.id)!)
+    : oportunidades
 
   return (
     <div className="space-y-6">
@@ -22,16 +50,56 @@ export function Oportunidades() {
         </p>
       </header>
 
+      {apiHabilitada && (
+        <form onSubmit={buscar} className="card p-4">
+          <label htmlFor="busqueda-semantica" className="label flex items-center gap-1.5">
+            <Sparkles size={13} aria-hidden /> Describe lo que buscas con tus palabras
+          </label>
+          <div className="flex gap-2">
+            <input
+              id="busqueda-semantica"
+              className="input"
+              placeholder="Ej.: dinero para un piloto de agua potable en zona rural"
+              value={consulta}
+              onChange={(e) => setConsulta(e.target.value)}
+            />
+            <button className="btn-primary shrink-0" disabled={buscando}>
+              {buscando ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Sparkles size={15} aria-hidden />}
+              Buscar
+            </button>
+            {busqueda && (
+              <button type="button" className="btn-ghost shrink-0" onClick={() => { setBusqueda(null); setConsulta('') }}>
+                <X size={15} aria-hidden /> Ver todas
+              </button>
+            )}
+          </div>
+          {error && <p className="mt-2 text-sm text-rose-600">{error}</p>}
+          {busqueda && (
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              {busqueda.resultados.length} oportunidad(es) abiertas relacionadas, ordenadas por relevancia.
+            </p>
+          )}
+          <NotaMetodo metodo={busqueda?.metodo} />
+        </form>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         {cargando
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-44" />)
-          : oportunidades.map((o) => {
+          : visibles.map((o) => {
               const dias = diasRestantes(o.cierra_en)
               return (
                 <article key={o.id} className="card flex flex-col gap-3 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <h2 className="font-semibold text-slate-900 dark:text-white">{o.titulo}</h2>
-                    <Badge className={TIPO_CLASS[o.tipo]}>{o.tipo}</Badge>
+                    <div className="flex shrink-0 gap-1.5">
+                      {relevancia.has(o.id) && (
+                        <Badge className="bg-accent-100 text-accent-800 dark:bg-accent-500/15 dark:text-accent-300">
+                          {Math.round(relevancia.get(o.id)! * 100)}% relevante
+                        </Badge>
+                      )}
+                      <Badge className={TIPO_CLASS[o.tipo]}>{o.tipo}</Badge>
+                    </div>
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400">{o.entidad}</p>
 

@@ -12,6 +12,7 @@ import {
   Search,
   Sparkles,
   Sun,
+  UserRound,
   X,
 } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
@@ -56,7 +57,7 @@ export function Layout() {
         </div>
 
         <nav className="space-y-1 px-3 py-2">
-          {NAV.map(({ to, label, icon: Icono, end }) => (
+          {[...NAV, ...(usuario ? [{ to: '/perfil', label: 'Mi perfil', icon: UserRound, end: false }] : [])].map(({ to, label, icon: Icono, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -121,10 +122,15 @@ export function Layout() {
             </button>
             {apiHabilitada &&
               (usuario ? (
-                <button onClick={salir} className="btn-ghost" title={`Salir (${usuario.email})`}>
-                  <span className="hidden max-w-40 truncate md:inline">{usuario.nombre}</span>
-                  <LogOut size={16} aria-label="Salir" />
-                </button>
+                <>
+                  <NavLink to="/perfil" className="btn-ghost" title="Mi perfil">
+                    <UserRound size={16} aria-hidden />
+                    <span className="hidden max-w-40 truncate md:inline">{usuario.nombre}</span>
+                  </NavLink>
+                  <button onClick={salir} className="btn-ghost px-2.5" title={`Salir (${usuario.email})`}>
+                    <LogOut size={16} aria-label="Salir" />
+                  </button>
+                </>
               ) : (
                 <NavLink to="/ingresar" className="btn-ghost">
                   <LogIn size={16} aria-hidden />

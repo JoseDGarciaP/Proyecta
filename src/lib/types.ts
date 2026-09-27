@@ -123,3 +123,62 @@ export const ESTADO_CLASS: Record<Estado, string> = {
   finalizado: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
   pausado: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300',
 }
+
+export type EstadoSolicitud = 'pendiente' | 'aceptada' | 'rechazada' | 'cancelada'
+
+/** Pedido de unión (lo responde quien registró el proyecto) o invitación (la responde el invitado). */
+export interface Solicitud {
+  id: string
+  tipo: 'solicitud' | 'invitacion'
+  estado: EstadoSolicitud
+  proyecto_id: string
+  proyecto_titulo: string
+  usuario_id: string
+  usuario_nombre: string
+  mensaje: string
+  respuesta: string
+  creado_en: string
+  respondida_en: string | null
+  /** true si quien consulta es quien debe aceptar o rechazar */
+  por_responder: boolean
+}
+
+export interface Miembro {
+  usuario_id: string
+  nombre: string
+  programa: string | null
+  rol: string
+  desde: string
+}
+
+export interface Perfil {
+  usuario: Usuario
+  resumen: { proyectos: number; colaboraciones: number; alianzas_activas: number; por_responder: number }
+  proyectos: { proyecto: Proyecto; mi_rol: 'responsable' | 'colaborador' }[]
+  alianzas: Solicitud[]
+}
+
+/** Resultado de similitud (proyecto, oportunidad o persona) con su explicación. */
+export interface Sugerencia {
+  id: string
+  tipo: 'proyecto' | 'oportunidad' | 'usuario'
+  titulo: string
+  detalle: string
+  similitud: number
+  razon: string
+}
+
+/** semantico = embeddings con sentence-transformers; lexico = palabras en común (sin modelo). */
+export type MetodoSimilitud = 'semantico' | 'lexico'
+
+export interface RespuestaSugerencias {
+  metodo: MetodoSimilitud
+  resultados: Sugerencia[]
+}
+
+export interface SugerenciasParaMi {
+  metodo: MetodoSimilitud
+  perfil_completo: boolean
+  proyectos: Sugerencia[]
+  oportunidades: Sugerencia[]
+}
