@@ -11,7 +11,7 @@
 | Esquema | SQLAlchemy 2 + Alembic | Las migraciones quedan versionadas en el repositorio. |
 | Autenticación | JWT propio con contraseña cifrada (bcrypt). Correo `@ufpso.edu.co` obligatorio salvo para aliados externos | Simple y bajo control del equipo. |
 | Búsqueda semántica (pendiente) | sentence-transformers + pgvector, sin LlamaIndex | pgvector ya resuelve la similitud; LlamaIndex agrega una capa sin necesidad para este alcance. |
-| LLM | Opcional detrás del módulo `ia`. Hoy: Claude vía `ANTHROPIC_API_KEY`; sin clave, reglas locales | La plataforma funciona igual sin modelo. Se puede cambiar por Ollama si hay servidor. |
+| LLM | **Ollama local y gratuito** (`llama3.2:3b`) por defecto; Claude opcional con `IA_PROVEEDOR=anthropic`; reglas locales si no hay modelo | El equipo quiere un modelo gratuito, y la plataforma funciona igual sin modelo. |
 | Oportunidades | Las carga un administrador | Garantiza datos desde el día uno. Importarlas de Minciencias/SENA queda como mejora. |
 
 ## 2. Vista general
@@ -28,7 +28,7 @@ FastAPI (backend/app)
  ├─ proyectos       registro, filtros, permisos de autor
  ├─ actores         organizaciones aliadas y su vínculo con proyectos
  ├─ oportunidades   convocatorias, fondos, mentorías, infraestructura
- └─ ia              resumen y recomendación explicable ── Claude (opcional)
+ └─ ia              resumen y recomendación explicable ── Ollama local (o Claude)
         │
         ▼
 PostgreSQL (+ pgvector)

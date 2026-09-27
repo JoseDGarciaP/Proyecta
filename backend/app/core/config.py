@@ -13,9 +13,14 @@ class Settings(BaseSettings):
     # Dominios de correo permitidos para registrarse. Vacío = cualquiera. Los aliados externos no se restringen.
     allowed_email_domains: str = "ufpso.edu.co"
     cors_origins: str = "http://localhost:5173"
-    # IA: sin API key se usa la heurística local y la respuesta se marca como simulada.
+    # IA: "ollama" (local y gratuito), "anthropic" (Claude, de pago) o "reglas" (sin modelo).
+    # Si el proveedor no responde se usa la heurística y la respuesta se marca como simulada.
+    ia_proveedor: str = "ollama"
+    ia_timeout: float = 120
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2:3b"
     anthropic_api_key: str = ""
-    anthropic_model: str = "claude-sonnet-4-5"
+    anthropic_model: str = "claude-opus-5"
 
     @property
     def allowed_domains(self) -> list[str]:

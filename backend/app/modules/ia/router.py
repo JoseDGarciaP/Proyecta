@@ -15,7 +15,9 @@ router = APIRouter(prefix="/api/ia", tags=["inteligencia artificial"])
 
 @router.get("/estado")
 def estado():
-    return {"modelo_configurado": bool(get_settings().anthropic_api_key)}
+    settings = get_settings()
+    modelo = {"ollama": settings.ollama_model, "anthropic": settings.anthropic_model}.get(settings.ia_proveedor)
+    return {"proveedor": settings.ia_proveedor, "modelo": modelo}
 
 
 @router.post("/proyectos/{proyecto_id}/analisis", response_model=RespuestaAnalisis)

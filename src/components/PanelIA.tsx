@@ -66,8 +66,8 @@ export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oport
 
           {respuesta.simulado && (
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              Resumen generado con reglas locales. Define <code>ANTHROPIC_API_KEY</code> en el backend para que lo
-              redacte un modelo.
+              Resumen generado con reglas locales porque no hay un modelo disponible. Instala Ollama y ejecuta
+              <code> ollama pull llama3.2:3b</code> para que lo redacte un modelo gratuito.
             </p>
           )}
         </div>

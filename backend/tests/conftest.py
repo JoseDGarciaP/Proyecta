@@ -54,3 +54,12 @@ def admin(client, db):
                    nombre="Admin", rol=Rol.ADMIN, habilidades=[], intereses=[]))
     db.commit()
     return auth(client, "admin@ufpso.edu.co")
+
+
+@pytest.fixture(autouse=True)
+def ia_sin_modelo(monkeypatch):
+    """Las pruebas no llaman a Ollama ni a Claude salvo que lo configuren explícitamente."""
+    from app.core.config import Settings
+    from app.modules.ia import servicio
+
+    monkeypatch.setattr(servicio, "get_settings", lambda: Settings(ia_proveedor="reglas"))

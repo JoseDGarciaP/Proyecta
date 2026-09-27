@@ -55,12 +55,24 @@ pytest                                  # pruebas (SQLite en memoria, no tocan t
 
 Luego, en la raíz, crea `.env` con `VITE_API_URL=http://localhost:8000` y ejecuta `npm run dev`.
 
-### Asistente de IA
+### Asistente de IA (gratuito con Ollama)
 
-El análisis de proyectos vive en el backend (`backend/app/modules/ia`). Sin `ANTHROPIC_API_KEY` el
-resumen sale de reglas locales y se marca como simulado; las recomendaciones de oportunidades
-siempre se calculan en el backend y explican por qué se sugieren (área 0.5, ODS en común 0.2,
-etiquetas 0.15, vigencia 0.15; solo oportunidades abiertas).
+El análisis de proyectos vive en el backend (`backend/app/modules/ia`). Por defecto el resumen
+lo redacta un modelo local y gratuito con [Ollama](https://ollama.com):
+
+1. Instala Ollama desde <https://ollama.com/download> (Windows, macOS o Linux). Queda corriendo
+   en segundo plano en `http://localhost:11434`.
+2. Descarga el modelo una vez: `ollama pull llama3.2:3b` (unos 2 GB; funciona en CPU con 8 GB de RAM).
+3. Reinicia la API. El primer análisis tarda más porque el modelo se carga en memoria.
+
+Se cambia en `backend/.env`: `IA_PROVEEDOR=ollama` (por defecto), `anthropic` (Claude, requiere
+`ANTHROPIC_API_KEY`) o `reglas` (sin modelo). Otro modelo de Ollama se elige con `OLLAMA_MODEL`
+(por ejemplo `qwen2.5:3b` o, con más memoria, `llama3.1:8b`). Si el proveedor no responde, el
+resumen sale de reglas locales y la interfaz lo marca como simulado.
+
+Las recomendaciones de oportunidades no dependen del modelo: siempre las calcula el backend y
+explican por qué se sugieren (área 0.5, ODS en común 0.2, etiquetas 0.15, vigencia 0.15; solo
+oportunidades abiertas).
 
 ## Estructura
 

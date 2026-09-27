@@ -1,8 +1,10 @@
 """Resumen de proyectos y recomendación de oportunidades.
 
-Dos modos:
-  * heurístico: sin dependencias externas, siempre disponible.
-  * modelo: si hay ANTHROPIC_API_KEY, el resumen lo redacta un modelo.
+El resumen lo redacta el proveedor elegido en IA_PROVEEDOR:
+  * ollama: modelo local y gratuito (por defecto).
+  * anthropic: Claude, requiere ANTHROPIC_API_KEY.
+  * reglas: sin modelo.
+Si el proveedor no responde, se usa la heurística y la respuesta se marca como simulada.
 
 La recomendación es explicable: cada sugerencia dice por qué se hace.
 Más adelante se sumará similitud semántica con embeddings (pgvector).
@@ -70,37 +72,68 @@ def resumen_heuristico(proyecto: Proyecto) -> str:
     )
 
 
-async def resumen_modelo(proyecto: Proyecto) -> str | None:
-    settings = get_settings()
-    if not settings.anthropic_api_key:
-        return None
-
+def _prompt(proyecto: Proyecto) -> str:
     datos = ProyectoSalida.de(proyecto).model_dump(mode="json", exclude={"id", "creado_por", "actores"})
-    prompt = (
+    return (
         "Redacta en español un resumen ejecutivo de máximo 60 palabras del siguiente "
-        "proyecto universitario. Sé concreto, sin adjetivos promocionales.\n\n"
+        "proyecto universitario. Sé concreto, sin adjetivos promocionales. "
+        "Responde solo con el resumen.\n\n"
         + json.dumps(datos, ensure_ascii=False, indent=2)
     )
+
+
+async def _ollama(cliente: httpx.AsyncClient, prompt: str) -> str:
+    settings = get_settings()
+    respuesta = await cliente.post(
+        f"{settings.ollama_url.rstrip('/')}/api/chat",
+        json={
+            "model": settings.ollama_model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+        },
+    )
+    respuesta.raise_for_status()
+    return respuesta.json()["message"]["content"]
+
+
+async def _anthropic(cliente: httpx.AsyncClient, prompt: str) -> str:
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        return ""
+    respuesta = await cliente.post(
+        API_URL,
+        headers={
+            "x-api-key": settings.anthropic_api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        json={
+            "model": settings.anthropic_model,
+            "max_tokens": 400,
+            "messages": [{"role": "user", "content": prompt}],
+        },
+    )
+    respuesta.raise_for_status()
+    return "".join(b.get("text", "") for b in respuesta.json().get("content", []))
+
+
+PROVEEDORES = {"ollama": _ollama, "anthropic": _anthropic}
+
+# Las pruebas reemplazan el transporte HTTP para no depender de servicios externos.
+_transporte: httpx.AsyncBaseTransport | None = None
+
+
+async def resumen_modelo(proyecto: Proyecto) -> str | None:
+    settings = get_settings()
+    proveedor = PROVEEDORES.get(settings.ia_proveedor)
+    if proveedor is None:
+        return None
     try:
-        async with httpx.AsyncClient(timeout=30) as cliente:
-            respuesta = await cliente.post(
-                API_URL,
-                headers={
-                    "x-api-key": settings.anthropic_api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": settings.anthropic_model,
-                    "max_tokens": 400,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-            )
-            respuesta.raise_for_status()
-            bloques = respuesta.json().get("content", [])
-            texto = "".join(b.get("text", "") for b in bloques).strip()
+        # Un modelo local en CPU puede tardar en cargar la primera vez.
+        async with httpx.AsyncClient(timeout=settings.ia_timeout, transport=_transporte) as cliente:
+            texto = (await proveedor(cliente, _prompt(proyecto))).strip()
             return texto or None
-    except (httpx.HTTPError, ValueError, KeyError):
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
         return None
 
 
