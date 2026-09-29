@@ -21,7 +21,7 @@ def test_crear_y_leer(client, estudiante):
     assert p["lider"] == "Ana Pérez"  # sin líder explícito se usa quien registra
     assert p["ods"] == [2, 6]
     assert p["actores"] == []
-    assert client.get(f"/api/proyectos/{p['id']}").json()["titulo"] == PROYECTO["titulo"]
+    assert client.get(f"/api/proyectos/{p['id']}", headers=estudiante).json()["titulo"] == PROYECTO["titulo"]
 
 
 def test_crear_requiere_sesion(client):
@@ -40,11 +40,11 @@ def test_filtros(client, estudiante):
     client.post("/api/proyectos", json=PROYECTO, headers=estudiante)
     client.post("/api/proyectos", json={**PROYECTO, "titulo": "Tutorías entre pares", "area": "Educación",
                                         "estado": "idea", "ods": [4], "etiquetas": ["lectura"]}, headers=estudiante)
-    assert len(client.get("/api/proyectos").json()) == 2
-    assert len(client.get("/api/proyectos", params={"area": "Educación"}).json()) == 1
-    assert len(client.get("/api/proyectos", params={"ods": 6}).json()) == 1
-    assert len(client.get("/api/proyectos", params={"estado": "idea"}).json()) == 1
-    assert len(client.get("/api/proyectos", params={"q": "lectura"}).json()) == 1
+    assert len(client.get("/api/proyectos", headers=estudiante).json()) == 2
+    assert len(client.get("/api/proyectos", params={"area": "Educación"}, headers=estudiante).json()) == 1
+    assert len(client.get("/api/proyectos", params={"ods": 6}, headers=estudiante).json()) == 1
+    assert len(client.get("/api/proyectos", params={"estado": "idea"}, headers=estudiante).json()) == 1
+    assert len(client.get("/api/proyectos", params={"q": "lectura"}, headers=estudiante).json()) == 1
 
 
 def test_solo_el_autor_edita(client, estudiante):
@@ -61,6 +61,6 @@ def test_solo_el_autor_edita(client, estudiante):
 def test_vincular_actores(client, estudiante, admin):
     actor = client.post("/api/actores", json={"nombre": "Alcaldía de Ocaña", "tipo": "estado"}, headers=admin).json()
     pid = client.post("/api/proyectos", json={**PROYECTO, "actores": [actor["id"]]}, headers=estudiante).json()["id"]
-    assert client.get(f"/api/proyectos/{pid}").json()["actores"] == [actor["id"]]
-    actores = client.get("/api/actores").json()
+    assert client.get(f"/api/proyectos/{pid}", headers=estudiante).json()["actores"] == [actor["id"]]
+    actores = client.get("/api/actores", headers=estudiante).json()
     assert actores[0]["proyectos"] == 1

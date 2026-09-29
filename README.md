@@ -100,6 +100,23 @@ Si el modelo no está disponible (sin internet la primera vez, o `EMBEDDINGS_ACT
 API usa similitud por palabras en común y la interfaz lo avisa. `GET /api/ia/estado` dice cuál se
 está usando.
 
+### Acceso, verificación de correo e ingreso con Google
+
+Sin sesión solo se ve la página de bienvenida (`/bienvenida`) con cifras generales; proyectos,
+personas, actores, oportunidades e IA exigen una cuenta con el correo confirmado.
+
+- **Registro con correo y contraseña:** la API envía un enlace de confirmación (vence en 48 h). Sin
+  `SMTP_HOST` en `backend/.env` no se envía nada y el enlace aparece en la consola de la API, lo
+  que basta para desarrollar. Con Gmail: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, el correo en
+  `SMTP_USUARIO` y una [contraseña de aplicación](https://myaccount.google.com/apppasswords) en
+  `SMTP_PASSWORD`.
+- **Continuar con Google:** en [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+  crea un "ID de cliente de OAuth" de tipo *Aplicación web* con `http://localhost:5173` en
+  "Orígenes de JavaScript autorizados" y copia el ID en `GOOGLE_CLIENT_ID`. La API valida la firma
+  del token de Google y exige el dominio `@ufpso.edu.co`; esas cuentas quedan verificadas de una vez.
+  Sin `GOOGLE_CLIENT_ID` el botón no aparece.
+- Las cuentas que ya existían antes de la migración `0003` quedan verificadas.
+
 ### Perfil y alianzas
 
 Cada usuario tiene **Mi perfil** (`/perfil`): sus datos, habilidades e intereses, los proyectos

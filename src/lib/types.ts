@@ -74,6 +74,7 @@ export interface Usuario {
   bio: string | null
   habilidades: string[]
   intereses: string[]
+  verificado?: boolean
 }
 
 /** Objetivos de Desarrollo Sostenible (el número es el id que usa la API). */

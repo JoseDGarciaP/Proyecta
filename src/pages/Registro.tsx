@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Loader2, UserPlus } from 'lucide-react'
 import { useSesion, type DatosRegistro } from '@/lib/sesion'
 import type { Rol } from '@/lib/types'
+import { BotonGoogle } from '@/components/BotonGoogle'
+import { AvisoVerificacion } from '@/components/AvisoVerificacion'
 
 const ROLES_REGISTRO: { valor: Rol; etiqueta: string }[] = [
   { valor: 'estudiante', etiqueta: 'Estudiante' },
@@ -12,12 +14,13 @@ const ROLES_REGISTRO: { valor: Rol; etiqueta: string }[] = [
 ]
 
 export function Registro() {
-  const { registrar } = useSesion()
+  const { registrar, ingresarConGoogle } = useSesion()
   const navegar = useNavigate()
   const destino = (useLocation().state as { desde?: string } | null)?.desde ?? '/'
   const [form, setForm] = useState<DatosRegistro>({ nombre: '', email: '', password: '', rol: 'estudiante', programa: '' })
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [registrado, setRegistrado] = useState(false)
 
   const set = <K extends keyof DatosRegistro>(clave: K, valor: DatosRegistro[K]) => setForm((f) => ({ ...f, [clave]: valor }))
 
@@ -27,11 +30,33 @@ export function Registro() {
     setError(null)
     try {
       await registrar({ ...form, nombre: form.nombre.trim(), email: form.email.trim(), programa: form.programa?.trim() || null })
-      navegar(destino, { replace: true })
+      setRegistrado(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible crear la cuenta.')
       setEnviando(false)
     }
+  }
+
+  const conGoogle = async (credential: string) => {
+    setError(null)
+    try {
+      await ingresarConGoogle(credential)
+      navegar(destino, { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible ingresar con Google.')
+    }
+  }
+
+  if (registrado) {
+    return (
+      <div className="mx-auto max-w-md space-y-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Revisa tu correo</h1>
+        <AvisoVerificacion email={form.email.trim()} titulo="Tu cuenta está casi lista" />
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Después de confirmar podrás <Link to="/ingresar" className="font-medium text-brand-700 dark:text-brand-400">ingresar</Link>.
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -43,6 +68,7 @@ export function Registro() {
         </p>
       </header>
       <section className="card space-y-4 p-6">
+        <BotonGoogle alIngresar={conGoogle} />
         <div>
           <label className="label" htmlFor="nombre">Nombre completo</label>
           <input id="nombre" required minLength={3} className="input" value={form.nombre} onChange={(e) => set('nombre', e.target.value)} />

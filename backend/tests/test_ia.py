@@ -15,7 +15,7 @@ def test_recomienda_con_explicacion(client, estudiante, admin):
     _oportunidad(admin, client, titulo="Fondo agro vencido", cierra_en=str(date.today() - timedelta(days=1)))
     pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
 
-    res = client.post(f"/api/ia/proyectos/{pid}/analisis")
+    res = client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante)
     assert res.status_code == 200
     cuerpo = res.json()
     assert cuerpo["simulado"] is True  # sin modelo configurado
@@ -25,8 +25,8 @@ def test_recomienda_con_explicacion(client, estudiante, admin):
     assert "Agroindustria" in razon and "ODS 2" in razon
 
 
-def test_proyecto_inexistente(client):
-    assert client.post("/api/ia/proyectos/00000000-0000-0000-0000-000000000000/analisis").status_code == 404
+def test_proyecto_inexistente(client, estudiante):
+    assert client.post("/api/ia/proyectos/00000000-0000-0000-0000-000000000000/analisis", headers=estudiante).status_code == 404
 
 
 def _usar_proveedor(monkeypatch, proveedor, manejador):
@@ -50,7 +50,7 @@ def test_resumen_con_ollama(client, estudiante, monkeypatch):
 
     _usar_proveedor(monkeypatch, "ollama", ollama)
     pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
-    cuerpo = client.post(f"/api/ia/proyectos/{pid}/analisis").json()
+    cuerpo = client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante).json()
     assert (cuerpo["resumen"], cuerpo["simulado"]) == ("Resumen del modelo.", False)
     assert pedidos[0].url.path == "/api/chat"
 
@@ -63,7 +63,7 @@ def test_ollama_caido_usa_reglas(client, estudiante, monkeypatch):
 
     _usar_proveedor(monkeypatch, "ollama", caido)
     pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
-    cuerpo = client.post(f"/api/ia/proyectos/{pid}/analisis").json()
+    cuerpo = client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante).json()
     assert cuerpo["simulado"] is True
     assert "Riego inteligente" in cuerpo["resumen"]
 
@@ -74,5 +74,5 @@ def test_resumen_con_anthropic(client, estudiante, monkeypatch):
     _usar_proveedor(monkeypatch, "anthropic",
                     lambda r: httpx.Response(200, json={"content": [{"type": "text", "text": "Resumen de Claude."}]}))
     pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
-    cuerpo = client.post(f"/api/ia/proyectos/{pid}/analisis").json()
+    cuerpo = client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante).json()
     assert (cuerpo["resumen"], cuerpo["simulado"]) == ("Resumen de Claude.", False)

@@ -30,19 +30,19 @@ def test_proyectos_similares_semanticos(client, estudiante, embeddings_falsos, d
     _crear(client, estudiante, titulo="Telemedicina rural", etiquetas=["salud"], area="Salud",
            resumen="Consultas por telemedicina para pacientes de puestos de salud.")
 
-    res = client.get(f"/api/ia/proyectos/{base}/similares").json()
+    res = client.get(f"/api/ia/proyectos/{base}/similares", headers=estudiante).json()
     assert res["metodo"] == "semantico"
     assert [r["id"] for r in res["resultados"]] == [agua]  # salud queda por debajo del umbral
     assert db.query(Embedding).count() == 3
 
     # Los vectores se reutilizan: una segunda consulta no vuelve a codificar nada
     llamadas = embeddings_falsos.llamadas
-    client.get(f"/api/ia/proyectos/{base}/similares")
+    client.get(f"/api/ia/proyectos/{base}/similares", headers=estudiante)
     assert embeddings_falsos.llamadas == llamadas
 
     # Si el texto cambia, solo ese vector se recalcula
     client.patch(f"/api/proyectos/{agua}", json={"titulo": "Energía solar escolar", "resumen": "Paneles solares para la escuela de la vereda."}, headers=estudiante)
-    assert client.get(f"/api/ia/proyectos/{base}/similares").json()["resultados"] == []
+    assert client.get(f"/api/ia/proyectos/{base}/similares", headers=estudiante).json()["resultados"] == []
     assert embeddings_falsos.llamadas == llamadas + 1
 
 
@@ -50,7 +50,7 @@ def test_similares_sin_modelo_usa_palabras(client, estudiante):
     base = _crear(client, estudiante)
     otro = _crear(client, estudiante, titulo="Riego por goteo para cacao", etiquetas=["agua"],
                   resumen="Riego automático por goteo para productores de cacao.")
-    res = client.get(f"/api/ia/proyectos/{base}/similares").json()
+    res = client.get(f"/api/ia/proyectos/{base}/similares", headers=estudiante).json()
     assert res["metodo"] == "lexico"
     assert res["resultados"][0]["id"] == otro
 
@@ -76,7 +76,7 @@ def test_busqueda_semantica_de_oportunidades(client, admin, embeddings_falsos):
     agua = _oportunidad(client, admin, "Fondo de acueductos rurales", "Financia sistemas de agua potable.", ["Ambiente"])
     _oportunidad(client, admin, "Mentoría para apps", "Acompañamiento a startups de software.", ["Tecnología"])
 
-    res = client.get("/api/ia/buscar", params={"q": "necesito plata para un proyecto de riego"}).json()
+    res = client.get("/api/ia/buscar", params={"q": "necesito plata para un proyecto de riego"}, headers=admin).json()
     assert res["metodo"] == "semantico"
     assert [r["id"] for r in res["resultados"]] == [agua]  # «riego» ≈ «acueducto» sin palabras en común
 
@@ -85,7 +85,7 @@ def test_para_mi(client, estudiante, admin, embeddings_falsos):
     _crear(client, estudiante)  # proyecto propio: no se sugiere a sí mismo
     op = _oportunidad(client, admin, "Convocatoria de riego", "Riego y agua para el campo.", ["Agroindustria"])
     luis = _con_perfil(client, "luis@ufpso.edu.co", "Luis", habilidades=["riego"], intereses=["agua potable"])
-    ajeno = client.get("/api/proyectos").json()[0]["id"]
+    ajeno = client.get("/api/proyectos", headers=estudiante).json()[0]["id"]
 
     sug = client.get("/api/ia/para-mi", headers=luis).json()
     assert sug["perfil_completo"] is True
@@ -102,11 +102,11 @@ def test_analisis_suma_similitud_semantica(client, estudiante, admin, embeddings
     # Sin área, ODS ni etiquetas en común, pero habla del mismo tema: entra por similitud.
     op = _oportunidad(client, admin, "Programa de acueductos", "Acueducto y agua potable veredal.", ["Energía"])
     _oportunidad(client, admin, "Fondo de software", "Apps web y datos.", ["Tecnología"])
-    recs = client.post(f"/api/ia/proyectos/{pid}/analisis").json()["recomendaciones"]
+    recs = client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante).json()["recomendaciones"]
     assert [r["oportunidad_id"] for r in recs] == [op]
     assert "se parece" in recs[0]["razon"]
 
 
-def test_estado_informa_embeddings(client):
-    emb = client.get("/api/ia/estado").json()["embeddings"]
+def test_estado_informa_embeddings(client, estudiante):
+    emb = client.get("/api/ia/estado", headers=estudiante).json()["embeddings"]
     assert emb["activos"] is False and emb["modelo"]

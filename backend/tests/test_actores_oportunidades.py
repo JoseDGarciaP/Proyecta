@@ -23,8 +23,8 @@ def test_filtro_abiertas(client, admin):
     client.post("/api/oportunidades", json=OPORTUNIDAD, headers=admin)
     client.post("/api/oportunidades", json={**OPORTUNIDAD, "titulo": "Convocatoria vencida",
                                             "cierra_en": str(date.today() - timedelta(days=1))}, headers=admin)
-    assert len(client.get("/api/oportunidades").json()) == 2
-    abiertas = client.get("/api/oportunidades", params={"abiertas": True}).json()
+    assert len(client.get("/api/oportunidades", headers=admin).json()) == 2
+    abiertas = client.get("/api/oportunidades", params={"abiertas": True}, headers=admin).json()
     assert [o["titulo"] for o in abiertas] == [OPORTUNIDAD["titulo"]]
 
 

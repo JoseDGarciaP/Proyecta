@@ -13,6 +13,18 @@ class Settings(BaseSettings):
     # Dominios de correo permitidos para registrarse. Vacío = cualquiera. Los aliados externos no se restringen.
     allowed_email_domains: str = "ufpso.edu.co"
     cors_origins: str = "http://localhost:5173"
+    # Dirección de la interfaz, para armar el enlace del correo de verificación.
+    frontend_url: str = "http://localhost:5173"
+    verificacion_horas: int = 48
+    # Correo saliente (SMTP). Vacío = no se envía: el enlace se imprime en la consola de la API.
+    # Con Gmail: smtp.gmail.com, puerto 587 y una "contraseña de aplicación" de la cuenta.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_usuario: str = ""
+    smtp_password: str = ""
+    smtp_remitente: str = ""
+    # Ingreso con Google: ID de cliente OAuth (Google Cloud Console). Vacío = botón oculto.
+    google_client_id: str = ""
     # IA: "ollama" (local y gratuito), "anthropic" (Claude, de pago) o "reglas" (sin modelo).
     # Si el proveedor no responde se usa la heurística y la respuesta se marca como simulada.
     ia_proveedor: str = "ollama"

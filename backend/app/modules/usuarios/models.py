@@ -31,3 +31,6 @@ class Usuario(UuidPk, Timestamps, Base):
     habilidades: Mapped[list[str]] = mapped_column(JSON, default=list)
     intereses: Mapped[list[str]] = mapped_column(JSON, default=list)
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    # False hasta confirmar el correo (o entrar con Google, que ya lo verificó).
+    verificado: Mapped[bool] = mapped_column(Boolean, default=False)
+    google_sub: Mapped[str | None] = mapped_column(String(64), unique=True)  # id de la cuenta de Google

@@ -127,7 +127,13 @@ export function Layout() {
                     <UserRound size={16} aria-hidden />
                     <span className="hidden max-w-40 truncate md:inline">{usuario.nombre}</span>
                   </NavLink>
-                  <button onClick={salir} className="btn-ghost px-2.5" title={`Salir (${usuario.email})`}>
+                  <button
+                    onClick={() => {
+                      salir()
+                      // Recarga completa: no queda nada del usuario en memoria.
+                      window.location.replace('/bienvenida')
+                    }}
+                    className="btn-ghost px-2.5" title={`Salir (${usuario.email})`}>
                     <LogOut size={16} aria-label="Salir" />
                   </button>
                 </>

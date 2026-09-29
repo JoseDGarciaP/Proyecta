@@ -30,7 +30,7 @@ def test_solicitar_y_aceptar_crea_miembro_e_historial(client, estudiante):
 
     res = client.post(f"/api/alianzas/{solicitud['id']}/aceptar", json={"respuesta": "¡Bienvenido!"}, headers=estudiante)
     assert res.json()["estado"] == "aceptada"
-    assert [m["nombre"] for m in client.get(f"/api/proyectos/{pid}/miembros").json()] == ["Luis Gómez"]
+    assert [m["nombre"] for m in client.get(f"/api/proyectos/{pid}/miembros", headers=estudiante).json()] == ["Luis Gómez"]
     assert client.post(f"/api/alianzas/{solicitud['id']}/rechazar", json={}, headers=estudiante).status_code == 409
     assert client.post(f"/api/proyectos/{pid}/solicitudes", json={}, headers=luis).status_code == 409  # ya es miembro
 
@@ -57,7 +57,7 @@ def test_invitacion_la_responde_el_invitado(client, estudiante):
     assert client.post(f"/api/alianzas/{inv['id']}/aceptar", json={}, headers=estudiante).status_code == 403
 
     assert client.post(f"/api/alianzas/{inv['id']}/rechazar", json={}, headers=maria).json()["estado"] == "rechazada"
-    assert client.get(f"/api/proyectos/{pid}/miembros").json() == []
+    assert client.get(f"/api/proyectos/{pid}/miembros", headers=estudiante).json() == []
     # Tras un rechazo se puede volver a invitar, y quien invita puede cancelar
     inv2 = client.post(f"/api/proyectos/{pid}/invitaciones", json={"usuario_id": maria_id}, headers=estudiante).json()
     assert client.post(f"/api/alianzas/{inv2['id']}/cancelar", headers=maria).status_code == 403

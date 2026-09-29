@@ -4,12 +4,19 @@ import { apiHabilitada } from '@/lib/http'
 import { useSesion } from '@/lib/sesion'
 import { Skeleton } from '@/components/ui'
 
-/** Pide iniciar sesión antes de mostrar la página. En modo demostración deja pasar. */
+/**
+ * Solo usuarios con sesión: quien entra a la raíz sin cuenta ve la bienvenida; quien abre
+ * un enlace directo va a ingresar y vuelve ahí después. En modo demostración deja pasar.
+ */
 export function RequiereSesion({ children }: { children: ReactNode }) {
   const { usuario, cargando } = useSesion()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   if (!apiHabilitada) return children
-  if (cargando) return <Skeleton className="h-96" />
-  if (!usuario) return <Navigate to="/ingresar" state={{ desde: pathname }} replace />
+  if (cargando) return <Skeleton className="m-8 h-96" />
+  if (!usuario) {
+    return pathname === '/'
+      ? <Navigate to="/bienvenida" replace />
+      : <Navigate to="/ingresar" state={{ desde: pathname + search }} replace />
+  }
   return children
 }

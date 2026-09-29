@@ -22,11 +22,12 @@ def main() -> None:
         usuario = db.scalar(select(Usuario).where(Usuario.email == email))
         if usuario:
             usuario.rol = Rol.ADMIN
+            usuario.verificado = True
             print(f"{email} ahora es administrador")
         else:
             password = getpass.getpass("Contraseña: ")
             db.add(Usuario(email=email, nombre=nombre, hashed_password=hash_password(password),
-                           rol=Rol.ADMIN, habilidades=[], intereses=[]))
+                           rol=Rol.ADMIN, habilidades=[], intereses=[], verificado=True))
             print(f"Administrador {email} creado")
         db.commit()
 

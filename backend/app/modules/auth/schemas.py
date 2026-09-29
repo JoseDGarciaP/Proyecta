@@ -14,3 +14,20 @@ class Registro(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class Verificacion(BaseModel):
+    token: str
+
+
+class Reenvio(BaseModel):
+    email: EmailStr
+
+
+class IngresoGoogle(BaseModel):
+    credential: str  # ID token que entrega el botón de Google Identity Services
+
+
+class ConfigAuth(BaseModel):
+    google_client_id: str | None
+    dominios: list[str]

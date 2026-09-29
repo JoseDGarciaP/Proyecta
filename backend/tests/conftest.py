@@ -49,9 +49,18 @@ def auth(client, email, password="clave-segura"):
 
 
 def registrar(client, email, nombre="Ana Pérez", **extra):
+    """Registra y confirma el correo con el enlace del mensaje, como lo haría la persona."""
     res = client.post("/api/auth/registro", json={"email": email, "password": "clave-segura", "nombre": nombre, **extra})
     assert res.status_code == 201, res.text
+    assert client.post("/api/auth/verificar", json={"token": token_del_correo(email)}).status_code == 200
     return auth(client, email)
+
+
+def token_del_correo(email):
+    from app.core import correo
+
+    mensaje = next(c for c in reversed(correo.enviados) if c.para == email)
+    return mensaje.texto.split("token=")[1].split()[0]
 
 
 @pytest.fixture
@@ -62,7 +71,7 @@ def estudiante(client):
 @pytest.fixture
 def admin(client, db):
     db.add(Usuario(email="admin@ufpso.edu.co", hashed_password=hash_password("clave-segura"),
-                   nombre="Admin", rol=Rol.ADMIN, habilidades=[], intereses=[]))
+                   nombre="Admin", rol=Rol.ADMIN, habilidades=[], intereses=[], verificado=True))
     db.commit()
     return auth(client, "admin@ufpso.edu.co")
 
@@ -77,6 +86,11 @@ def ia_sin_modelo(monkeypatch):
     monkeypatch.setattr(servicio, "get_settings", lambda: Settings(ia_proveedor="reglas"))
     # Sin modelo de embeddings: similitud léxica, salvo que la prueba use `embeddings_falsos`.
     monkeypatch.setattr(codificador, "get_settings", lambda: Settings(embeddings_activos=False))
+    # Nunca enviar correos reales desde las pruebas.
+    from app.core import correo
+
+    monkeypatch.setattr(correo, "get_settings", lambda: Settings(smtp_host=""))
+    correo.enviados.clear()
 
 
 class CodificadorFalso:

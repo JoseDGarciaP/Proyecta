@@ -20,6 +20,16 @@ interface Opciones {
   form?: Record<string, string>
 }
 
+/** Error de la API con su código HTTP (p. ej. 403 = correo sin confirmar). */
+export class ErrorApi extends Error {
+  constructor(
+    mensaje: string,
+    readonly status: number,
+  ) {
+    super(mensaje)
+  }
+}
+
 export async function pedir<T>(ruta: string, { method = 'GET', json, form }: Opciones = {}): Promise<T> {
   const headers: Record<string, string> = {}
   const t = token.leer()
@@ -38,7 +48,7 @@ export async function pedir<T>(ruta: string, { method = 'GET', json, form }: Opc
   if (!res.ok) {
     const detalle = datos?.detail
     const mensaje = Array.isArray(detalle) ? detalle.map((d: { msg: string }) => d.msg).join(', ') : detalle
-    throw new Error(mensaje || `Error ${res.status}`)
+    throw new ErrorApi(mensaje || `Error ${res.status}`, res.status)
   }
   return datos as T
 }

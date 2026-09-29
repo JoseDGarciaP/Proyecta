@@ -9,7 +9,7 @@
 | Acceso a datos | La interfaz nunca habla directo con la base; todo pasa por la API | Permisos, validaciones e IA en un solo lugar y probados con pytest. |
 | Base de datos | **Una PostgreSQL** con pgvector: Supabase en producción, Docker en local | Supabase ya es PostgreSQL; no son dos bases. pgvector guardará los embeddings junto a los datos. |
 | Esquema | SQLAlchemy 2 + Alembic | Las migraciones quedan versionadas en el repositorio. |
-| Autenticación | JWT propio con contraseña cifrada (bcrypt). Correo `@ufpso.edu.co` obligatorio salvo para aliados externos | Simple y bajo control del equipo. |
+| Autenticación | JWT propio con contraseña cifrada (bcrypt) y **confirmación del correo** por enlace; o **Continuar con Google** (cuentas @ufpso.edu.co, ya verificadas por Google). Correo institucional obligatorio salvo para aliados externos. Todo el contenido exige sesión; los visitantes solo ven la bienvenida | Asegura que las cuentas son de personas reales de la universidad. |
 | Similitud semántica | **sentence-transformers** (`paraphrase-multilingual-MiniLM-L12-v2`, CPU) + **pgvector**, sin LlamaIndex. Vectores en la tabla `embeddings`, recalculados solo cuando cambia el texto; similitud léxica si no hay modelo | Gratuito y en español; pgvector ya resuelve la similitud (distancia coseno `<=>`) junto a los datos. |
 | LLM | **Ollama local y gratuito** (`llama3.2:3b`) por defecto; Claude opcional con `IA_PROVEEDOR=anthropic`; reglas locales si no hay modelo | El equipo quiere un modelo gratuito, y la plataforma funciona igual sin modelo. |
 | Oportunidades | Las carga un administrador | Garantiza datos desde el día uno. Importarlas de Minciencias/SENA queda como mejora. |
@@ -64,26 +64,27 @@ cambian al pasar de los datos de ejemplo a la base real.
 
 | Método | Ruta | Acceso |
 |---|---|---|
-| POST | `/api/auth/registro`, `/api/auth/login` | público |
+| POST | `/api/auth/registro`, `/api/auth/login`, `/api/auth/verificar`, `/api/auth/reenviar-verificacion`, `/api/auth/google` | público |
+| GET | `/api/auth/config`, `/api/publico/cifras`, `/api/catalogo/*` | público |
+| | Todo lo demás | con sesión y correo confirmado |
 | GET/PATCH | `/api/usuarios/yo` | con sesión |
 | GET | `/api/usuarios`, `/api/usuarios/{id}` | con sesión |
-| GET | `/api/catalogo/areas`, `/api/catalogo/ods` | público |
-| GET | `/api/proyectos` (filtros `q`, `area`, `estado`, `ods`), `/api/proyectos/{id}` | público |
+| GET | `/api/proyectos` (filtros `q`, `area`, `estado`, `ods`), `/api/proyectos/{id}` | con sesión |
 | POST | `/api/proyectos` | con sesión |
 | PATCH/DELETE | `/api/proyectos/{id}` | autor o admin |
-| GET | `/api/actores`, `/api/oportunidades` (filtros `q`, `area`, `ods`, `tipo`, `abiertas`) | público |
+| GET | `/api/actores`, `/api/oportunidades` (filtros `q`, `area`, `ods`, `tipo`, `abiertas`) | con sesión |
 | POST/PUT/DELETE | `/api/actores...`, `/api/oportunidades...` | admin |
 | GET | `/api/perfil` | con sesión |
 | POST | `/api/proyectos/{id}/solicitudes` | con sesión |
 | POST | `/api/proyectos/{id}/invitaciones` | responsable del proyecto |
-| GET | `/api/proyectos/{id}/miembros` | público |
+| GET | `/api/proyectos/{id}/miembros` | con sesión |
 | DELETE | `/api/proyectos/{id}/miembros/{usuario}` | responsable, admin o el propio miembro |
 | GET | `/api/alianzas` | con sesión |
 | POST | `/api/alianzas/{id}/aceptar`, `/rechazar` | quien debe responder |
 | POST | `/api/alianzas/{id}/cancelar` | quien la envió |
-| GET | `/api/ia/estado` | público |
-| POST | `/api/ia/proyectos/{id}/analisis` | público |
-| GET | `/api/ia/proyectos/{id}/similares`, `/api/ia/buscar?q=` | público |
+| GET | `/api/ia/estado` | con sesión |
+| POST | `/api/ia/proyectos/{id}/analisis` | con sesión |
+| GET | `/api/ia/proyectos/{id}/similares`, `/api/ia/buscar?q=` | con sesión |
 | GET | `/api/ia/proyectos/{id}/colaboradores`, `/api/ia/para-mi` | con sesión |
 
 Documentación interactiva en `http://localhost:8000/docs`.

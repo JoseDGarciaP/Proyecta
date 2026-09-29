@@ -19,6 +19,7 @@ class UsuarioPublico(BaseModel):
 
 class UsuarioPropio(UsuarioPublico):
     email: EmailStr
+    verificado: bool
 
 
 class UsuarioActualizar(BaseModel):

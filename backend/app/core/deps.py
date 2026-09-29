@@ -27,6 +27,8 @@ def get_current_user(db: DbSession, token: Annotated[str, Depends(oauth2_scheme)
         usuario = None
     if usuario is None or not usuario.activo:
         raise credenciales_invalidas
+    if not usuario.verificado:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Confirma tu correo para continuar")
     return usuario
 
 
