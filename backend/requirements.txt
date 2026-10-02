@@ -6,6 +6,9 @@ pydantic-settings==2.15.0
 PyJWT[crypto]==2.15.0
 bcrypt==5.0.0
 email-validator==2.3.0
+dnspython==2.8.0
+# Lista pública de dominios de correo temporal (se actualiza seguido: subir la versión de vez en cuando).
+disposable-email-domains==0.0.271
 pytest==9.1.1
 httpx==0.28.1
 numpy==2.4.6

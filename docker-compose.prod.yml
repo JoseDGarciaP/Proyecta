@@ -1,0 +1,92 @@
+# Proyecta en un servidor (p. ej. la VM gratuita de Oracle Cloud).
+# Uso:  docker compose -f docker-compose.prod.yml --env-file deploy/.env.produccion up -d --build
+# Guía completa: docs/despliegue-oracle.md
+name: proyecta
+
+x-api-entorno: &api-entorno
+  DATABASE_URL: postgresql+psycopg://proyecta:${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD}@db:5432/proyecta
+  SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY}
+  FRONTEND_URL: https://${DOMINIO}
+  CORS_ORIGINS: https://${DOMINIO}
+  ALLOWED_EMAIL_DOMAINS: ${ALLOWED_EMAIL_DOMAINS:-ufpso.edu.co}
+  VERIFICAR_DNS_CORREO: "true"
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USUARIO: ${SMTP_USUARIO:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_REMITENTE: ${SMTP_REMITENTE:-}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  IA_PROVEEDOR: ${IA_PROVEEDOR:-groq}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+  OLLAMA_URL: http://ollama:11434
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+  EMBEDDINGS_ACTIVOS: ${EMBEDDINGS_ACTIVOS:-true}
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: proyecta
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: proyecta
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proyecta -d proyecta"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Sin "ports": la base solo es visible para la API, no desde internet.
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment: *api-entorno
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - modelos:/cache
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/salud')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+      args:
+        VITE_API_URL: https://${DOMINIO:?Falta DOMINIO}
+    restart: unless-stopped
+    environment:
+      DOMINIO: ${DOMINIO}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+  # Opcional: IA local en el servidor en vez de Groq.
+  # Activar con  --profile ollama  y poner IA_PROVEEDOR=ollama en deploy/.env.produccion.
+  ollama:
+    image: ollama/ollama
+    profiles: ["ollama"]
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  pgdata:
+  modelos:
+  caddy_data:
+  caddy_config:
+  ollama:

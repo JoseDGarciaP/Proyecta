@@ -5,6 +5,8 @@ import { useSesion, type DatosRegistro } from '@/lib/sesion'
 import type { Rol } from '@/lib/types'
 import { BotonGoogle } from '@/components/BotonGoogle'
 import { AvisoVerificacion } from '@/components/AvisoVerificacion'
+import { CampoCorreo } from '@/components/CampoCorreo'
+import { revisarCorreo } from '@/lib/correo'
 
 const ROLES_REGISTRO: { valor: Rol; etiqueta: string }[] = [
   { valor: 'estudiante', etiqueta: 'Estudiante' },
@@ -21,15 +23,20 @@ export function Registro() {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [registrado, setRegistrado] = useState(false)
+  const [intento, setIntento] = useState(false)
+  const institucional = form.rol !== 'aliado'
 
   const set = <K extends keyof DatosRegistro>(clave: K, valor: DatosRegistro[K]) => setForm((f) => ({ ...f, [clave]: valor }))
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIntento(true)
+    const revision = revisarCorreo(form.email, { institucional })
+    if (revision.error) return
     setEnviando(true)
     setError(null)
     try {
-      await registrar({ ...form, nombre: form.nombre.trim(), email: form.email.trim(), programa: form.programa?.trim() || null })
+      await registrar({ ...form, nombre: form.nombre.trim(), email: revision.normalizado, programa: form.programa?.trim() || null })
       setRegistrado(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible crear la cuenta.')
@@ -51,7 +58,7 @@ export function Registro() {
     return (
       <div className="mx-auto max-w-md space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Revisa tu correo</h1>
-        <AvisoVerificacion email={form.email.trim()} titulo="Tu cuenta está casi lista" />
+        <AvisoVerificacion email={form.email.trim().toLowerCase()} titulo="Tu cuenta está casi lista" />
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Después de confirmar podrás <Link to="/ingresar" className="font-medium text-brand-700 dark:text-brand-400">ingresar</Link>.
         </p>
@@ -64,7 +71,7 @@ export function Registro() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Crear cuenta</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Estudiantes, docentes y administrativos se registran con su correo @ufpso.edu.co.
+          Estudiantes, docentes y administrativos se registran con su correo @ufpso.edu.co. Te enviaremos un enlace para confirmar que el correo es tuyo.
         </p>
       </header>
       <section className="card space-y-4 p-6">
@@ -73,10 +80,7 @@ export function Registro() {
           <label className="label" htmlFor="nombre">Nombre completo</label>
           <input id="nombre" required minLength={3} className="input" value={form.nombre} onChange={(e) => set('nombre', e.target.value)} />
         </div>
-        <div>
-          <label className="label" htmlFor="email">Correo</label>
-          <input id="email" type="email" required autoComplete="email" className="input" value={form.email} onChange={(e) => set('email', e.target.value)} />
-        </div>
+        <CampoCorreo valor={form.email} alCambiar={(v) => set('email', v)} institucional={institucional} forzarRevision={intento} />
         <div>
           <label className="label" htmlFor="password">Contraseña (mínimo 8 caracteres)</label>
           <input id="password" type="password" required minLength={8} autoComplete="new-password" className="input" value={form.password} onChange={(e) => set('password', e.target.value)} />

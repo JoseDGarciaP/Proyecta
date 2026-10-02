@@ -5,8 +5,9 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from app.core import correo
+from app.core import correo, validacion_correo
 from app.core.config import get_settings
 from app.core.deps import DbSession
 from app.core.security import create_access_token, create_token, decode_token, hash_password, verify_password
@@ -42,24 +43,24 @@ def configuracion():
 
 @router.post("/registro", response_model=UsuarioPropio, status_code=status.HTTP_201_CREATED)
 def registrar(datos: Registro, db: DbSession, tareas: BackgroundTasks):
-    email = datos.email.lower()
     if datos.rol == Rol.ADMIN:
         raise HTTPException(status_code=400, detail="No se puede registrar un administrador")
+    email = _validar_correo(datos.email)
     if not _dominio_permitido(email, datos.rol):
         raise HTTPException(status_code=400, detail="Usa tu correo institucional")
-    if db.scalar(select(Usuario).where(Usuario.email == email)):
+    usuario = _buscar(db, email)
+    if usuario is not None and usuario.verificado:
         raise HTTPException(status_code=409, detail="Ya existe una cuenta con ese correo")
-    usuario = Usuario(
-        email=email,
-        hashed_password=hash_password(datos.password),
-        nombre=datos.nombre,
-        rol=datos.rol,
-        programa=datos.programa,
-        habilidades=[],
-        intereses=[],
-        verificado=False,
-    )
-    db.add(usuario)
+    if usuario is None:
+        usuario = Usuario(email=email, habilidades=[], intereses=[])
+        db.add(usuario)
+    # Si la cuenta existía sin confirmar, se reemplazan los datos: nadie puede «apartar» un correo
+    # ajeno, porque solo quien abre el buzón puede confirmarlo.
+    usuario.hashed_password = hash_password(datos.password)
+    usuario.nombre = datos.nombre
+    usuario.rol = datos.rol
+    usuario.programa = datos.programa
+    usuario.verificado = False
     db.commit()
     db.refresh(usuario)
     enviar_verificacion(usuario, tareas)
@@ -68,7 +69,7 @@ def registrar(datos: Registro, db: DbSession, tareas: BackgroundTasks):
 
 @router.post("/login", response_model=Token)
 def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
-    usuario = db.scalar(select(Usuario).where(Usuario.email == form.username.lower()))
+    usuario = _buscar(db, form.username.strip().lower())
     if usuario is None or not usuario.activo or not verify_password(form.password, usuario.hashed_password):
         raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos")
     if not usuario.verificado:
@@ -92,7 +93,7 @@ def verificar(datos: Verificacion, db: DbSession):
 @router.post("/reenviar-verificacion", status_code=status.HTTP_202_ACCEPTED)
 def reenviar(datos: Reenvio, db: DbSession, tareas: BackgroundTasks):
     """Responde igual exista o no la cuenta, para no revelar qué correos están registrados."""
-    usuario = db.scalar(select(Usuario).where(Usuario.email == datos.email.lower()))
+    usuario = _buscar(db, datos.email.strip().lower())
     if usuario and usuario.activo and not usuario.verificado:
         enviar_verificacion(usuario, tareas)
     return {"detalle": "Si la cuenta existe y falta confirmarla, te enviamos un enlace nuevo."}
@@ -130,6 +131,17 @@ def ingresar_con_google(datos: IngresoGoogle, db: DbSession):
     usuario.verificado = True  # Google ya verificó el correo
     db.commit()
     return Token(access_token=create_access_token(str(usuario.id)))
+
+
+def _validar_correo(email: str) -> str:
+    try:
+        return validacion_correo.validar(email).email
+    except validacion_correo.CorreoNoValido as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _buscar(db: Session, email: str) -> Usuario | None:
+    return db.scalar(select(Usuario).where(Usuario.email == email))
 
 
 def _uuid(valor: str) -> uuid.UUID | None:

@@ -5,6 +5,8 @@ import { useSesion } from '@/lib/sesion'
 import { ErrorApi } from '@/lib/http'
 import { BotonGoogle } from '@/components/BotonGoogle'
 import { AvisoVerificacion } from '@/components/AvisoVerificacion'
+import { CampoCorreo } from '@/components/CampoCorreo'
+import { revisarCorreo } from '@/lib/correo'
 
 export function Ingresar() {
   const { ingresar, ingresarConGoogle } = useSesion()
@@ -15,6 +17,7 @@ export function Ingresar() {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sinVerificar, setSinVerificar] = useState(false)
+  const [intento, setIntento] = useState(false)
 
   const manejar = async (accion: () => Promise<void>) => {
     setEnviando(true)
@@ -35,7 +38,10 @@ export function Ingresar() {
 
   const enviar = (e: React.FormEvent) => {
     e.preventDefault()
-    manejar(() => ingresar(email.trim(), password))
+    setIntento(true)
+    const revision = revisarCorreo(email)
+    if (revision.error) return
+    manejar(() => ingresar(revision.normalizado, password))
   }
 
   return (
@@ -46,15 +52,12 @@ export function Ingresar() {
       </header>
       <section className="card space-y-4 p-6">
         <BotonGoogle alIngresar={(credential) => manejar(() => ingresarConGoogle(credential))} />
-        <div>
-          <label className="label" htmlFor="email">Correo</label>
-          <input id="email" type="email" required autoComplete="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
+        <CampoCorreo valor={email} alCambiar={setEmail} forzarRevision={intento} />
         <div>
           <label className="label" htmlFor="password">Contraseña</label>
           <input id="password" type="password" required autoComplete="current-password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
-        {sinVerificar && <AvisoVerificacion email={email.trim()} titulo="Falta confirmar tu correo" />}
+        {sinVerificar && <AvisoVerificacion email={email.trim().toLowerCase()} titulo="Falta confirmar tu correo" />}
         {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
         <button type="submit" className="btn-primary w-full justify-center" disabled={enviando}>
           {enviando ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <LogIn size={15} aria-hidden />}

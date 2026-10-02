@@ -125,6 +125,20 @@ solicitud para unirse a un proyecto (la responde quien lo registró) o una invit
 el invitado); al aceptarse, la persona queda como colaboradora del proyecto y el historial se
 conserva con su estado.
 
+### Correos verídicos
+
+Antes de crear una cuenta, la API (`backend/app/core/validacion_correo.py`) revisa el formato,
+corrige errores de tipeo frecuentes (`gmial.com` → «¿quisiste decir gmail.com?»), rechaza dominios
+de correo temporal y consulta el DNS para confirmar que el dominio recibe correo (registros MX).
+La interfaz repite las dos primeras revisiones al salir del campo. La prueba final es el enlace de
+confirmación: una cuenta sin confirmar no aparta el correo, así que el dueño real siempre puede
+registrarse.
+
+## Publicar en internet
+
+Guía paso a paso en [`docs/despliegue-oracle.md`](docs/despliegue-oracle.md): una VM gratuita de
+Oracle Cloud con `docker-compose.prod.yml` (PostgreSQL + pgvector, API, interfaz y HTTPS con Caddy).
+
 ## Estructura
 
 ```

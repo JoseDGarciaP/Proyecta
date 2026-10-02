@@ -2,6 +2,7 @@
 
 El resumen lo redacta el proveedor elegido en IA_PROVEEDOR:
   * ollama: modelo local y gratuito (por defecto).
+  * groq: API en línea con capa gratuita (para el servidor), requiere GROQ_API_KEY.
   * anthropic: Claude, requiere ANTHROPIC_API_KEY.
   * reglas: sin modelo.
 Si el proveedor no responde, se usa la heurística y la respuesta se marca como simulada.
@@ -135,7 +136,29 @@ async def _anthropic(cliente: httpx.AsyncClient, prompt: str) -> str:
     return "".join(b.get("text", "") for b in respuesta.json().get("content", []))
 
 
-PROVEEDORES = {"ollama": _ollama, "anthropic": _anthropic}
+async def _groq(cliente: httpx.AsyncClient, prompt: str) -> str:
+    """API compatible con OpenAI (chat completions)."""
+    settings = get_settings()
+    if not settings.groq_api_key:
+        return ""
+    cuerpo: dict = {
+        "model": settings.groq_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.3,
+        "max_completion_tokens": 800,
+    }
+    if settings.groq_model.startswith("openai/gpt-oss"):
+        cuerpo["reasoning_effort"] = "low"  # modelo con razonamiento: basta poco para un resumen
+    respuesta = await cliente.post(
+        f"{settings.groq_url.rstrip('/')}/chat/completions",
+        headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+        json=cuerpo,
+    )
+    respuesta.raise_for_status()
+    return respuesta.json()["choices"][0]["message"].get("content") or ""
+
+
+PROVEEDORES = {"ollama": _ollama, "groq": _groq, "anthropic": _anthropic}
 
 # Las pruebas reemplazan el transporte HTTP para no depender de servicios externos.
 _transporte: httpx.AsyncBaseTransport | None = None

@@ -1,0 +1,27 @@
+# DOMINIO llega desde docker-compose.prod.yml (p. ej. proyecta.duckdns.org).
+# Caddy pide y renueva solo el certificado HTTPS de Let's Encrypt.
+{$DOMINIO} {
+	encode zstd gzip
+
+	# La API: rutas /api y su documentación.
+	@api path /api/* /docs /docs/* /redoc /openapi.json
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	# La interfaz: si la ruta no es un archivo (p. ej. /verificar?token=...), entrega index.html.
+	handle {
+		root * /srv
+		@recursos path /assets/*
+		header @recursos Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

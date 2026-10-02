@@ -91,6 +91,13 @@ def ia_sin_modelo(monkeypatch):
 
     monkeypatch.setattr(correo, "get_settings", lambda: Settings(smtp_host=""))
     correo.enviados.clear()
+    # Sin consultas DNS reales: solo los dominios en DOMINIOS_SIN_CORREO «no reciben» correo.
+    from app.core import validacion_correo
+
+    monkeypatch.setattr(validacion_correo, "dominio_recibe_correo", lambda d: d not in DOMINIOS_SIN_CORREO)
+
+
+DOMINIOS_SIN_CORREO = {"dominio-inventado.com", "no-recibe.org"}
 
 
 class CodificadorFalso:

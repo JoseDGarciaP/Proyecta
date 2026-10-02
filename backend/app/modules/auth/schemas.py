@@ -4,7 +4,8 @@ from app.modules.usuarios.models import Rol
 
 
 class Registro(BaseModel):
-    email: EmailStr
+    # Se valida en app.core.validacion_correo para dar mensajes claros (tipeo, desechables, DNS).
+    email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=72)
     nombre: str = Field(min_length=3, max_length=150)
     rol: Rol = Rol.ESTUDIANTE

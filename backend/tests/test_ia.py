@@ -35,7 +35,7 @@ def _usar_proveedor(monkeypatch, proveedor, manejador):
     from app.core.config import Settings
     from app.modules.ia import servicio
 
-    monkeypatch.setattr(servicio, "get_settings", lambda: Settings(ia_proveedor=proveedor, anthropic_api_key="x"))
+    monkeypatch.setattr(servicio, "get_settings", lambda: Settings(ia_proveedor=proveedor, anthropic_api_key="x", groq_api_key="gsk-prueba"))
     monkeypatch.setattr(servicio, "_transporte", httpx.MockTransport(manejador))
 
 
@@ -76,3 +76,35 @@ def test_resumen_con_anthropic(client, estudiante, monkeypatch):
     pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
     cuerpo = client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante).json()
     assert (cuerpo["resumen"], cuerpo["simulado"]) == ("Resumen de Claude.", False)
+
+
+def test_resumen_con_groq(client, estudiante, monkeypatch):
+    import json
+
+    import httpx
+
+    pedidos = []
+
+    def groq(request):
+        pedidos.append(request)
+        return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "Resumen de Groq."}}]})
+
+    _usar_proveedor(monkeypatch, "groq", groq)
+    pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
+    cuerpo = client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante).json()
+    assert (cuerpo["resumen"], cuerpo["simulado"]) == ("Resumen de Groq.", False)
+    assert pedidos[0].url.path == "/openai/v1/chat/completions"
+    assert pedidos[0].headers["authorization"] == "Bearer gsk-prueba"
+    assert json.loads(pedidos[0].content)["model"] == "openai/gpt-oss-20b"
+
+
+def test_groq_sin_clave_usa_reglas(client, estudiante, monkeypatch):
+    import httpx
+
+    from app.core.config import Settings
+    from app.modules.ia import servicio
+
+    monkeypatch.setattr(servicio, "get_settings", lambda: Settings(ia_proveedor="groq", groq_api_key=""))
+    monkeypatch.setattr(servicio, "_transporte", httpx.MockTransport(lambda r: httpx.Response(500)))
+    pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
+    assert client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante).json()["simulado"] is True
