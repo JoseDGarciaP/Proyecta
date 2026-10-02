@@ -140,14 +140,14 @@ En https://console.cloud.google.com → **APIs y servicios → Credenciales →*
 **Actualizar después de un merge a `main`:**
 
 ```bash
-cd ~/Proyecta && ./deploy/actualizar.sh
+cd ~/Proyecta && sh deploy/actualizar.sh
 ```
 
 **Copias de seguridad diarias** (guarda 14 días en `~/respaldos`):
 
 ```bash
 mkdir -p ~/respaldos
-(crontab -l 2>/dev/null; echo "30 3 * * * $HOME/Proyecta/deploy/respaldo.sh >> $HOME/respaldos/registro.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "30 3 * * * sh $HOME/Proyecta/deploy/respaldo.sh >> $HOME/respaldos/registro.log 2>&1") | crontab -
 ```
 
 Restaurar una copia: `gunzip -c ~/respaldos/ARCHIVO.sql.gz | docker compose -f docker-compose.prod.yml --env-file deploy/.env.produccion exec -T db psql -U proyecta -d proyecta`

@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # Copia de seguridad diaria de la base. Programar con:  crontab -e  →
-#   30 3 * * * /home/ubuntu/Proyecta/deploy/respaldo.sh >> /home/ubuntu/respaldos/registro.log 2>&1
+#   30 3 * * * sh /home/ubuntu/Proyecta/deploy/respaldo.sh >> /home/ubuntu/respaldos/registro.log 2>&1
 # Guarda los últimos 14 días en ~/respaldos.
 set -eu
 cd "$(dirname "$0")/.."
