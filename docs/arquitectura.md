@@ -28,6 +28,7 @@ FastAPI (backend/app)
  ├─ catalogo        áreas y 17 ODS
  ├─ proyectos       registro, filtros, permisos de autor
  ├─ alianzas        solicitudes e invitaciones, miembros e historial
+ ├─ chat            chat del equipo de cada proyecto y conversación de cada solicitud (consulta cada 4 s)
  ├─ actores         organizaciones aliadas y su vínculo con proyectos
  ├─ oportunidades   convocatorias, fondos, mentorías, infraestructura
  ├─ similitud       embeddings (sentence-transformers) guardados en pgvector
@@ -58,6 +59,9 @@ cambian al pasar de los datos de ejemplo a la base real.
 - **oportunidades**: título, entidad, tipo, descripción, monto, fecha de cierre, URL; áreas y ODS (muchos a muchos).
 - **proyecto_miembros**: colaboradores aceptados (proyecto, usuario, rol, desde). Quien registra el proyecto es su responsable.
 - **solicitudes_alianza**: tipo (`solicitud` o `invitacion`), estado (`pendiente`, `aceptada`, `rechazada`, `cancelada`), mensaje, respuesta y fechas. Es el historial de alianzas.
+- **proyecto_mensajes**: chat de cada proyecto (id creciente que sirve de cursor, proyecto, autor, texto, enviado/editado/modificado, borrado lógico). Solo lo leen el responsable, los miembros y un admin.
+- **proyecto_chat_lecturas**: hasta qué mensaje leyó cada persona cada chat, para contar los no leídos.
+- **solicitud_mensajes** y **solicitud_chat_lecturas**: lo mismo para la conversación de cada solicitud o invitación, entre quien la envió o recibió y el responsable del proyecto. Se escribe solo mientras está pendiente; después queda como historial.
 - **embeddings**: entidad (`proyecto`, `oportunidad`, `usuario`), id, modelo, huella del texto y vector (pgvector).
 
 ## 5. Endpoints
@@ -82,6 +86,12 @@ cambian al pasar de los datos de ejemplo a la base real.
 | GET | `/api/alianzas` | con sesión |
 | POST | `/api/alianzas/{id}/aceptar`, `/rechazar` | quien debe responder |
 | POST | `/api/alianzas/{id}/cancelar` | quien la envió |
+| GET/POST | `/api/proyectos/{id}/mensajes` (`despues_de` trae lo nuevo y, con `cambios_desde`, también lo editado o eliminado; `antes_de` el historial) | responsable, miembros o admin |
+| PATCH | `/api/proyectos/{id}/mensajes/{mensaje}` | quien lo escribió |
+| DELETE | `/api/proyectos/{id}/mensajes/{mensaje}` | quien lo escribió o admin |
+| POST | `/api/proyectos/{id}/mensajes/leidos` | responsable, miembros o admin |
+| GET/POST/PATCH/DELETE | `/api/alianzas/{id}/mensajes...` y `POST /api/alianzas/{id}/mensajes/leidos` (mismos cursores) | quien envió o recibió la solicitud y el responsable; admin puede leer y borrar. Escribir y editar solo mientras está pendiente |
+| GET | `/api/chats` (chats de mis proyectos y conversaciones de mis solicitudes, con mensajes sin leer) | con sesión |
 | GET | `/api/ia/estado` | con sesión |
 | POST | `/api/ia/proyectos/{id}/analisis` | con sesión |
 | GET | `/api/ia/proyectos/{id}/similares`, `/api/ia/buscar?q=` | con sesión |
@@ -98,7 +108,7 @@ Documentación interactiva en `http://localhost:8000/docs`.
 | 2 | Proyectos: registro, explorador, detalle; falta edición y vínculo de actores en la interfaz | **en curso** |
 | 3 | Pantallas de administrador para actores y oportunidades; datos reales de convocatorias | pendiente |
 | 4 | IA: embeddings, recomendación de colaboradores, búsqueda en lenguaje natural | **hecho** (falta medir la calidad con datos reales) |
-| 5 | Alianzas (solicitar unirse, aceptar/rechazar, historial) y notificaciones | **en curso**: alianzas y perfil hechos; faltan notificaciones |
+| 5 | Alianzas (solicitar unirse, aceptar/rechazar, historial) y notificaciones | **en curso**: alianzas, perfil y chat del equipo hechos; faltan notificaciones |
 | 6 | Estadísticas, auditoría, despliegue (API en Render/Railway, base en Supabase, interfaz en Vercel), pruebas con usuarios | pendiente |
 
 ## 7. Pendientes de definir con el equipo

@@ -183,3 +183,33 @@ export interface SugerenciasParaMi {
   proyectos: Sugerencia[]
   oportunidades: Sugerencia[]
 }
+
+/** Mensaje del chat de un proyecto o de la conversación de una solicitud. */
+export interface Mensaje {
+  id: number
+  /** chat del equipo del proyecto */
+  proyecto_id: string | null
+  /** conversación de una solicitud o invitación */
+  solicitud_id: string | null
+  autor_id: string | null
+  autor_nombre: string
+  texto: string
+  enviado_en: string
+  editado_en: string | null
+  eliminado: boolean
+  /** cambia al enviarlo, editarlo o eliminarlo */
+  modificado_en: string
+  /** true si lo escribió quien consulta */
+  propio: boolean
+}
+
+export interface ResumenChat {
+  tipo: 'proyecto' | 'solicitud'
+  proyecto_id: string
+  proyecto_titulo: string
+  solicitud_id: string | null
+  /** el proyecto, o «Persona · Proyecto» en una solicitud */
+  titulo: string
+  no_leidos: number
+  ultimo: Mensaje | null
+}

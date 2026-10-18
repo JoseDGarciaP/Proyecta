@@ -18,6 +18,8 @@ import {
 import { useTheme } from '@/hooks/useTheme'
 import { apiHabilitada } from '@/lib/http'
 import { useSesion } from '@/lib/sesion'
+import { useNoLeidos } from '@/hooks/useNoLeidos'
+import { AvisoMensajes } from '@/components/AvisoMensajes'
 
 const NAV = [
   { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
@@ -32,6 +34,7 @@ export function Layout() {
   const [busqueda, setBusqueda] = useState('')
   const navegar = useNavigate()
   const { usuario, salir } = useSesion()
+  const noLeidos = useNoLeidos()
 
   const buscar = (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,6 +76,11 @@ export function Layout() {
             >
               <Icono size={17} aria-hidden />
               {label}
+              {to === '/perfil' && noLeidos.total > 0 && (
+                <span className="ml-auto rounded-full bg-brand-600 px-1.5 text-xs text-white tabular-nums" title="Mensajes nuevos en tus proyectos">
+                  {noLeidos.total}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -123,6 +131,7 @@ export function Layout() {
             {apiHabilitada &&
               (usuario ? (
                 <>
+                  <AvisoMensajes {...noLeidos} />
                   <NavLink to="/perfil" className="btn-ghost" title="Mi perfil">
                     <UserRound size={16} aria-hidden />
                     <span className="hidden max-w-40 truncate md:inline">{usuario.nombre}</span>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Check, Handshake, Loader2, Send, Sparkles, UserRound, X } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Check, Handshake, Loader2, MessageCircle, MessageSquare, Send, Sparkles, UserRound, X } from 'lucide-react'
 import {
   actualizarPerfil,
   listaATexto,
@@ -15,6 +15,8 @@ import type { Perfil as DatosPerfil, Solicitud, SugerenciasParaMi } from '@/lib/
 import { Badge, EmptyState, EstadoBadge, SectionTitle, Skeleton } from '@/components/ui'
 import { ListaSugerencias, NotaMetodo } from '@/components/Sugerencias'
 import { formatDate } from '@/lib/format'
+import { useNoLeidos } from '@/hooks/useNoLeidos'
+import { ChatSolicitud } from '@/components/ChatSolicitud'
 
 const ESTADO_SOLICITUD: Record<Solicitud['estado'], string> = {
   pendiente: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
@@ -26,6 +28,7 @@ const ESTADO_SOLICITUD: Record<Solicitud['estado'], string> = {
 export function Perfil() {
   const [perfil, setPerfil] = useState<DatosPerfil | null>(null)
   const [error, setError] = useState('')
+  const { porProyecto: noLeidos, porSolicitud } = useNoLeidos()
 
   const cargar = useCallback(() => {
     obtenerPerfil().then(setPerfil).catch((e: Error) => setError(e.message))
@@ -91,6 +94,11 @@ export function Perfil() {
                       </Link>
                       <p className="text-xs text-slate-500 dark:text-slate-400">{proyecto.area} · avance {proyecto.avance}%</p>
                     </div>
+                    {noLeidos[proyecto.id] > 0 && (
+                      <Link to={`/proyectos/${proyecto.id}#chat`} className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+                        <MessageSquare size={13} aria-hidden /> {noLeidos[proyecto.id]} {noLeidos[proyecto.id] === 1 ? 'mensaje nuevo' : 'mensajes nuevos'}
+                      </Link>
+                    )}
                     <EstadoBadge estado={proyecto.estado} />
                     <Badge className={mi_rol === 'responsable'
                       ? 'bg-brand-100 text-brand-800 dark:bg-brand-500/15 dark:text-brand-300'
@@ -103,7 +111,7 @@ export function Perfil() {
             )}
           </section>
 
-          <Alianzas alianzas={perfil.alianzas} alCambiar={cargar} />
+          <Alianzas alianzas={perfil.alianzas} alCambiar={cargar} noLeidos={porSolicitud} />
         </div>
 
         <div className="space-y-6">
@@ -126,9 +134,34 @@ function Dato({ titulo, valor, resaltar = false }: { titulo: string; valor: numb
   )
 }
 
-function Alianzas({ alianzas, alCambiar }: { alianzas: Solicitud[]; alCambiar: () => void }) {
+function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; alCambiar: () => void; noLeidos: Record<string, number> }) {
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [conversando, setConversando] = useState<Set<string>>(new Set())
+  const { hash } = useLocation()
+
+  // Un aviso de mensajes lleva a /perfil#solicitud-<id>: abrir esa conversación.
+  useEffect(() => {
+    const id = hash.startsWith('#solicitud-') ? hash.slice('#solicitud-'.length) : ''
+    if (id) setConversando((xs) => new Set(xs).add(id))
+  }, [hash])
+
+  const alternarConversacion = (id: string) =>
+    setConversando((xs) => {
+      const nuevo = new Set(xs)
+      if (!nuevo.delete(id)) nuevo.add(id)
+      return nuevo
+    })
+
+  const botonConversar = (s: Solicitud) => (
+    <button className="btn-ghost text-xs" onClick={() => alternarConversacion(s.id)} aria-expanded={conversando.has(s.id)}>
+      <MessageCircle size={14} aria-hidden />
+      {conversando.has(s.id) ? 'Ocultar conversación' : s.estado === 'pendiente' ? 'Conversar' : 'Ver conversación'}
+      {noLeidos[s.id] > 0 && (
+        <span className="rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold text-white tabular-nums">{noLeidos[s.id]}</span>
+      )}
+    </button>
+  )
   const porResponder = alianzas.filter((a) => a.por_responder)
   const resto = alianzas.filter((a) => !a.por_responder)
 
@@ -169,14 +202,20 @@ function Alianzas({ alianzas, alCambiar }: { alianzas: Solicitud[]; alCambiar: (
                     )}
                   </p>
                   {s.mensaje && <p className="mt-1 text-sm text-slate-600 italic dark:text-slate-400">«{s.mensaje}»</p>}
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <button className="btn-primary" disabled={ocupado === s.id} onClick={() => actuar(s, 'aceptar')}>
                       <Check size={15} aria-hidden /> Aceptar
                     </button>
                     <button className="btn-ghost" disabled={ocupado === s.id} onClick={() => actuar(s, 'rechazar')}>
                       <X size={15} aria-hidden /> Rechazar
                     </button>
+                    {botonConversar(s)}
                   </div>
+                  {conversando.has(s.id) && (
+                    <div className="mt-3">
+                      <ChatSolicitud solicitud={s} />
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -197,10 +236,16 @@ function Alianzas({ alianzas, alCambiar }: { alianzas: Solicitud[]; alCambiar: (
                     </p>
                   </div>
                   <Badge className={ESTADO_SOLICITUD[s.estado]}>{s.estado}</Badge>
+                  {botonConversar(s)}
                   {s.estado === 'pendiente' && (
                     <button className="btn-ghost text-xs" disabled={ocupado === s.id} onClick={() => actuar(s, 'cancelar')}>
                       Cancelar
                     </button>
+                  )}
+                  {conversando.has(s.id) && (
+                    <div className="basis-full">
+                      <ChatSolicitud solicitud={s} />
+                    </div>
                   )}
                 </li>
               ))}

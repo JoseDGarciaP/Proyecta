@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Handshake, Loader2, UserPlus, Users } from 'lucide-react'
+import { Handshake, Loader2, MessageCircle, UserPlus, Users } from 'lucide-react'
 import {
   colaboradoresSugeridos,
   invitar,
@@ -11,14 +11,16 @@ import {
 } from '@/lib/colaboracion'
 import { apiHabilitada } from '@/lib/http'
 import { useSesion } from '@/lib/sesion'
-import type { Miembro, Proyecto, RespuestaSugerencias } from '@/lib/types'
+import type { Miembro, Proyecto, RespuestaSugerencias, Solicitud } from '@/lib/types'
 import { ListaSugerencias, NotaMetodo } from '@/components/Sugerencias'
+import { ChatSolicitud } from '@/components/ChatSolicitud'
 
 /** Miembros del proyecto y botón para pedir unirse (solo con la API conectada). */
 export function MiembrosProyecto({ proyecto }: { proyecto: Proyecto }) {
   const { usuario } = useSesion()
   const [miembros, setMiembros] = useState<Miembro[]>([])
-  const [pendiente, setPendiente] = useState(false)
+  const [pendiente, setPendiente] = useState<Solicitud | null>(null)
+  const [conversando, setConversando] = useState(false)
   const [abierto, setAbierto] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [estado, setEstado] = useState<'' | 'enviando' | 'enviada' | string>('')
@@ -28,7 +30,7 @@ export function MiembrosProyecto({ proyecto }: { proyecto: Proyecto }) {
     listarMiembros(proyecto.id).then(setMiembros).catch(() => setMiembros([]))
     if (usuario) {
       misSolicitudes()
-        .then((ss) => setPendiente(ss.some((s) => s.proyecto_id === proyecto.id && s.estado === 'pendiente')))
+        .then((ss) => setPendiente(ss.find((s) => s.proyecto_id === proyecto.id && s.estado === 'pendiente') ?? null))
         .catch(() => {})
     }
   }, [proyecto.id, usuario])
@@ -42,9 +44,9 @@ export function MiembrosProyecto({ proyecto }: { proyecto: Proyecto }) {
     e.preventDefault()
     setEstado('enviando')
     try {
-      await solicitarUnion(proyecto.id, mensaje)
+      setPendiente(await solicitarUnion(proyecto.id, mensaje))
       setEstado('enviada')
-      setPendiente(true)
+      setConversando(true) // queda abierta por si el responsable responde con preguntas
       setAbierto(false)
     } catch (err) {
       setEstado((err as Error).message)
@@ -81,9 +83,16 @@ export function MiembrosProyecto({ proyecto }: { proyecto: Proyecto }) {
         ) : esMiembro ? (
           <p className="text-sm text-emerald-700 dark:text-emerald-400">Haces parte de este proyecto.</p>
         ) : pendiente ? (
-          <p className="text-sm text-amber-700 dark:text-amber-400">
-            {estado === 'enviada' ? 'Solicitud enviada.' : 'Tienes una solicitud pendiente.'} Síguela en <Link to="/perfil" className="underline">tu perfil</Link>.
-          </p>
+          <div className="space-y-3">
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              {estado === 'enviada' ? 'Solicitud enviada.' : pendiente.tipo === 'invitacion' ? 'Te invitaron a este proyecto.' : 'Tienes una solicitud pendiente.'}{' '}
+              Síguela en <Link to="/perfil" className="underline">tu perfil</Link>.
+            </p>
+            <button className="btn-ghost w-full justify-center text-sm" onClick={() => setConversando((x) => !x)} aria-expanded={conversando}>
+              <MessageCircle size={15} aria-hidden /> {conversando ? 'Ocultar conversación' : 'Conversar con el responsable'}
+            </button>
+            {conversando && <ChatSolicitud solicitud={pendiente} />}
+          </div>
         ) : abierto ? (
           <form onSubmit={enviar} className="space-y-2">
             <textarea

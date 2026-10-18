@@ -5,6 +5,7 @@ import { obtenerProyecto, listarActores, listarOportunidades } from '@/lib/api'
 import { ODS, type Actor, type Oportunidad, type Proyecto } from '@/lib/types'
 import { EstadoBadge, Progress, Skeleton, EmptyState } from '@/components/ui'
 import { PanelIA } from '@/components/PanelIA'
+import { ChatProyecto } from '@/components/ChatProyecto'
 import { MiembrosProyecto, RedProyecto } from '@/components/ColaboracionProyecto'
 import { formatCOP, formatDate } from '@/lib/format'
 
@@ -151,6 +152,7 @@ export function ProyectoDetalle() {
         </div>
       </div>
 
+      <ChatProyecto proyecto={proyecto} />
       <PanelIA proyecto={proyecto} oportunidades={oportunidades} />
       <RedProyecto proyecto={proyecto} />
     </div>

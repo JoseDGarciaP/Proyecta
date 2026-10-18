@@ -7,6 +7,7 @@ from app.modules.actores.router import router as actores
 from app.modules.alianzas.router import router as alianzas
 from app.modules.auth.router import router as auth
 from app.modules.catalogo.router import router as catalogo
+from app.modules.chat.router import router as chat
 from app.modules.ia.router import router as ia
 from app.modules.oportunidades.router import router as oportunidades
 from app.modules.perfil.router import router as perfil
@@ -30,7 +31,7 @@ for r in (auth, catalogo, publico):
     app.include_router(r)
 
 # Todo lo demás exige una sesión de un usuario con el correo verificado.
-for r in (usuarios, perfil, proyectos, alianzas, actores, oportunidades, ia):
+for r in (usuarios, perfil, proyectos, alianzas, chat, actores, oportunidades, ia):
     app.include_router(r, dependencies=[Depends(get_current_user)])
 
 
