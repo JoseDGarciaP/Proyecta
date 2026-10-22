@@ -10,9 +10,25 @@ from sqlalchemy.orm import Session
 from app.core import correo, validacion_correo
 from app.core.config import get_settings
 from app.core.deps import DbSession
-from app.core.security import create_access_token, create_token, decode_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    create_token,
+    decode_payload,
+    decode_token,
+    hash_password,
+    huella_password,
+    verify_password,
+)
 from app.modules.auth import google
-from app.modules.auth.schemas import ConfigAuth, IngresoGoogle, Reenvio, Registro, Token, Verificacion
+from app.modules.auth.schemas import (
+    ConfigAuth,
+    IngresoGoogle,
+    Reenvio,
+    Registro,
+    Restablecer,
+    Token,
+    Verificacion,
+)
 from app.modules.usuarios.models import Rol, Usuario
 from app.modules.usuarios.schemas import UsuarioPropio
 
@@ -97,6 +113,34 @@ def reenviar(datos: Reenvio, db: DbSession, tareas: BackgroundTasks):
     if usuario and usuario.activo and not usuario.verificado:
         enviar_verificacion(usuario, tareas)
     return {"detalle": "Si la cuenta existe y falta confirmarla, te enviamos un enlace nuevo."}
+
+
+@router.post("/recuperar", status_code=status.HTTP_202_ACCEPTED)
+def recuperar(datos: Reenvio, db: DbSession, tareas: BackgroundTasks):
+    """Envía el enlace para elegir otra contraseña. Responde igual exista o no la cuenta."""
+    usuario = _buscar(db, datos.email.strip().lower())
+    if usuario and usuario.activo:
+        settings = get_settings()
+        token = create_token(str(usuario.id), "restablecer", settings.restablecer_minutos,
+                             huella=huella_password(usuario.hashed_password))
+        enlace = f"{settings.frontend_url.rstrip('/')}/restablecer?token={token}"
+        tareas.add_task(correo.enviar, correo.restablecer(usuario.email, usuario.nombre, enlace, settings.restablecer_minutos))
+    return {"detalle": "Si hay una cuenta con ese correo, te enviamos un enlace para cambiar la contraseña."}
+
+
+@router.post("/restablecer", response_model=Token)
+def restablecer(datos: Restablecer, db: DbSession):
+    """Cambia la contraseña con el enlace del correo y deja la sesión iniciada."""
+    payload = decode_payload(datos.token, "restablecer")
+    usuario_id = _uuid(payload["sub"]) if payload else None
+    usuario = db.get(Usuario, usuario_id) if usuario_id else None
+    # La huella cambia con la contraseña: un enlace ya usado (o anterior a otro cambio) deja de servir.
+    if usuario is None or not usuario.activo or payload.get("huella") != huella_password(usuario.hashed_password):
+        raise HTTPException(status_code=400, detail="El enlace no es válido, ya se usó o venció. Pide uno nuevo.")
+    usuario.hashed_password = hash_password(datos.password)
+    usuario.verificado = True  # abrió el enlace desde su buzón: el correo es suyo
+    db.commit()
+    return Token(access_token=create_access_token(str(usuario.id)))
 
 
 @router.post("/google", response_model=Token)

@@ -6,6 +6,7 @@ import type { Rol } from '@/lib/types'
 import { BotonGoogle } from '@/components/BotonGoogle'
 import { AvisoVerificacion } from '@/components/AvisoVerificacion'
 import { CampoCorreo } from '@/components/CampoCorreo'
+import { CampoContrasena } from '@/components/CampoContrasena'
 import { revisarCorreo } from '@/lib/correo'
 
 const ROLES_REGISTRO: { valor: Rol; etiqueta: string }[] = [
@@ -81,10 +82,13 @@ export function Registro() {
           <input id="nombre" required minLength={3} className="input" value={form.nombre} onChange={(e) => set('nombre', e.target.value)} />
         </div>
         <CampoCorreo valor={form.email} alCambiar={(v) => set('email', v)} institucional={institucional} forzarRevision={intento} />
-        <div>
-          <label className="label" htmlFor="password">Contraseña (mínimo 8 caracteres)</label>
-          <input id="password" type="password" required minLength={8} autoComplete="new-password" className="input" value={form.password} onChange={(e) => set('password', e.target.value)} />
-        </div>
+        <CampoContrasena
+          etiqueta="Contraseña (mínimo 8 caracteres)"
+          valor={form.password}
+          alCambiar={(v) => set('password', v)}
+          autoComplete="new-password"
+          minLength={8}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="rol">Soy</label>

@@ -20,6 +20,10 @@ interface Sesion {
   verificarCorreo: (tokenCorreo: string) => Promise<void>
   reenviarVerificacion: (email: string) => Promise<void>
   ingresarConGoogle: (credential: string) => Promise<void>
+  /** Envía el enlace para elegir otra contraseña (responde igual aunque el correo no exista). */
+  recuperarContrasena: (email: string) => Promise<void>
+  /** Guarda la contraseña nueva con el token del enlace e inicia sesión. */
+  restablecerContrasena: (tokenCorreo: string, password: string) => Promise<void>
   salir: () => void
   /** Actualiza los datos del usuario tras editar el perfil. */
   refrescar: (u: Usuario) => void
@@ -76,6 +80,18 @@ export function SesionProvider({ children }: { children: ReactNode }) {
     await iniciar(access_token)
   }
 
+  const recuperarContrasena = async (email: string) => {
+    await pedir('/auth/recuperar', { method: 'POST', json: { email } })
+  }
+
+  const restablecerContrasena = async (tokenCorreo: string, password: string) => {
+    const { access_token } = await pedir<{ access_token: string }>('/auth/restablecer', {
+      method: 'POST',
+      json: { token: tokenCorreo, password },
+    })
+    await iniciar(access_token)
+  }
+
   const salir = () => {
     token.borrar()
     setUsuario(null)
@@ -91,6 +107,8 @@ export function SesionProvider({ children }: { children: ReactNode }) {
         verificarCorreo,
         reenviarVerificacion,
         ingresarConGoogle,
+        recuperarContrasena,
+        restablecerContrasena,
         salir,
         refrescar: setUsuario,
       }}

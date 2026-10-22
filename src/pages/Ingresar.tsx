@@ -6,6 +6,7 @@ import { ErrorApi } from '@/lib/http'
 import { BotonGoogle } from '@/components/BotonGoogle'
 import { AvisoVerificacion } from '@/components/AvisoVerificacion'
 import { CampoCorreo } from '@/components/CampoCorreo'
+import { CampoContrasena } from '@/components/CampoContrasena'
 import { revisarCorreo } from '@/lib/correo'
 
 export function Ingresar() {
@@ -53,10 +54,16 @@ export function Ingresar() {
       <section className="card space-y-4 p-6">
         <BotonGoogle alIngresar={(credential) => manejar(() => ingresarConGoogle(credential))} />
         <CampoCorreo valor={email} alCambiar={setEmail} forzarRevision={intento} />
-        <div>
-          <label className="label" htmlFor="password">Contraseña</label>
-          <input id="password" type="password" required autoComplete="current-password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </div>
+        <CampoContrasena
+          valor={password}
+          alCambiar={setPassword}
+          autoComplete="current-password"
+          extra={
+            <Link to="/recuperar" className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-400">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          }
+        />
         {sinVerificar && <AvisoVerificacion email={email.trim().toLowerCase()} titulo="Falta confirmar tu correo" />}
         {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
         <button type="submit" className="btn-primary w-full justify-center" disabled={enviando}>

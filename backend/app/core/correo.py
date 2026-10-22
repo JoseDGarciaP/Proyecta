@@ -64,3 +64,20 @@ def verificacion(para: str, nombre: str, enlace: str, horas: int) -> Correo:
         f"Si no creaste la cuenta, ignora este mensaje.</p>"
     )
     return Correo(para=para, asunto="Confirma tu correo en Proyecta", texto=texto, html=cuerpo)
+
+
+def restablecer(para: str, nombre: str, enlace: str, minutos: int) -> Correo:
+    texto = (
+        f"Hola, {nombre}:\n\nPediste cambiar tu contraseña de Proyecta. Abre este enlace para elegir una nueva:\n"
+        f"{enlace}\n\nEl enlace vence en {minutos} minutos y sirve una sola vez. "
+        f"Si no lo pediste, ignora este mensaje: tu contraseña sigue igual."
+    )
+    nombre_html, enlace_html = html.escape(nombre), html.escape(enlace, quote=True)
+    cuerpo = (
+        f"<p>Hola, {nombre_html}:</p><p>Pediste cambiar tu contraseña de <b>Proyecta</b>.</p>"
+        f'<p><a href="{enlace_html}" style="background:#2563eb;color:#fff;padding:10px 18px;border-radius:8px;'
+        f'text-decoration:none">Elegir una contraseña nueva</a></p>'
+        f"<p style=\"color:#64748b;font-size:13px\">El enlace vence en {minutos} minutos y sirve una sola vez. "
+        f"Si no lo pediste, ignora este mensaje: tu contraseña sigue igual.</p>"
+    )
+    return Correo(para=para, asunto="Restablece tu contraseña de Proyecta", texto=texto, html=cuerpo)

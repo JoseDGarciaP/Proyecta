@@ -13,6 +13,8 @@ import { Registro } from '@/pages/Registro'
 import { Perfil } from '@/pages/Perfil'
 import { Bienvenida } from '@/pages/Bienvenida'
 import { Verificar } from '@/pages/Verificar'
+import { Recuperar } from '@/pages/Recuperar'
+import { Restablecer } from '@/pages/Restablecer'
 import { RequiereSesion } from '@/components/RequiereSesion'
 import { useSesion } from '@/lib/sesion'
 import type { ReactNode } from 'react'
@@ -30,7 +32,9 @@ export default function App() {
         <Route path="bienvenida" element={<SoloVisitantes><Bienvenida /></SoloVisitantes>} />
         <Route path="ingresar" element={<SoloVisitantes><Ingresar /></SoloVisitantes>} />
         <Route path="registro" element={<SoloVisitantes><Registro /></SoloVisitantes>} />
+        <Route path="recuperar" element={<SoloVisitantes><Recuperar /></SoloVisitantes>} />
         <Route path="verificar" element={<Verificar />} />
+        <Route path="restablecer" element={<Restablecer />} />
       </Route>
       {/* Todo lo demás es solo para usuarios registrados (en modo demostración queda abierto). */}
       <Route element={<RequiereSesion><Layout /></RequiereSesion>}>

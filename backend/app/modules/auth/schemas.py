@@ -25,6 +25,11 @@ class Reenvio(BaseModel):
     email: EmailStr
 
 
+class Restablecer(BaseModel):
+    token: str
+    password: str = Field(min_length=8, max_length=72)
+
+
 class IngresoGoogle(BaseModel):
     credential: str  # ID token que entrega el botón de Google Identity Services
 
