@@ -1,3 +1,5 @@
+import type { Estado } from './types'
+
 /**
  * Paleta de visualización: ocho tonos categóricos en orden fijo (nunca ciclado),
  * con pasos propios para modo claro y oscuro. Validada para daltonismo.
@@ -25,12 +27,29 @@ export const SERIES_DARK = [
 ] as const
 
 /**
- * Pareja azul + fucsia para las gráficas de dos series.
- * Validada en ambos modos: separación normal ΔE 27 y para daltonismo ΔE >= 13,
- * y contraste >= 3:1 contra la superficie de la tarjeta.
+ * Pareja de la identidad para gráficas de dos series: granate + azul pizarra.
+ * En oscuro se aclaran para mantener contraste >= 3:1 contra la tarjeta.
  */
-export const DUO_LIGHT = ['#2a78d6', '#d55181'] as const
-export const DUO_DARK = ['#3987e5', '#d55181'] as const
+export const DUO_LIGHT = ['#7b1e2e', '#4a7396'] as const
+export const DUO_DARK = ['#e58796', '#93b6d4'] as const
+
+/** Un color fijo por estado, el mismo que usan las etiquetas de estado de la interfaz. */
+const ESTADO_LIGHT: Record<Estado, string> = {
+  idea: '#9c99a6',
+  formulacion: '#4a7396',
+  ejecucion: '#7b1e2e',
+  finalizado: '#2f7d5b',
+  pausado: '#c98500',
+}
+const ESTADO_DARK: Record<Estado, string> = {
+  idea: '#74717e',
+  formulacion: '#93b6d4',
+  ejecucion: '#e58796',
+  finalizado: '#5fbf93',
+  pausado: '#e0a93a',
+}
+
+export const colorEstado = (estado: Estado, oscuro: boolean) => (oscuro ? ESTADO_DARK : ESTADO_LIGHT)[estado]
 
 export interface ChartTheme {
   series: readonly string[]
@@ -47,19 +66,19 @@ export function chartTheme(oscuro: boolean): ChartTheme {
     ? {
         series: SERIES_DARK,
         duo: DUO_DARK,
-        grid: '#1e293b',
-        axis: '#94a3b8',
-        surface: '#0f172a',
-        border: '#1e293b',
-        text: '#e2e8f0',
+        grid: '#2c2a32',
+        axis: '#9c99a6',
+        surface: '#1c1a20',
+        border: '#2c2a32',
+        text: '#ebeaee',
       }
     : {
         series: SERIES_LIGHT,
         duo: DUO_LIGHT,
-        grid: '#e2e8f0',
-        axis: '#64748b',
+        grid: '#dddce2',
+        axis: '#5c5a66',
         surface: '#ffffff',
-        border: '#e2e8f0',
-        text: '#0f172a',
+        border: '#dddce2',
+        text: '#1c1a20',
       }
 }

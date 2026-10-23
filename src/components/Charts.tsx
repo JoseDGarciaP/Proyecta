@@ -15,6 +15,7 @@ import {
 } from 'recharts'
 import { chartTheme } from '@/lib/chartTheme'
 import { ESTADO_LABEL, type Metricas } from '@/lib/types'
+import { colorEstado } from '@/lib/chartTheme'
 
 interface ChartProps {
   oscuro: boolean
@@ -26,14 +27,14 @@ const tooltipStyle = (oscuro: boolean) => {
     contentStyle: {
       background: t.surface,
       border: `1px solid ${t.border}`,
-      borderRadius: 10,
+      borderRadius: 8,
       fontSize: 12,
       color: t.text,
-      boxShadow: '0 6px 24px rgb(15 23 42 / 0.12)',
+      boxShadow: '0 6px 24px rgb(28 26 32 / 0.14)',
     },
     labelStyle: { color: t.text, fontWeight: 600 },
     itemStyle: { color: t.text },
-    cursor: { fill: oscuro ? 'rgb(148 163 184 / 0.08)' : 'rgb(100 116 139 / 0.08)' },
+    cursor: { fill: oscuro ? 'rgb(156 153 166 / 0.08)' : 'rgb(116 113 126 / 0.08)' },
   }
 }
 
@@ -109,7 +110,7 @@ export function EstadosChart({ datos, oscuro }: ChartProps & { datos: Metricas['
   const tip = tooltipStyle(oscuro)
   const data = datos
     .filter((d) => d.total > 0)
-    .map((d) => ({ nombre: ESTADO_LABEL[d.estado], total: d.total }))
+    .map((d) => ({ nombre: ESTADO_LABEL[d.estado], estado: d.estado, total: d.total }))
 
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -124,8 +125,8 @@ export function EstadosChart({ datos, oscuro }: ChartProps & { datos: Metricas['
           stroke={t.surface}
           strokeWidth={2}
         >
-          {data.map((_, i) => (
-            <Cell key={i} fill={t.series[i % t.series.length]} />
+          {data.map((d) => (
+            <Cell key={d.estado} fill={colorEstado(d.estado, oscuro)} />
           ))}
         </Pie>
         <Tooltip {...tip} cursor={false} />

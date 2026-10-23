@@ -31,7 +31,7 @@ export function Dashboard() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Panel general</h1>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Panel general</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Estado consolidado de los proyectos registrados y su articulación con actores y oportunidades.
         </p>
@@ -46,14 +46,14 @@ export function Dashboard() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard etiqueta="Proyectos registrados" valor={String(m.total)} detalle="en la plataforma" icono={Rocket} />
-          <StatCard etiqueta="En ejecución" valor={String(m.enEjecucion)} detalle="con actividades en curso" icono={Gauge} tono="fucsia" />
+          <StatCard etiqueta="En ejecución" valor={String(m.enEjecucion)} detalle="con actividades en curso" icono={Gauge} tono="secundario" />
           <StatCard etiqueta="Actores vinculados" valor={String(m.actores)} detalle="aliados registrados" icono={Building2} />
           <StatCard
             etiqueta="Presupuesto agregado"
             valor={formatCompactCOP(m.presupuesto)}
             detalle={`avance promedio ${m.avancePromedio}%`}
             icono={Banknote}
-            tono="fucsia"
+            tono="secundario"
           />
         </div>
       )}

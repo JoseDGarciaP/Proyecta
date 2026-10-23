@@ -7,11 +7,9 @@ import {
   LogIn,
   LogOut,
   Menu,
-  Moon,
   Plus,
   Search,
   Sparkles,
-  Sun,
   UserRound,
   X,
 } from 'lucide-react'
@@ -20,6 +18,7 @@ import { apiHabilitada } from '@/lib/http'
 import { useSesion } from '@/lib/sesion'
 import { useNoLeidos } from '@/hooks/useNoLeidos'
 import { AvisoMensajes } from '@/components/AvisoMensajes'
+import { SelectorTema } from '@/components/SelectorTema'
 
 const NAV = [
   { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
@@ -29,7 +28,7 @@ const NAV = [
 ]
 
 export function Layout() {
-  const { tema, alternar } = useTheme()
+  const { tema, preferencia, setPreferencia } = useTheme()
   const [abierto, setAbierto] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const navegar = useNavigate()
@@ -51,8 +50,8 @@ export function Layout() {
       >
         <div className="flex h-16 items-center justify-between px-5">
           <span className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-linear-to-br from-brand-600 to-accent-500 text-sm font-bold text-white">P</span>
-            <span className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">Proyecta</span>
+            <span className="marca h-8 w-8 text-base">P</span>
+            <span className="text-lg font-bold text-slate-900 [font-stretch:82%] dark:text-white">Proyecta</span>
           </span>
           <button className="lg:hidden" onClick={() => setAbierto(false)} aria-label="Cerrar menú">
             <X size={18} />
@@ -67,9 +66,9 @@ export function Layout() {
               end={end}
               onClick={() => setAbierto(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition ${
                   isActive
-                    ? 'bg-brand-50 text-brand-800 ring-1 ring-brand-200 dark:bg-brand-500/12 dark:text-brand-200 dark:ring-brand-500/25'
+                    ? 'bg-brand-50 text-brand-800 shadow-[inset_3px_0_0_var(--color-brand-600)] dark:bg-brand-300/10 dark:text-brand-200 dark:shadow-[inset_3px_0_0_var(--color-brand-300)]'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
                 }`
               }
@@ -77,7 +76,7 @@ export function Layout() {
               <Icono size={17} aria-hidden />
               {label}
               {to === '/perfil' && noLeidos.total > 0 && (
-                <span className="ml-auto rounded-full bg-brand-600 px-1.5 text-xs text-white tabular-nums" title="Mensajes nuevos en tus proyectos">
+                <span className="ml-auto rounded-full bg-brand-600 px-1.5 text-xs text-white dark:bg-brand-300 dark:text-brand-950 tabular-nums" title="Mensajes nuevos en tus proyectos">
                   {noLeidos.total}
                 </span>
               )}
@@ -121,13 +120,7 @@ export function Layout() {
           </form>
 
           <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={alternar}
-              className="btn-ghost px-2.5"
-              aria-label={tema === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'}
-            >
-              {tema === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
+            <SelectorTema valor={preferencia} onCambio={setPreferencia} />
             {apiHabilitada &&
               (usuario ? (
                 <>
@@ -164,7 +157,7 @@ export function Layout() {
         </main>
 
         <footer className="border-t border-slate-200 px-4 py-5 text-xs text-slate-400 lg:px-8 dark:border-slate-800">
-          Proyecta · maqueta funcional para la articulación de proyectos, actores y oportunidades.
+          Proyecta, plataforma para articular proyectos, actores y oportunidades de apoyo.
         </footer>
       </div>
     </div>

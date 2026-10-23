@@ -83,8 +83,7 @@ export function Bienvenida() {
         </div>
 
         <div className="card relative overflow-hidden p-6">
-          <div className="absolute -top-24 -right-24 h-56 w-56 rounded-full bg-accent-500/15 blur-3xl" aria-hidden />
-          <div className="absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-brand-500/15 blur-3xl" aria-hidden />
+          <div className="absolute inset-x-0 top-0 h-1 bg-brand-600 dark:bg-brand-300" aria-hidden />
           <p className="relative text-sm font-medium text-slate-500 dark:text-slate-400">Hoy en Proyecta</p>
           <dl className="relative mt-4 grid grid-cols-2 gap-5">
             <Cifra etiqueta="Proyectos registrados" valor={cifras?.proyectos} />
@@ -118,7 +117,7 @@ export function Bienvenida() {
         <ol className="mt-6 grid gap-6 md:grid-cols-3">
           {PASOS.map(([titulo, texto], i) => (
             <li key={titulo} className="flex gap-4">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-linear-to-br from-brand-600 to-accent-500 text-sm font-semibold text-white">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 border-brand-600 text-sm font-bold text-brand-700 dark:border-brand-300 dark:text-brand-200">
                 {i + 1}
               </span>
               <div>

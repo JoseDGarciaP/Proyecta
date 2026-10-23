@@ -23,7 +23,7 @@ export function Progress({ valor }: { valor: number }) {
       aria-valuemax={100}
     >
       <div
-        className="h-full rounded-full bg-linear-to-r from-brand-600 to-accent-500 transition-[width] duration-500 dark:from-brand-400 dark:to-accent-400"
+        className="h-full rounded-full bg-brand-600 transition-[width] duration-500 dark:bg-brand-300"
         style={{ width: `${Math.min(100, Math.max(0, valor))}%` }}
       />
     </div>
@@ -47,7 +47,7 @@ export function EmptyState({ titulo, detalle, accion }: { titulo: string; detall
 export function SectionTitle({ children, extra }: { children: ReactNode; extra?: ReactNode }) {
   return (
     <div className="mb-3 flex items-baseline justify-between gap-4">
-      <h2 className="text-sm font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">{children}</h2>
+      <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{children}</h2>
       {extra}
     </div>
   )

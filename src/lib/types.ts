@@ -122,7 +122,7 @@ export const ESTADO_CLASS: Record<Estado, string> = {
   formulacion: 'bg-accent-100 text-accent-800 dark:bg-accent-500/15 dark:text-accent-300',
   ejecucion: 'bg-brand-100 text-brand-800 dark:bg-brand-500/15 dark:text-brand-300',
   finalizado: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
-  pausado: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300',
+  pausado: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
 }
 
 export type EstadoSolicitud = 'pendiente' | 'aceptada' | 'rechazada' | 'cancelada'

@@ -55,7 +55,7 @@ export function Perfil() {
   return (
     <div className="space-y-6">
       <header className="card flex flex-wrap items-center gap-5 p-6">
-        <span className="grid h-14 w-14 place-items-center rounded-full bg-linear-to-br from-brand-600 to-accent-500 text-lg font-semibold text-white">
+        <span className="grid h-14 w-14 place-items-center rounded-full bg-brand-600 text-lg font-semibold text-white dark:bg-brand-300 dark:text-brand-950">
           {iniciales}
         </span>
         <div className="min-w-0 flex-1">

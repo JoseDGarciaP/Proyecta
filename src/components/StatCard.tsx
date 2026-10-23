@@ -6,25 +6,25 @@ interface Props {
   detalle?: string
   icono: LucideIcon
   tendencia?: number
-  /** 'azul' para métricas de volumen, 'fucsia' para las de intensidad o dinero. */
-  tono?: 'azul' | 'fucsia'
+  /** 'principal' (granate) para métricas de volumen, 'secundario' (pizarra) para las de intensidad o dinero. */
+  tono?: 'principal' | 'secundario'
 }
 
 const TONOS = {
-  azul: 'bg-brand-50 text-brand-700 dark:bg-brand-500/12 dark:text-brand-300',
-  fucsia: 'bg-accent-50 text-accent-700 dark:bg-accent-500/12 dark:text-accent-300',
+  principal: 'bg-brand-50 text-brand-700 dark:bg-brand-300/12 dark:text-brand-200',
+  secundario: 'bg-accent-50 text-accent-700 dark:bg-accent-300/12 dark:text-accent-200',
 } as const
 
-export function StatCard({ etiqueta, valor, detalle, icono: Icono, tendencia, tono = 'azul' }: Props) {
+export function StatCard({ etiqueta, valor, detalle, icono: Icono, tendencia, tono = 'principal' }: Props) {
   return (
     <div className="card p-5">
       <div className="flex items-start justify-between">
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{etiqueta}</p>
-        <span className={`rounded-lg p-2 ${TONOS[tono]}`}>
+        <span className={`rounded-md p-2 ${TONOS[tono]}`}>
           <Icono size={16} aria-hidden />
         </span>
       </div>
-      <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white">{valor}</p>
+      <p className="mt-2 text-3xl font-bold text-slate-900 tabular-nums [font-stretch:82%] dark:text-white">{valor}</p>
       {(detalle || tendencia !== undefined) && (
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {tendencia !== undefined && (

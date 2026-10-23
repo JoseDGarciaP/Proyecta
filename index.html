@@ -3,6 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" />
+    <meta name="theme-color" content="#7b1e2e" />
+    <script>
+      // Aplica el tema antes de pintar para evitar el destello claro al cargar en modo oscuro.
+      ;(function () {
+        try {
+          var p = localStorage.getItem('proyecta:tema')
+          var oscuro = p === 'dark' || ((!p || p === 'system') && matchMedia('(prefers-color-scheme: dark)').matches)
+          if (oscuro) document.documentElement.classList.add('dark')
+        } catch (e) {}
+      })()
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Plataforma para centralizar proyectos e iniciativas y articularlos con actores y oportunidades de apoyo." />
     <title>Proyecta — Centro de proyectos e iniciativas</title>

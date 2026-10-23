@@ -108,7 +108,7 @@ export function Proyectos() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full min-w-3xl text-left text-sm">
-            <thead className="border-b border-slate-200 text-xs tracking-wide text-slate-500 uppercase dark:border-slate-800 dark:text-slate-400">
+            <thead className="border-b border-slate-200 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-3 font-medium">Proyecto</th>
                 <th className="px-4 py-3 font-medium">Área</th>

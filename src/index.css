@@ -3,35 +3,51 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Archivo: una sola familia; los títulos usan su ancho estrecho (ver @layer base). */
+  --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  /* Azul: color principal de la interfaz */
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dbe6fe;
-  --color-brand-200: #bfd3fe;
-  --color-brand-300: #93b4fd;
-  --color-brand-400: #6090fa;
-  --color-brand-500: #3b6ff6;
-  --color-brand-600: #2554e6;
-  --color-brand-700: #1d43c4;
-  --color-brand-800: #1e3a9e;
-  --color-brand-900: #1e347d;
+  /* Granate: color principal (botones, navegación activa, progreso). */
+  --color-brand-50: #fbf0f2;
+  --color-brand-100: #f7dde2;
+  --color-brand-200: #f0b8c2;
+  --color-brand-300: #e58796;
+  --color-brand-400: #cf5a6e;
+  --color-brand-500: #a83347;
+  --color-brand-600: #7b1e2e;
+  --color-brand-700: #681827;
+  --color-brand-800: #551422;
+  --color-brand-900: #3f0f19;
+  --color-brand-950: #2a0a10;
 
-  /* Fucsia: color de acento y realces */
-  --color-accent-50: #fdf4ff;
-  --color-accent-100: #fae8ff;
-  --color-accent-200: #f5d0fe;
-  --color-accent-300: #f0abfc;
-  --color-accent-400: #e879f9;
-  --color-accent-500: #d946ef;
-  --color-accent-600: #c026d3;
-  --color-accent-700: #a21caf;
-  --color-accent-800: #86198f;
-  --color-accent-900: #701a75;
+  /* Azul pizarra: color secundario (etiquetas, enlaces de apoyo, segunda serie). */
+  --color-accent-50: #eef3f8;
+  --color-accent-100: #e3ebf2;
+  --color-accent-200: #c5d5e4;
+  --color-accent-300: #93b6d4;
+  --color-accent-400: #6c93b6;
+  --color-accent-500: #4a7396;
+  --color-accent-600: #355775;
+  --color-accent-700: #2b475f;
+  --color-accent-800: #22384b;
+  --color-accent-900: #1a2a39;
+  --color-accent-950: #121d28;
 
-  --color-surface: oklch(1 0 0);
-  --color-surface-muted: oklch(0.985 0.002 250);
-  --color-line: oklch(0.92 0.004 250);
+  /* Neutros fríos con un leve matiz violeta: reemplazan al slate de Tailwind en toda la app. */
+  --color-slate-50: #f3f3f5;
+  --color-slate-100: #ebeaee;
+  --color-slate-200: #dddce2;
+  --color-slate-300: #c6c4cd;
+  --color-slate-400: #9c99a6;
+  --color-slate-500: #74717e;
+  --color-slate-600: #5c5a66;
+  --color-slate-700: #46444f;
+  --color-slate-800: #2c2a32;
+  --color-slate-900: #1c1a20;
+  --color-slate-950: #131216;
+
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f3f5;
+  --color-line: #dddce2;
 }
 
 @layer base {
@@ -48,37 +64,56 @@
     @apply bg-slate-50 text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-200;
     font-family: var(--font-sans);
   }
+  h1,
+  h2,
+  h3 {
+    font-stretch: 82%;
+    letter-spacing: -0.005em;
+  }
+  h1 {
+    font-weight: 700;
+  }
   * {
     scrollbar-width: thin;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900;
+    @apply rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900;
   }
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition
-           placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
-           dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500;
+    @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition
+           placeholder:text-slate-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15
+           dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500
+           dark:focus:border-brand-300 dark:focus:ring-brand-300/20;
   }
   .label {
-    @apply mb-1.5 block text-xs font-medium tracking-wide text-slate-600 uppercase dark:text-slate-400;
+    @apply mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition
            focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none disabled:opacity-50;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-semibold transition
            focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none disabled:opacity-50
-           bg-linear-to-r from-brand-600 to-accent-600 text-white shadow-sm
-           hover:from-brand-700 hover:to-accent-700 active:from-brand-800 active:to-accent-800;
+           bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800
+           dark:bg-brand-300 dark:text-brand-950 dark:hover:bg-brand-200 dark:active:bg-brand-100;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition
            focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none disabled:opacity-50
            border border-slate-200 bg-white text-slate-700 hover:bg-slate-50
            dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+  }
+  /* Marca: cuadro granate sólido con la inicial. */
+  .marca {
+    @apply grid place-items-center rounded-md bg-brand-600 font-bold text-white dark:bg-brand-300 dark:text-brand-950;
+    font-stretch: 82%;
   }
 }
