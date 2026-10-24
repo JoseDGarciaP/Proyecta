@@ -1,6 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
 
-from app.modules.usuarios.models import Rol
 
 
 class Registro(BaseModel):
@@ -8,7 +7,7 @@ class Registro(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=72)
     nombre: str = Field(min_length=3, max_length=150)
-    rol: Rol = Rol.ESTUDIANTE
+    rol: str = Field(default="estudiante", max_length=40)
     programa: str | None = Field(default=None, max_length=150)
 
 

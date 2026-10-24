@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import decode_access_token
-from app.modules.usuarios.models import Rol, Usuario
+from app.modules.usuarios.models import Usuario
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -35,10 +35,27 @@ def get_current_user(db: DbSession, token: Annotated[str, Depends(oauth2_scheme)
 UsuarioActual = Annotated[Usuario, Depends(get_current_user)]
 
 
-def require_admin(usuario: UsuarioActual) -> Usuario:
-    if usuario.rol != Rol.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requiere rol de administrador")
+def requiere(*permisos: str):
+    """Dependencia: exige que el rol de quien llama tenga todos estos permisos."""
+
+    def dependencia(usuario: UsuarioActual, db: DbSession) -> Usuario:
+        from app.modules.roles.servicio import exigir
+
+        for permiso in permisos:
+            exigir(db, usuario, permiso)
+        return usuario
+
+    return dependencia
+
+
+def requiere_panel(usuario: UsuarioActual, db: DbSession) -> Usuario:
+    """Entrar al panel de administración: cualquier permiso admin.*."""
+    from app.modules.roles.servicio import permisos_de
+
+    if not any(p.startswith("admin.") for p in permisos_de(db, usuario)):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu rol no tiene acceso a la administración")
     return usuario
 
 
-Admin = Annotated[Usuario, Depends(require_admin)]
+# Quien ejecuta una acción de administración. El permiso concreto lo exige el router o la ruta.
+Admin = Annotated[Usuario, Depends(get_current_user)]

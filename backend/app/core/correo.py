@@ -81,3 +81,55 @@ def restablecer(para: str, nombre: str, enlace: str, minutos: int) -> Correo:
         f"Si no lo pediste, ignora este mensaje: tu contraseña sigue igual.</p>"
     )
     return Correo(para=para, asunto="Restablece tu contraseña de Proyecta", texto=texto, html=cuerpo)
+
+
+def alerta(para: str, nombre: str, asunto: str, titulo: str, parrafos: list[str], enlace: str, boton: str,
+           detalles: list[tuple[str, str]] | None = None, apagable: bool = True) -> Correo:
+    """Correo de aviso de la plataforma (solicitudes, respuestas, mensajes, cambios de cuenta).
+
+    `parrafos` y `detalles` pueden traer texto escrito por otras personas (mensajes, motivos): todo se escapa.
+    """
+    detalles = detalles or []
+    pie = (
+        "Puedes elegir qué correos recibir en tu perfil de Proyecta (sección «Notificaciones»)."
+        if apagable else "Este aviso es sobre tu cuenta y se envía siempre."
+    )
+    texto = "\n\n".join(
+        [f"Hola, {nombre}:", titulo, *parrafos]
+        + (["\n".join(f"{k}: {v}" for k, v in detalles)] if detalles else [])
+        + [f"{boton}: {enlace}", pie]
+    )
+    e = html.escape
+    filas = "".join(
+        f'<tr><td style="padding:4px 12px 4px 0;color:#64748b;vertical-align:top;white-space:nowrap">{e(k)}</td>'
+        f'<td style="padding:4px 0;color:#0f172a">{e(v)}</td></tr>'
+        for k, v in detalles
+    )
+    cuerpo = (
+        '<div style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;color:#0f172a;line-height:1.5">'
+        f"<p>Hola, {e(nombre)}:</p>"
+        f'<p style="font-size:17px;font-weight:600;margin:16px 0 8px">{e(titulo)}</p>'
+        + "".join(f"<p>{e(p)}</p>" for p in parrafos)
+        + (f'<table style="border-collapse:collapse;font-size:14px;margin:12px 0">{filas}</table>' if filas else "")
+        + f'<p style="margin:20px 0"><a href="{e(enlace, quote=True)}" style="background:#2563eb;color:#fff;'
+        f'padding:10px 18px;border-radius:8px;text-decoration:none">{e(boton)}</a></p>'
+        f'<p style="color:#64748b;font-size:12px;border-top:1px solid #e2e8f0;padding-top:12px">{e(pie)}</p>'
+        "</div>"
+    )
+    return Correo(para=para, asunto=asunto, texto=texto, html=cuerpo)
+
+
+def cuenta_creada(para: str, nombre: str, enlace: str, horas: int) -> Correo:
+    texto = (
+        f"Hola, {nombre}:\n\nUn administrador te creó una cuenta en Proyecta. Para empezar, elige tu contraseña aquí:\n"
+        f"{enlace}\n\nEl enlace vence en {horas} horas. Si vence, usa «¿Olvidaste tu contraseña?» en la página de ingreso."
+    )
+    nombre_html, enlace_html = html.escape(nombre), html.escape(enlace, quote=True)
+    cuerpo = (
+        f"<p>Hola, {nombre_html}:</p><p>Un administrador te creó una cuenta en <b>Proyecta</b>.</p>"
+        f'<p><a href="{enlace_html}" style="background:#2563eb;color:#fff;padding:10px 18px;border-radius:8px;'
+        f'text-decoration:none">Elegir mi contraseña</a></p>'
+        f"<p style=\"color:#64748b;font-size:13px\">El enlace vence en {horas} horas. Si vence, usa "
+        f"«¿Olvidaste tu contraseña?» en la página de ingreso.</p>"
+    )
+    return Correo(para=para, asunto="Tu cuenta en Proyecta está lista", texto=texto, html=cuerpo)

@@ -134,6 +134,90 @@ La interfaz repite las dos primeras revisiones al salir del campo. La prueba fin
 confirmación: una cuenta sin confirmar no aparta el correo, así que el dueño real siempre puede
 registrarse.
 
+### Colaboración con formato fijo y motivos
+
+Pedir unirse a un proyecto o invitar a alguien usa siempre el mismo formulario: **rol o tipo de
+aporte** (catálogo del admin), **qué aporta o qué se espera**, **habilidades**, **horas por semana**,
+**motivación** y una nota opcional. El responsable (o el invitado) ve esa ficha en su perfil y en la
+conversación de la solicitud, donde además hay **plantillas de mensaje** según quién escribe (lo que
+va entre `[corchetes]` se selecciona para completarlo).
+
+Aprobar o rechazar exige elegir un **motivo** del catálogo (unos para aprobar y otros para rechazar)
+y admite un comentario, obligatorio si el motivo lo pide (p. ej. «Otro motivo»). Al aprobar, la
+persona queda como miembro con el rol propuesto.
+
+### Notificaciones (campana y correo)
+
+Cada evento crea un aviso en la **campana** del encabezado (`/notificaciones` para verlos todos) y,
+si corresponde, un **correo**:
+
+- solicitud o invitación nueva → a quien debe responder, con la ficha completa;
+- aprobada, rechazada o retirada → a la otra persona, con el motivo y el comentario;
+- mensajes sin leer → un solo resumen por persona cuando llevan más de N minutos sin leerse
+  (la API lo revisa cada `RESUMEN_INTERVALO_MINUTOS`; con `RESUMEN_AUTOMATICO=false` se puede lanzar
+  con `python -m scripts.enviar_resumenes` o desde el panel de admin);
+- cambios hechos por un admin (rol, cuenta desactivada o reactivada, proyecto retirado).
+
+Cada persona elige en su perfil qué correos recibe (los de su cuenta llegan siempre). Sin SMTP, los
+correos se imprimen en la consola de la API.
+
+### Administración (`/admin`, solo rol admin)
+
+- **Resumen:** usuarios, solicitudes por estado, tasa de aprobación, motivos y aportes más usados.
+- **Usuarios:** buscar y filtrar, cambiar rol, activar o desactivar, marcar el correo como verificado,
+  editar datos, enviar enlace para cambiar la contraseña y crear cuentas (les llega un correo para
+  elegir contraseña). No se puede quitar el último administrador ni quitarse el rol a uno mismo.
+- **Colaboración:** motivos de aprobación y rechazo, tipos de aporte y plantillas de mensaje
+  (crear, editar, ordenar, activar o desactivar).
+- **Áreas y ODS:** agregar, renombrar o eliminar áreas (no si están en uso) y renombrar los ODS.
+- **Moderación:** retirar proyectos con un motivo que se le envía al responsable, y gestionar
+  oportunidades y actores.
+- **Ajustes:** dominios de correo permitidos para registrarse (reemplaza a `ALLOWED_EMAIL_DOMAINS`,
+  que queda como valor inicial), interruptores de cada tipo de correo y minutos de espera del resumen.
+- **Bitácora:** quién hizo qué y cuándo.
+
+- **Roles y permisos** (solo el rol Administrador): matriz de permisos por acción para cada rol
+  (registrar proyectos, pedir unirse, invitar, chats, ver actores/oportunidades/perfiles, IA,
+  gestionar contenido y cada sección de este panel) y roles nuevos (p. ej. «Coordinador de
+  semillero»), con opción de exigir correo institucional y de aparecer en el registro. El
+  Administrador siempre tiene todo y «Roles y permisos» no se delega; quien gestiona usuarios no
+  puede darse ni dar el rol de Administrador. La interfaz oculta lo que el rol no puede hacer y la
+  API lo rechaza (403).
+- **Insignias:** tres tipos visibles (Logro, Condecoración con aro dorado, Reconocimiento con aro
+  punteado), 80 íconos con buscador y 13 colores. Pueden ser automáticas, con uno o varios
+  requisitos combinados con «todos» o «al menos uno» (proyectos registrados, finalizados, en un
+  área o con un ODS, colaboraciones, solicitudes aprobadas, personas sumadas, invitaciones
+  aceptadas, horas comprometidas, mensajes, perfil completo, habilidades, antigüedad, rol, programa,
+  otras insignias), o manuales: se otorgan a una persona, a varias o a todo el equipo de un proyecto,
+  con motivo, fecha del evento y «en nombre de» (p. ej. una facultad). Pueden vencer en una fecha
+  fija o a los N días. Se pueden retirar (una automática retirada no vuelve sola). La API revisa las
+  automáticas cada `INSIGNIAS_INTERVALO_MINUTOS` (60) para requisitos que cambian solos. Cada persona las ve en «Mis logros» de su perfil, junto
+  a su nombre en fichas y miembros, en su perfil público (`/personas/:id`) y en el ranking
+  (`/logros`); al ganar una recibe aviso en la campana y por correo.
+
+### Niveles y experiencia (XP)
+
+- **Experiencia:** cada acción suma puntos según una tabla que el admin edita en «Niveles y XP»
+  (puntos, tope por día y si está activa): entrar (una vez al día), completar el perfil, registrar,
+  avanzar (cada 10 %) y finalizar proyectos, pedir unirse, invitar, ser aceptado, sumar personas,
+  escribir en el chat (con tope), postular a convocatorias, quedar seleccionado, ganar insignias y
+  evidencias aprobadas. Nada suma dos veces por lo mismo.
+- **Niveles:** Novato, Curioso, Aprendiz, Colaborador, Descubridor, Conocedor, Experto, Genio y
+  Leyenda, editables (nombre, ícono, color, XP mínima, cantidad de insignias y, si se quiere,
+  insignias obligatorias). Se suben en orden; al subir llega aviso en la campana y por correo y se
+  muestra una celebración. El nivel aparece junto al nombre, en «Mi nivel» del perfil (progreso,
+  qué falta e historial) y en el ranking por XP de `/logros` (semana, mes o siempre).
+- **Ajustes manuales:** el admin suma o resta XP con un motivo y ve el historial de cada persona.
+- **Postulaciones:** el equipo de un proyecto lo postula a una oportunidad abierta explicando por
+  qué encaja; quien gestiona oportunidades (Moderación) lo marca como seleccionado o no
+  seleccionado (con comentario) y el equipo recibe aviso y XP.
+- **Evidencias:** en el perfil y en cada proyecto se suben certificados, constancias, informes o
+  fotos (PDF, PNG, JPG o WEBP hasta `ARCHIVO_MAX_MB`, 10 MB). El admin los revisa en «Evidencias»
+  y decide cuánta XP dar o los rechaza con un motivo. Se guardan en `ARCHIVOS_DIR` (en producción,
+  el volumen `archivos`; inclúyelo en las copias de seguridad).
+
+El primer administrador se crea con `python -m scripts.create_admin correo@ufpso.edu.co "Nombre"`.
+
 ## Publicar en internet
 
 Guía paso a paso en [`docs/despliegue-oracle.md`](docs/despliegue-oracle.md): una VM gratuita de
@@ -180,8 +264,6 @@ docs/           arquitectura y plan de sprints
 
 ## Siguientes pasos sugeridos
 
-- Pantallas de administración para cargar actores y oportunidades (hoy solo por la API).
 - Editar proyectos y vincular actores desde la interfaz (la API ya lo permite).
 - Perfiles con habilidades e intereses en la interfaz, para recomendar colaboradores.
 - Búsqueda semántica y recomendación con embeddings (`pgvector`).
-- Solicitudes de alianza y notificaciones.

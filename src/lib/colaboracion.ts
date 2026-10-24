@@ -2,6 +2,7 @@ import { pedir } from './http'
 import type {
   Miembro,
   Perfil,
+  Recomendacion,
   RespuestaSugerencias,
   Solicitud,
   SugerenciasParaMi,
@@ -21,20 +22,19 @@ export const actualizarPerfil = (cambios: CambiosPerfil) =>
 
 export const listarMiembros = (proyectoId: string) => pedir<Miembro[]>(`/proyectos/${proyectoId}/miembros`)
 
-export const solicitarUnion = (proyectoId: string, mensaje: string) =>
-  pedir<Solicitud>(`/proyectos/${proyectoId}/solicitudes`, { method: 'POST', json: { mensaje } })
+export const solicitarUnion = (proyectoId: string, reco: Recomendacion) =>
+  pedir<Solicitud>(`/proyectos/${proyectoId}/solicitudes`, { method: 'POST', json: reco })
 
-export const invitar = (proyectoId: string, usuarioId: string, mensaje = '') =>
-  pedir<Solicitud>(`/proyectos/${proyectoId}/invitaciones`, { method: 'POST', json: { usuario_id: usuarioId, mensaje } })
+export const invitar = (proyectoId: string, usuarioId: string, reco: Recomendacion) =>
+  pedir<Solicitud>(`/proyectos/${proyectoId}/invitaciones`, { method: 'POST', json: { ...reco, usuario_id: usuarioId } })
 
 export const misSolicitudes = () => pedir<Solicitud[]>('/alianzas')
 
-export function responderSolicitud(id: string, accion: 'aceptar' | 'rechazar' | 'cancelar', respuesta = '') {
-  return pedir<Solicitud>(`/alianzas/${id}/${accion}`, {
-    method: 'POST',
-    json: accion === 'cancelar' ? undefined : { respuesta },
-  })
-}
+/** Aprobar o rechazar exige un motivo del catálogo; el comentario es opcional salvo que el motivo lo pida. */
+export const decidirSolicitud = (id: string, accion: 'aceptar' | 'rechazar', motivoId: number, respuesta = '') =>
+  pedir<Solicitud>(`/alianzas/${id}/${accion}`, { method: 'POST', json: { motivo_id: motivoId, respuesta } })
+
+export const cancelarSolicitud = (id: string) => pedir<Solicitud>(`/alianzas/${id}/cancelar`, { method: 'POST' })
 
 export const proyectosSimilares = (proyectoId: string) =>
   pedir<RespuestaSugerencias>(`/ia/proyectos/${proyectoId}/similares`)

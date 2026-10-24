@@ -8,12 +8,14 @@ import { AvisoVerificacion } from '@/components/AvisoVerificacion'
 import { CampoCorreo } from '@/components/CampoCorreo'
 import { CampoContrasena } from '@/components/CampoContrasena'
 import { revisarCorreo } from '@/lib/correo'
+import { useDominiosPermitidos, useRolesRegistro } from '@/lib/parametros'
 
-const ROLES_REGISTRO: { valor: Rol; etiqueta: string }[] = [
-  { valor: 'estudiante', etiqueta: 'Estudiante' },
-  { valor: 'docente', etiqueta: 'Docente' },
-  { valor: 'administrativo', etiqueta: 'Administrativo' },
-  { valor: 'aliado', etiqueta: 'Aliado externo' },
+// Mientras cargan los roles configurados por el admin (o en modo demostración).
+const ROLES_INICIALES = [
+  { clave: 'estudiante', nombre: 'Estudiante', descripcion: '', institucional: true },
+  { clave: 'docente', nombre: 'Docente', descripcion: '', institucional: true },
+  { clave: 'administrativo', nombre: 'Administrativo', descripcion: '', institucional: true },
+  { clave: 'aliado', nombre: 'Aliado externo', descripcion: '', institucional: false },
 ]
 
 export function Registro() {
@@ -25,14 +27,19 @@ export function Registro() {
   const [error, setError] = useState<string | null>(null)
   const [registrado, setRegistrado] = useState(false)
   const [intento, setIntento] = useState(false)
-  const institucional = form.rol !== 'aliado'
+  const rolesApi = useRolesRegistro()
+  const roles = rolesApi.length ? rolesApi : ROLES_INICIALES
+  const rolElegido = roles.find((r) => r.clave === form.rol)
+  const institucional = rolElegido?.institucional ?? true
+  const dominios = useDominiosPermitidos()
+  const listaDominios = dominios.map((d) => `@${d}`).join(' o ')
 
   const set = <K extends keyof DatosRegistro>(clave: K, valor: DatosRegistro[K]) => setForm((f) => ({ ...f, [clave]: valor }))
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault()
     setIntento(true)
-    const revision = revisarCorreo(form.email, { institucional })
+    const revision = revisarCorreo(form.email, { institucional, dominios })
     if (revision.error) return
     setEnviando(true)
     setError(null)
@@ -72,7 +79,7 @@ export function Registro() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Crear cuenta</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Estudiantes, docentes y administrativos se registran con su correo @ufpso.edu.co. Te enviaremos un enlace para confirmar que el correo es tuyo.
+          Estudiantes, docentes y administrativos se registran con su correo institucional {listaDominios}; los aliados externos pueden usar su correo personal. Te enviaremos un enlace para confirmar que el correo es tuyo.
         </p>
       </header>
       <section className="card space-y-4 p-6">
@@ -81,7 +88,16 @@ export function Registro() {
           <label className="label" htmlFor="nombre">Nombre completo</label>
           <input id="nombre" required minLength={3} className="input" value={form.nombre} onChange={(e) => set('nombre', e.target.value)} />
         </div>
-        <CampoCorreo valor={form.email} alCambiar={(v) => set('email', v)} institucional={institucional} forzarRevision={intento} />
+        <div>
+          <label className="label" htmlFor="rol">Soy</label>
+          <select id="rol" className="input" value={form.rol} onChange={(e) => set('rol', e.target.value as Rol)}>
+            {roles.map((r) => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
+          </select>
+          {rolElegido?.descripcion && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rolElegido.descripcion}</p>}
+        </div>
+        <CampoCorreo valor={form.email} alCambiar={(v) => set('email', v)} institucional={institucional} dominios={dominios}
+          forzarRevision={intento}
+          ayuda={institucional ? `Usa tu correo institucional ${listaDominios}.` : 'Como aliado externo puedes usar tu correo personal o el de tu organización.'} />
         <CampoContrasena
           etiqueta="Contraseña (mínimo 8 caracteres)"
           valor={form.password}
@@ -89,17 +105,9 @@ export function Registro() {
           autoComplete="new-password"
           minLength={8}
         />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="label" htmlFor="rol">Soy</label>
-            <select id="rol" className="input" value={form.rol} onChange={(e) => set('rol', e.target.value as Rol)}>
-              {ROLES_REGISTRO.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label" htmlFor="programa">Programa o dependencia</label>
-            <input id="programa" className="input" value={form.programa ?? ''} onChange={(e) => set('programa', e.target.value)} />
-          </div>
+        <div>
+          <label className="label" htmlFor="programa">{institucional ? 'Programa o dependencia' : 'Organización'}</label>
+          <input id="programa" className="input" value={form.programa ?? ''} onChange={(e) => set('programa', e.target.value)} />
         </div>
         {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
         <button type="submit" className="btn-primary w-full justify-center" disabled={enviando}>

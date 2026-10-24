@@ -11,6 +11,10 @@ from app.core.security import hash_password
 from app.main import app
 from app.models import Area, Base, Ods, Usuario
 from app.modules.catalogo.seed import AREAS, ODS
+from app.modules.experiencia.seed import sembrar as sembrar_experiencia
+from app.modules.insignias.seed import sembrar as sembrar_insignias
+from app.modules.parametros.seed import sembrar as sembrar_parametros
+from app.modules.roles.seed import sembrar as sembrar_roles
 from app.modules.usuarios.models import Rol
 
 
@@ -28,8 +32,12 @@ def db():
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     session = Session()
+    sembrar_roles(session)
     session.add_all([Area(nombre=n) for n in AREAS] + [Ods(id=i, nombre=n) for i, n in ODS])
     session.commit()
+    sembrar_parametros(session)
+    sembrar_insignias(session)
+    sembrar_experiencia(session)
     yield session
     session.close()
     engine.dispose()
@@ -71,13 +79,13 @@ def estudiante(client):
 @pytest.fixture
 def admin(client, db):
     db.add(Usuario(email="admin@ufpso.edu.co", hashed_password=hash_password("clave-segura"),
-                   nombre="Admin", rol=Rol.ADMIN, habilidades=[], intereses=[], verificado=True))
+                   nombre="Admin", rol=Rol.ADMIN.value, habilidades=[], intereses=[], verificado=True))
     db.commit()
     return auth(client, "admin@ufpso.edu.co")
 
 
 @pytest.fixture(autouse=True)
-def ia_sin_modelo(monkeypatch):
+def ia_sin_modelo(monkeypatch, tmp_path_factory):
     """Las pruebas no llaman a Ollama ni a Claude salvo que lo configuren explícitamente."""
     from app.core.config import Settings
     from app.modules.ia import servicio
@@ -90,6 +98,11 @@ def ia_sin_modelo(monkeypatch):
     from app.core import correo
 
     monkeypatch.setattr(correo, "get_settings", lambda: Settings(smtp_host=""))
+    # Archivos de evidencias en una carpeta temporal.
+    from app.modules.evidencias import router as evidencias_router
+
+    ajustes_archivos = Settings(archivos_dir=str(tmp_path_factory.mktemp("archivos")))
+    monkeypatch.setattr(evidencias_router, "get_settings", lambda: ajustes_archivos)
     correo.enviados.clear()
     # Sin consultas DNS reales: solo los dominios en DOMINIOS_SIN_CORREO «no reciben» correo.
     from app.core import validacion_correo
@@ -140,3 +153,12 @@ def embeddings_falsos(monkeypatch):
     falso = CodificadorFalso()
     monkeypatch.setattr(codificador, "reemplazo", falso)
     return falso
+
+
+# Formato fijo de una solicitud o invitación válida (tipo de aporte 1 = «Desarrollo de software»).
+RECO = {"tipo_aporte_id": 1, "aporte": "Puedo programar la app y la base de datos", "habilidades": ["Python", "React"],
+        "disponibilidad_horas": 6, "motivacion": "Me interesa el tema y quiero aprender en un equipo real"}
+# Motivos sembrados: 1 = «Perfil adecuado» (aprobación), 6 = «El equipo ya está completo» (rechazo),
+# 5 y 11 = «Otro motivo» (exigen comentario).
+APRUEBA = {"motivo_id": 1}
+RECHAZA = {"motivo_id": 6}

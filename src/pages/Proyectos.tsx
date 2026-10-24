@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { LayoutGrid, Table2 } from 'lucide-react'
 import { useDatos } from '@/hooks/useDatos'
-import { ESTADOS, ESTADO_LABEL, AREAS, type Estado } from '@/lib/types'
+import { ESTADOS, ESTADO_LABEL, type Estado } from '@/lib/types'
+import { useAreas } from '@/lib/parametros'
 import { ProyectoCard } from '@/components/ProyectoCard'
 import { EmptyState, EstadoBadge, Progress, Skeleton } from '@/components/ui'
 import { formatCompactCOP, formatDate } from '@/lib/format'
 
 export function Proyectos() {
+  const areas = useAreas()
   const { proyectos, cargando } = useDatos()
   const [params, setParams] = useSearchParams()
   const [vista, setVista] = useState<'tarjetas' | 'tabla'>('tarjetas')
@@ -84,7 +86,7 @@ export function Proyectos() {
           <label className="label" htmlFor="f-area">Área</label>
           <select id="f-area" className="input" value={area} onChange={(e) => actualizar('area', e.target.value)}>
             <option value="">Todas</option>
-            {AREAS.map((a) => (
+            {areas.map((a) => (
               <option key={a} value={a}>{a}</option>
             ))}
           </select>

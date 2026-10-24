@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     smtp_usuario: str = ""
     smtp_password: str = ""
     smtp_remitente: str = ""
+    # Resumen por correo de mensajes sin leer: la API lo revisa cada `resumen_intervalo_minutos`.
+    # Con false no corre solo (se puede lanzar con `python -m scripts.enviar_resumenes` o desde el panel de admin).
+    resumen_automatico: bool = True
+    resumen_intervalo_minutos: int = 5
+    # Insignias con requisitos que cambian solos (antigüedad, rol, vigencias): se revisan cada tanto.
+    insignias_intervalo_minutos: int = 60
+    # Certificados y evidencias que suben las personas (en producción, un volumen de Docker).
+    archivos_dir: str = "archivos"
+    archivo_max_mb: int = 10
     # Ingreso con Google: ID de cliente OAuth (Google Cloud Console). Vacío = botón oculto.
     google_client_id: str = ""
     # IA: "ollama" (local y gratuito), "groq" (en línea, capa gratuita), "anthropic" (Claude, de pago)

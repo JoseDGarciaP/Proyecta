@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
 import type { MetodoSimilitud, Sugerencia } from '@/lib/types'
 import type { ReactNode } from 'react'
+import { InsigniasDe, NivelDe } from '@/components/Insignia'
 
 const RUTA: Record<Sugerencia['tipo'], (id: string) => string | null> = {
   proyecto: (id) => `/proyectos/${id}`,
   oportunidad: () => '/oportunidades',
-  usuario: () => null,
+  usuario: (id) => `/personas/${id}`,
 }
 
 /** Lista de resultados de similitud con su porcentaje y la razón de la sugerencia. */
@@ -33,7 +34,8 @@ export function ListaSugerencias({
               ) : (
                 <span className="font-medium text-slate-800 dark:text-slate-100">{s.titulo}</span>
               )}
-              <span className="shrink-0 text-xs text-slate-500 tabular-nums dark:text-slate-400">
+              {s.tipo === 'usuario' && <><NivelDe usuarioId={s.id} /> <InsigniasDe usuarioId={s.id} /></>}
+              <span className="ml-auto shrink-0 text-xs text-slate-500 tabular-nums dark:text-slate-400">
                 {Math.round(s.similitud * 100)}%
               </span>
             </div>

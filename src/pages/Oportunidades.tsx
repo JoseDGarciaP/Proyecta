@@ -1,9 +1,12 @@
-import { useState } from 'react'
-import { ExternalLink, Loader2, Sparkles, X } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ExternalLink, Loader2, Send, Sparkles, X } from 'lucide-react'
 import { useDatos } from '@/hooks/useDatos'
-import { buscarSemantico } from '@/lib/colaboracion'
+import { buscarSemantico, obtenerPerfil } from '@/lib/colaboracion'
+import { misPostulaciones } from '@/lib/experiencia'
+import { usePuede } from '@/lib/permisos'
 import { apiHabilitada } from '@/lib/http'
-import type { RespuestaSugerencias } from '@/lib/types'
+import type { Oportunidad, Postulacion, RespuestaSugerencias } from '@/lib/types'
+import { EstadoPostulacionBadge, ListaPostulaciones, ModalPostular } from '@/components/Postulaciones'
 import { NotaMetodo } from '@/components/Sugerencias'
 import { Badge, Skeleton } from '@/components/ui'
 import { diasRestantes, formatCompactCOP, formatDate } from '@/lib/format'
@@ -21,6 +24,24 @@ export function Oportunidades() {
   const [busqueda, setBusqueda] = useState<RespuestaSugerencias | null>(null)
   const [buscando, setBuscando] = useState(false)
   const [error, setError] = useState('')
+  const puede = usePuede()
+  const puedePostular = apiHabilitada && puede('oportunidades.postular')
+  const [misProyectos, setMisProyectos] = useState<{ id: string; titulo: string }[] | null>(null)
+  const [postulaciones, setPostulaciones] = useState<Postulacion[]>([])
+  const [postulando, setPostulando] = useState<Oportunidad | null>(null)
+  const [aviso, setAviso] = useState('')
+
+  const cargarPostulaciones = useCallback(() => {
+    misPostulaciones().then(setPostulaciones).catch(() => {})
+  }, [])
+  useEffect(() => {
+    if (!puedePostular) return
+    cargarPostulaciones()
+    obtenerPerfil().then((p) => setMisProyectos(p.proyectos.map(({ proyecto }) => proyecto))).catch(() => setMisProyectos([]))
+  }, [puedePostular, cargarPostulaciones])
+
+  /** Postulaciones activas por oportunidad (las retiradas no cuentan). */
+  const postuladosEn = (oid: string) => postulaciones.filter((p) => p.oportunidad_id === oid && p.estado !== 'retirada')
 
   const buscar = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,6 +70,32 @@ export function Oportunidades() {
           Convocatorias, fondos, mentorías e infraestructura disponibles para las iniciativas registradas.
         </p>
       </header>
+
+      {postulando && misProyectos && (
+        <ModalPostular
+          oportunidad={postulando}
+          proyectos={misProyectos}
+          yaPostulados={new Set(postuladosEn(postulando.id).map((p) => p.proyecto_id))}
+          alCerrar={() => setPostulando(null)}
+          alPostular={(p) => {
+            setPostulando(null)
+            setAviso(`«${p.proyecto_titulo}» quedó postulado a «${p.oportunidad_titulo}». Te avisaremos la respuesta.`)
+            cargarPostulaciones()
+          }}
+        />
+      )}
+      {aviso && (
+        <p role="status" className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">{aviso}</p>
+      )}
+
+      {puedePostular && postulaciones.length > 0 && (
+        <section className="card p-5" id="mis-postulaciones">
+          <h2 className="mb-1 flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+            <Send size={16} className="text-sky-600 dark:text-sky-400" aria-hidden /> Mis postulaciones
+          </h2>
+          <ListaPostulaciones postulaciones={postulaciones} mostrarProyecto puedeRetirar alCambiar={cargarPostulaciones} />
+        </section>
+      )}
 
       {apiHabilitada && (
         <form onSubmit={buscar} className="card p-4">
@@ -126,14 +173,34 @@ export function Oportunidades() {
                     </div>
                   </dl>
 
-                  <a
-                    href={o.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline dark:text-brand-400"
-                  >
-                    Ver detalles <ExternalLink size={14} aria-hidden />
-                  </a>
+                  {postuladosEn(o.id).length > 0 && (
+                    <ul className="space-y-1 rounded-lg bg-slate-50 p-2 text-xs dark:bg-slate-900">
+                      {postuladosEn(o.id).map((p) => (
+                        <li key={p.id} className="flex items-center justify-between gap-2">
+                          <span className="truncate text-slate-600 dark:text-slate-300">{p.proyecto_titulo}</span>
+                          <EstadoPostulacionBadge p={p} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {o.url ? (
+                      <a
+                        href={o.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline dark:text-brand-400"
+                      >
+                        Ver detalles <ExternalLink size={14} aria-hidden />
+                      </a>
+                    ) : <span />}
+                    {puedePostular && dias >= 0 && (!misProyectos?.length || misProyectos.some((m) => !postuladosEn(o.id).some((p) => p.proyecto_id === m.id))) && (
+                      <button className="btn-primary px-3 py-1.5 text-sm" disabled={!misProyectos} onClick={() => { setAviso(''); setPostulando(o) }}>
+                        <Send size={14} aria-hidden /> Postular mi proyecto
+                      </button>
+                    )}
+                  </div>
                 </article>
               )
             })}

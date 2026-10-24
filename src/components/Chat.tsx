@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Loader2, Lock, MessageSquare, Pencil, Send, Trash2 } from 'lucide-react'
+import { FileText, Loader2, Lock, MessageSquare, Pencil, Send, Trash2 } from 'lucide-react'
 import { INTERVALO_CHAT_MS, type ApiChat } from '@/lib/chat'
 import { ErrorApi } from '@/lib/http'
 import { useSesion } from '@/lib/sesion'
-import type { Mensaje } from '@/lib/types'
+import type { Mensaje, Plantilla } from '@/lib/types'
 import { useConfirmar } from '@/components/Confirmar'
 
 const hora = new Intl.DateTimeFormat('es-CO', { dateStyle: 'short', timeStyle: 'short' })
@@ -42,6 +42,8 @@ interface Props {
   vacio?: string
   id?: string
   alto?: string
+  /** Mensajes tipo que se pueden insertar y editar antes de enviar. */
+  plantillas?: Plantilla[]
 }
 
 /**
@@ -49,7 +51,7 @@ interface Props {
  * Si la API responde 403 (no hace parte de la conversación) no se muestra nada.
  */
 export function Chat({
-  clave, crearApi, titulo, descripcion, encabezado, cerrada, id,
+  clave, crearApi, titulo, descripcion, encabezado, cerrada, id, plantillas = [],
   vacio = 'Aún no hay mensajes. Escribe el primero.', alto = 'h-80',
 }: Props) {
   const { usuario } = useSesion()
@@ -62,6 +64,8 @@ export function Chat({
   const [editando, setEditando] = useState<Mensaje | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
+  const [verPlantillas, setVerPlantillas] = useState(false)
+  const campo = useRef<HTMLTextAreaElement>(null)
   const lista = useRef<HTMLDivElement>(null)
   const alFinal = useRef(true)
   const ultimoId = mensajes.at(-1)?.id ?? 0
@@ -168,6 +172,22 @@ export function Chat({
     }
   }
 
+  const usarPlantilla = (p: Plantilla) => {
+    const nuevo = texto.trim() ? `${texto.trimEnd()}\n\n${p.texto}` : p.texto
+    setTexto(nuevo)
+    setVerPlantillas(false)
+    // Seleccionar el primer [espacio para completar] para escribir encima.
+    requestAnimationFrame(() => {
+      const el = campo.current
+      if (!el) return
+      el.focus()
+      const inicio = nuevo.indexOf('[', nuevo.length - p.texto.length)
+      const fin = inicio >= 0 ? nuevo.indexOf(']', inicio) : -1
+      if (inicio >= 0 && fin > inicio) el.setSelectionRange(inicio, fin + 1)
+      else el.setSelectionRange(nuevo.length, nuevo.length)
+    })
+  }
+
   const empezarEdicion = (m: Mensaje) => {
     setEditando(m)
     setTexto(m.texto)
@@ -253,10 +273,33 @@ export function Chat({
               </button>
             </p>
           )}
+          {plantillas.length > 0 && !editando && (
+            <div className="relative mb-2">
+              <button type="button" className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:underline dark:text-brand-300"
+                onClick={() => setVerPlantillas((x) => !x)} aria-expanded={verPlantillas}>
+                <FileText size={13} aria-hidden /> Usar una plantilla
+              </button>
+              {verPlantillas && (
+                <ul className="card absolute bottom-full left-0 z-20 mb-2 max-h-72 w-full max-w-md overflow-y-auto p-1 shadow-lg">
+                  {plantillas.map((p) => (
+                    <li key={p.id}>
+                      <button type="button" className="block w-full rounded-md px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                        onClick={() => usarPlantilla(p)}>
+                        <span className="block text-sm font-medium text-slate-900 dark:text-white">{p.titulo}</span>
+                        <span className="line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{p.texto}</span>
+                      </button>
+                    </li>
+                  ))}
+                  <li className="px-3 py-1.5 text-[11px] text-slate-400">Completa lo que está entre [corchetes] antes de enviar.</li>
+                </ul>
+              )}
+            </div>
+          )}
           <div className="flex items-end gap-2">
             <textarea
+              ref={campo}
               className="input max-h-40 min-h-10 resize-y"
-              rows={1}
+              rows={Math.min(6, texto.split('\n').length + Math.floor(texto.length / 80))}
               maxLength={2000}
               placeholder="Escribe un mensaje (Enter envía, Shift+Enter cambia de línea)"
               value={texto}

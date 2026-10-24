@@ -20,6 +20,7 @@ from app.core.security import (
     verify_password,
 )
 from app.modules.auth import google
+from app.modules.parametros import ajustes
 from app.modules.auth.schemas import (
     ConfigAuth,
     IngresoGoogle,
@@ -37,10 +38,8 @@ router = APIRouter(prefix="/api/auth", tags=["autenticación"])
 NO_VERIFICADO = "Confirma tu correo antes de ingresar. Revisa tu bandeja de entrada (y la de spam)."
 
 
-def _dominio_permitido(email: str, rol: Rol) -> bool:
-    dominios = get_settings().allowed_domains
-    # Los aliados externos no tienen correo institucional; su verificación queda pendiente de definir.
-    return not dominios or rol == Rol.ALIADO or email.rsplit("@", 1)[1] in dominios
+def _dominio_permitido(db: Session, email: str, rol: str) -> bool:
+    return ajustes.dominio_permitido(db, email, rol)
 
 
 def enviar_verificacion(usuario: Usuario, tareas: BackgroundTasks) -> None:
@@ -50,20 +49,35 @@ def enviar_verificacion(usuario: Usuario, tareas: BackgroundTasks) -> None:
     tareas.add_task(correo.enviar, correo.verificacion(usuario.email, usuario.nombre, enlace, settings.verificacion_horas))
 
 
-@router.get("/config", response_model=ConfigAuth)
-def configuracion():
-    """Lo que la interfaz necesita para mostrar el botón de Google."""
+def enviar_restablecer(usuario: Usuario, tareas: BackgroundTasks, nueva_cuenta: bool = False) -> None:
+    """Enlace para elegir contraseña. Con `nueva_cuenta` (la creó un admin) vence en `verificacion_horas`."""
     settings = get_settings()
-    return ConfigAuth(google_client_id=settings.google_client_id or None, dominios=settings.allowed_domains)
+    minutos = settings.verificacion_horas * 60 if nueva_cuenta else settings.restablecer_minutos
+    token = create_token(str(usuario.id), "restablecer", minutos, huella=huella_password(usuario.hashed_password))
+    enlace = f"{settings.frontend_url.rstrip('/')}/restablecer?token={token}"
+    if nueva_cuenta:
+        tareas.add_task(correo.enviar, correo.cuenta_creada(usuario.email, usuario.nombre, enlace, settings.verificacion_horas))
+    else:
+        tareas.add_task(correo.enviar, correo.restablecer(usuario.email, usuario.nombre, enlace, minutos))
+
+
+@router.get("/config", response_model=ConfigAuth)
+def configuracion(db: DbSession):
+    """Lo que la interfaz necesita para mostrar el botón de Google y avisar qué correos se aceptan."""
+    settings = get_settings()
+    return ConfigAuth(google_client_id=settings.google_client_id or None, dominios=ajustes.leer(db).dominios_permitidos)
 
 
 @router.post("/registro", response_model=UsuarioPropio, status_code=status.HTTP_201_CREATED)
 def registrar(datos: Registro, db: DbSession, tareas: BackgroundTasks):
-    if datos.rol == Rol.ADMIN:
-        raise HTTPException(status_code=400, detail="No se puede registrar un administrador")
-    email = _validar_correo(datos.email)
-    if not _dominio_permitido(email, datos.rol):
-        raise HTTPException(status_code=400, detail="Usa tu correo institucional")
+    from app.modules.roles.models import RolUsuario
+
+    rol = db.get(RolUsuario, datos.rol)
+    if rol is None or not rol.registro_publico or rol.clave == Rol.ADMIN:
+        raise HTTPException(status_code=400, detail="Ese rol no se puede elegir al registrarse")
+    email = validar_correo(datos.email)
+    if not _dominio_permitido(db, email, datos.rol):
+        raise HTTPException(status_code=400, detail=ajustes.mensaje_dominio(db))
     usuario = _buscar(db, email)
     if usuario is not None and usuario.verificado:
         raise HTTPException(status_code=409, detail="Ya existe una cuenta con ese correo")
@@ -74,7 +88,7 @@ def registrar(datos: Registro, db: DbSession, tareas: BackgroundTasks):
     # ajeno, porque solo quien abre el buzón puede confirmarlo.
     usuario.hashed_password = hash_password(datos.password)
     usuario.nombre = datos.nombre
-    usuario.rol = datos.rol
+    usuario.rol = rol.clave
     usuario.programa = datos.programa
     usuario.verificado = False
     db.commit()
@@ -120,11 +134,7 @@ def recuperar(datos: Reenvio, db: DbSession, tareas: BackgroundTasks):
     """Envía el enlace para elegir otra contraseña. Responde igual exista o no la cuenta."""
     usuario = _buscar(db, datos.email.strip().lower())
     if usuario and usuario.activo:
-        settings = get_settings()
-        token = create_token(str(usuario.id), "restablecer", settings.restablecer_minutos,
-                             huella=huella_password(usuario.hashed_password))
-        enlace = f"{settings.frontend_url.rstrip('/')}/restablecer?token={token}"
-        tareas.add_task(correo.enviar, correo.restablecer(usuario.email, usuario.nombre, enlace, settings.restablecer_minutos))
+        enviar_restablecer(usuario, tareas)
     return {"detalle": "Si hay una cuenta con ese correo, te enviamos un enlace para cambiar la contraseña."}
 
 
@@ -152,8 +162,9 @@ def ingresar_con_google(datos: IngresoGoogle, db: DbSession):
     email = str(cuenta.get("email", "")).lower()
     if not email or not cuenta.get("email_verified"):
         raise HTTPException(status_code=401, detail="Google no confirmó el correo de esta cuenta")
-    if not _dominio_permitido(email, Rol.ESTUDIANTE):
-        raise HTTPException(status_code=403, detail="Usa tu cuenta institucional de Google (@ufpso.edu.co)")
+    if not _dominio_permitido(db, email, Rol.ESTUDIANTE):
+        dominios = ", ".join(f"@{d}" for d in ajustes.leer(db).dominios_permitidos)
+        raise HTTPException(status_code=403, detail=f"Usa tu cuenta institucional de Google ({dominios})")
 
     usuario = db.scalar(select(Usuario).where(Usuario.google_sub == cuenta["sub"])) or db.scalar(
         select(Usuario).where(Usuario.email == email))
@@ -163,7 +174,7 @@ def ingresar_con_google(datos: IngresoGoogle, db: DbSession):
             # Sin contraseña utilizable: entra con Google (o puede pedir una más adelante).
             hashed_password=hash_password(secrets.token_urlsafe(32)),
             nombre=cuenta.get("name") or email.split("@")[0],
-            rol=Rol.ESTUDIANTE,
+            rol=Rol.ESTUDIANTE.value,
             habilidades=[],
             intereses=[],
             activo=True,
@@ -177,7 +188,7 @@ def ingresar_con_google(datos: IngresoGoogle, db: DbSession):
     return Token(access_token=create_access_token(str(usuario.id)))
 
 
-def _validar_correo(email: str) -> str:
+def validar_correo(email: str) -> str:
     try:
         return validacion_correo.validar(email).email
     except validacion_correo.CorreoNoValido as error:

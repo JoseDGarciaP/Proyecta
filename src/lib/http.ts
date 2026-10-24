@@ -18,6 +18,8 @@ interface Opciones {
   method?: string
   json?: unknown
   form?: Record<string, string>
+  /** Archivos y campos (multipart/form-data). */
+  datos?: FormData
 }
 
 /** Error de la API con su código HTTP (p. ej. 403 = correo sin confirmar). */
@@ -30,12 +32,14 @@ export class ErrorApi extends Error {
   }
 }
 
-export async function pedir<T>(ruta: string, { method = 'GET', json, form }: Opciones = {}): Promise<T> {
+export async function pedir<T>(ruta: string, { method = 'GET', json, form, datos: multipart }: Opciones = {}): Promise<T> {
   const headers: Record<string, string> = {}
   const t = token.leer()
   if (t) headers.Authorization = `Bearer ${t}`
   let body: BodyInit | undefined
-  if (form) {
+  if (multipart) {
+    body = multipart  // el navegador pone el Content-Type con su «boundary»
+  } else if (form) {
     body = new URLSearchParams(form)
   } else if (json !== undefined) {
     headers['Content-Type'] = 'application/json'
@@ -51,4 +55,20 @@ export async function pedir<T>(ruta: string, { method = 'GET', json, form }: Opc
     throw new ErrorApi(mensaje || `Error ${res.status}`, res.status)
   }
   return datos as T
+}
+
+/** Descarga un archivo protegido (con el token) y lo abre en otra pestaña. */
+export async function abrirArchivo(ruta: string): Promise<void> {
+  const t = token.leer()
+  const ventana = window.open('', '_blank')  // se abre ya para que el navegador no la bloquee
+  const res = await fetch(`${base}/api${ruta}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+  if (!res.ok) {
+    ventana?.close()
+    const datos = await res.json().catch(() => null)
+    throw new ErrorApi(datos?.detail || `Error ${res.status}`, res.status)
+  }
+  const url = URL.createObjectURL(await res.blob())
+  if (ventana) ventana.location.href = url
+  else window.location.assign(url)
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }

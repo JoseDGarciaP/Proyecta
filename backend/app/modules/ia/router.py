@@ -79,7 +79,7 @@ def colaboradores_sugeridos(proyecto_id: uuid.UUID, db: DbSession, _: UsuarioAct
     proyecto = obtener_proyecto(db, proyecto_id)
     ya = {m for m in db.scalars(select(Miembro.usuario_id).where(Miembro.proyecto_id == proyecto.id))}
     ya.add(proyecto.creado_por_id)
-    candidatos = [u for u in db.scalars(select(Usuario).where(Usuario.activo.is_(True), Usuario.rol != Rol.ADMIN))
+    candidatos = [u for u in db.scalars(select(Usuario).where(Usuario.activo.is_(True), Usuario.rol != Rol.ADMIN.value))
                   if u.id not in ya and textos.usuario(u)]
     consulta = textos.necesidades(proyecto)
     resultados, metodo = ordenar(db, consulta, "usuario", candidatos, textos.usuario, limite)
@@ -89,7 +89,7 @@ def colaboradores_sugeridos(proyecto_id: uuid.UUID, db: DbSession, _: UsuarioAct
         comunes = _comunes(consulta, ", ".join(u.habilidades + u.intereses))
         razon = f"Su perfil coincide en un {_pct(r)} con lo que busca el proyecto"
         salida.append(Sugerencia(
-            id=u.id, tipo="usuario", titulo=u.nombre, detalle=u.programa or u.rol.value, similitud=r.similitud,
+            id=u.id, tipo="usuario", titulo=u.nombre, detalle=u.programa or u.rol_nombre, similitud=r.similitud,
             razon=razon + (f": {', '.join(comunes)}." if comunes else "."),
         ))
     return RespuestaSugerencias(metodo=metodo, resultados=salida)

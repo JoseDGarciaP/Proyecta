@@ -2,12 +2,19 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarDays, Users, Wallet } from 'lucide-react'
 import { obtenerProyecto, listarActores, listarOportunidades } from '@/lib/api'
-import { ODS, type Actor, type Oportunidad, type Proyecto } from '@/lib/types'
+import type { Actor, Oportunidad, Proyecto } from '@/lib/types'
+import { useOds } from '@/lib/parametros'
+import { usePuede } from '@/lib/permisos'
 import { EstadoBadge, Progress, Skeleton, EmptyState } from '@/components/ui'
 import { PanelIA } from '@/components/PanelIA'
 import { ChatProyecto } from '@/components/ChatProyecto'
 import { MiembrosProyecto, RedProyecto } from '@/components/ColaboracionProyecto'
 import { formatCOP, formatDate } from '@/lib/format'
+import { apiHabilitada } from '@/lib/http'
+import { listarMiembros } from '@/lib/colaboracion'
+import { useSesion } from '@/lib/sesion'
+import { Evidencias } from '@/components/Evidencias'
+import { PostulacionesProyecto } from '@/components/Postulaciones'
 
 export function ProyectoDetalle() {
   const { id = '' } = useParams()
@@ -15,6 +22,10 @@ export function ProyectoDetalle() {
   const [actores, setActores] = useState<Actor[]>([])
   const [oportunidades, setOportunidades] = useState<Oportunidad[]>([])
   const [cargando, setCargando] = useState(true)
+  const ods = useOds()
+  const puede = usePuede()
+  const { usuario } = useSesion()
+  const [esEquipo, setEsEquipo] = useState(false)
 
   useEffect(() => {
     let vigente = true
@@ -31,6 +42,16 @@ export function ProyectoDetalle() {
       vigente = false
     }
   }, [id])
+
+  // ¿Hago parte del equipo? (responsable o miembro): ve postulaciones y evidencias pendientes y puede subir.
+  useEffect(() => {
+    if (!apiHabilitada || !proyecto || !usuario) return
+    if (proyecto.creado_por === usuario.id) {
+      setEsEquipo(true)
+      return
+    }
+    listarMiembros(proyecto.id).then((ms) => setEsEquipo(ms.some((m) => m.usuario_id === usuario.id))).catch(() => setEsEquipo(false))
+  }, [proyecto, usuario])
 
   if (cargando) return <Skeleton className="h-96" />
   if (!proyecto) {
@@ -106,7 +127,7 @@ export function ProyectoDetalle() {
               <ul className="flex flex-wrap gap-2">
                 {proyecto.ods.map((n) => (
                   <li key={n} className="rounded-full bg-brand-50 px-3 py-1 text-xs text-brand-800 dark:bg-brand-500/12 dark:text-brand-200">
-                    {n}. {ODS.find((o) => o.id === n)?.nombre}
+                    {n}. {ods.find((o) => o.id === n)?.nombre}
                   </li>
                 ))}
               </ul>
@@ -152,9 +173,16 @@ export function ProyectoDetalle() {
         </div>
       </div>
 
+      {apiHabilitada && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PostulacionesProyecto proyectoId={proyecto.id} esEquipo={esEquipo} />
+          <Evidencias proyectoId={proyecto.id} titulo="Evidencias del proyecto" puedeSubir={esEquipo && puede('evidencias.subir')} />
+        </div>
+      )}
+
       <ChatProyecto proyecto={proyecto} />
-      <PanelIA proyecto={proyecto} oportunidades={oportunidades} />
-      <RedProyecto proyecto={proyecto} />
+      {puede('ia.usar') && <PanelIA proyecto={proyecto} oportunidades={oportunidades} />}
+      {puede('ia.usar') && <RedProyecto proyecto={proyecto} />}
     </div>
   )
 }

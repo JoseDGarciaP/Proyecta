@@ -49,7 +49,17 @@ export function sugerirDominio(dominio: string): string | undefined {
   return DOMINIOS_COMUNES.find((d) => distancia(dominio, d) === 1)
 }
 
-export function revisarCorreo(valor: string, opciones: { institucional?: boolean } = {}): RevisionCorreo {
+/** ¿El correo es de uno de los dominios institucionales? Sin dominios configurados, cualquiera vale. */
+export function esInstitucional(email: string, dominios: string[] = [DOMINIO_INSTITUCIONAL]): boolean {
+  const dominio = email.trim().toLowerCase().split('@')[1] ?? ''
+  return dominios.length === 0 || dominios.includes(dominio)
+}
+
+/**
+ * `institucional`: estudiantes, docentes y administrativos deben usar un dominio de `dominios`
+ * (los que configura el admin; por defecto @ufpso.edu.co). Los aliados externos usan cualquiera.
+ */
+export function revisarCorreo(valor: string, opciones: { institucional?: boolean; dominios?: string[] } = {}): RevisionCorreo {
   const normalizado = valor.trim().toLowerCase()
   if (!normalizado) return { normalizado, error: 'Escribe tu correo.' }
   if (!FORMATO.test(normalizado) || normalizado.includes('..')) {
@@ -58,8 +68,10 @@ export function revisarCorreo(valor: string, opciones: { institucional?: boolean
   const [local, dominio] = normalizado.split('@')
   const sugerido = sugerirDominio(dominio)
   if (sugerido) return { normalizado, error: `¿Quisiste decir ${local}@${sugerido}?`, sugerencia: `${local}@${sugerido}` }
-  if (opciones.institucional && dominio !== DOMINIO_INSTITUCIONAL) {
-    return { normalizado, error: `Usa tu correo institucional @${DOMINIO_INSTITUCIONAL}, o elige «Aliado externo».` }
+  const dominios = opciones.dominios ?? [DOMINIO_INSTITUCIONAL]
+  if (opciones.institucional && !esInstitucional(normalizado, dominios)) {
+    const lista = dominios.map((d) => `@${d}`).join(' o ')
+    return { normalizado, error: `Estudiantes, docentes y administrativos usan su correo institucional ${lista}. Solo los aliados externos pueden usar un correo personal.` }
   }
   return { normalizado }
 }

@@ -1,4 +1,4 @@
-import { apiHabilitada, pedir } from './http'
+import { apiHabilitada, ErrorApi, pedir } from './http'
 import { actoresMock, oportunidadesMock, proyectosMock } from '@/data/mock'
 import type { Actor, Metricas, NuevoProyecto, Oportunidad, Proyecto } from './types'
 import { ESTADOS } from './types'
@@ -43,14 +43,21 @@ export async function crearProyecto(entrada: NuevoProyecto): Promise<Proyecto> {
   return nuevo
 }
 
+/** Si el rol no tiene permiso de ver algo (403), se muestra vacío en lugar de romper la página. */
+const sinPermisoVacio = <T,>(p: Promise<T[]>): Promise<T[]> =>
+  p.catch((e) => {
+    if (e instanceof ErrorApi && e.status === 403) return []
+    throw e
+  })
+
 export async function listarActores(): Promise<Actor[]> {
-  if (apiHabilitada) return pedir<Actor[]>('/actores')
+  if (apiHabilitada) return sinPermisoVacio(pedir<Actor[]>('/actores'))
   await espera(150)
   return actoresMock
 }
 
 export async function listarOportunidades(): Promise<Oportunidad[]> {
-  if (apiHabilitada) return pedir<Oportunidad[]>('/oportunidades')
+  if (apiHabilitada) return sinPermisoVacio(pedir<Oportunidad[]>('/oportunidades'))
   await espera(150)
   return oportunidadesMock
 }

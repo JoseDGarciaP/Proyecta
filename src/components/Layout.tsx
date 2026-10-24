@@ -9,6 +9,8 @@ import {
   Menu,
   Plus,
   Search,
+  ShieldCheck,
+  Trophy,
   Sparkles,
   UserRound,
   X,
@@ -19,12 +21,18 @@ import { useSesion } from '@/lib/sesion'
 import { useNoLeidos } from '@/hooks/useNoLeidos'
 import { AvisoMensajes } from '@/components/AvisoMensajes'
 import { SelectorTema } from '@/components/SelectorTema'
+import { CampanaAvisos } from '@/components/CampanaAvisos'
+import { CelebracionNivel } from '@/components/Nivel'
+import { useAvisosSinLeer } from '@/hooks/useAvisos'
+import { tiene, tienePanel } from '@/lib/permisos'
 
+// `permiso`: el enlace solo aparece si el rol lo tiene.
 const NAV = [
   { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
   { to: '/proyectos', label: 'Proyectos', icon: Lightbulb, end: false },
-  { to: '/actores', label: 'Actores', icon: Building2, end: false },
-  { to: '/oportunidades', label: 'Oportunidades', icon: Sparkles, end: false },
+  { to: '/actores', label: 'Actores', icon: Building2, end: false, permiso: 'actores.ver' },
+  { to: '/oportunidades', label: 'Oportunidades', icon: Sparkles, end: false, permiso: 'oportunidades.ver' },
+  { to: '/logros', label: 'Logros', icon: Trophy, end: false },
 ]
 
 export function Layout() {
@@ -34,6 +42,7 @@ export function Layout() {
   const navegar = useNavigate()
   const { usuario, salir } = useSesion()
   const noLeidos = useNoLeidos()
+  const avisos = useAvisosSinLeer()
 
   const buscar = (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,7 +68,11 @@ export function Layout() {
         </div>
 
         <nav className="space-y-1 px-3 py-2">
-          {[...NAV, ...(usuario ? [{ to: '/perfil', label: 'Mi perfil', icon: UserRound, end: false }] : [])].map(({ to, label, icon: Icono, end }) => (
+          {[
+            ...NAV.filter((n) => !n.permiso || tiene(usuario, n.permiso)),
+            ...(usuario ? [{ to: '/perfil', label: 'Mi perfil', icon: UserRound, end: false }] : []),
+            ...(tienePanel(usuario) ? [{ to: '/admin', label: 'Administración', icon: ShieldCheck, end: false }] : []),
+          ].map(({ to, label, icon: Icono, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -124,6 +137,7 @@ export function Layout() {
             {apiHabilitada &&
               (usuario ? (
                 <>
+                  <CampanaAvisos total={avisos} />
                   <AvisoMensajes {...noLeidos} />
                   <NavLink to="/perfil" className="btn-ghost" title="Mi perfil">
                     <UserRound size={16} aria-hidden />
@@ -145,15 +159,18 @@ export function Layout() {
                   <span className="hidden sm:inline">Ingresar</span>
                 </NavLink>
               ))}
-            <NavLink to="/proyectos/nuevo" className="btn-primary">
-              <Plus size={16} aria-hidden />
-              <span className="hidden sm:inline">Registrar proyecto</span>
-            </NavLink>
+            {tiene(usuario, 'proyectos.crear') && (
+              <NavLink to="/proyectos/nuevo" className="btn-primary">
+                <Plus size={16} aria-hidden />
+                <span className="hidden sm:inline">Registrar proyecto</span>
+              </NavLink>
+            )}
           </div>
         </header>
 
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">
           <Outlet context={{ oscuro: tema === 'dark' }} />
+          {apiHabilitada && <CelebracionNivel total={avisos} />}
         </main>
 
         <footer className="border-t border-slate-200 px-4 py-5 text-xs text-slate-400 lg:px-8 dark:border-slate-800">

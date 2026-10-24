@@ -1,11 +1,12 @@
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.core.deps import Admin, DbSession
+from app.core.deps import Admin, DbSession, requiere
+from app.modules.admin.bitacora import registrar
 from app.modules.catalogo.models import Area, Ods
 from app.modules.catalogo.service import areas_por_nombre, ods_por_id
 from app.modules.oportunidades.models import Oportunidad, TipoOportunidad
@@ -28,7 +29,7 @@ def _aplicar(db: Session, oportunidad: Oportunidad, datos: OportunidadEntrada) -
     oportunidad.ods = ods_por_id(db, datos.ods)
 
 
-@router.get("", response_model=list[OportunidadSalida])
+@router.get("", response_model=list[OportunidadSalida], dependencies=[Depends(requiere("oportunidades.ver"))])
 def listar_oportunidades(
     db: DbSession,
     q: str | None = None,
@@ -53,29 +54,33 @@ def listar_oportunidades(
     return [OportunidadSalida.de(o) for o in db.scalars(stmt.order_by(Oportunidad.cierra_en))]
 
 
-@router.get("/{oportunidad_id}", response_model=OportunidadSalida)
+@router.get("/{oportunidad_id}", response_model=OportunidadSalida, dependencies=[Depends(requiere("oportunidades.ver"))])
 def leer_oportunidad(oportunidad_id: uuid.UUID, db: DbSession):
     return OportunidadSalida.de(_obtener(db, oportunidad_id))
 
 
-@router.post("", response_model=OportunidadSalida, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=OportunidadSalida, status_code=status.HTTP_201_CREATED, dependencies=[Depends(requiere("oportunidades.gestionar"))])
 def crear_oportunidad(datos: OportunidadEntrada, admin: Admin, db: DbSession):
     oportunidad = Oportunidad(creado_por_id=admin.id)
     _aplicar(db, oportunidad, datos)
     db.add(oportunidad)
+    registrar(db, admin, "oportunidad.crear", oportunidad.titulo)
     db.commit()
     return OportunidadSalida.de(oportunidad)
 
 
-@router.put("/{oportunidad_id}", response_model=OportunidadSalida)
-def actualizar_oportunidad(oportunidad_id: uuid.UUID, datos: OportunidadEntrada, _: Admin, db: DbSession):
+@router.put("/{oportunidad_id}", response_model=OportunidadSalida, dependencies=[Depends(requiere("oportunidades.gestionar"))])
+def actualizar_oportunidad(oportunidad_id: uuid.UUID, datos: OportunidadEntrada, admin: Admin, db: DbSession):
     oportunidad = _obtener(db, oportunidad_id)
     _aplicar(db, oportunidad, datos)
+    registrar(db, admin, "oportunidad.editar", oportunidad.titulo)
     db.commit()
     return OportunidadSalida.de(oportunidad)
 
 
-@router.delete("/{oportunidad_id}", status_code=status.HTTP_204_NO_CONTENT)
-def eliminar_oportunidad(oportunidad_id: uuid.UUID, _: Admin, db: DbSession):
-    db.delete(_obtener(db, oportunidad_id))
+@router.delete("/{oportunidad_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(requiere("oportunidades.gestionar"))])
+def eliminar_oportunidad(oportunidad_id: uuid.UUID, admin: Admin, db: DbSession):
+    oportunidad = _obtener(db, oportunidad_id)
+    registrar(db, admin, "oportunidad.eliminar", oportunidad.titulo)
+    db.delete(oportunidad)
     db.commit()

@@ -1,22 +1,31 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Check, Handshake, Loader2, MessageCircle, MessageSquare, Send, Sparkles, UserRound, X } from 'lucide-react'
+import { Bell, Check, Handshake, Loader2, MessageCircle, MessageSquare, Send, Sparkles, UserRound, X } from 'lucide-react'
 import {
   actualizarPerfil,
   listaATexto,
   obtenerPerfil,
-  responderSolicitud,
+  cancelarSolicitud,
   sugerenciasParaMi,
   textoALista,
 } from '@/lib/colaboracion'
 import { apiHabilitada } from '@/lib/http'
 import { useSesion } from '@/lib/sesion'
-import type { Perfil as DatosPerfil, Solicitud, SugerenciasParaMi } from '@/lib/types'
+import type { Perfil as DatosPerfil, PreferenciasCorreo, Solicitud, SugerenciasParaMi } from '@/lib/types'
 import { Badge, EmptyState, EstadoBadge, SectionTitle, Skeleton } from '@/components/ui'
 import { ListaSugerencias, NotaMetodo } from '@/components/Sugerencias'
 import { formatDate } from '@/lib/format'
 import { useNoLeidos } from '@/hooks/useNoLeidos'
 import { ChatSolicitud } from '@/components/ChatSolicitud'
+import { DecidirSolicitud } from '@/components/DecidirSolicitud'
+import { FichaRecomendacion } from '@/components/FichaRecomendacion'
+import { useConfirmar } from '@/components/Confirmar'
+import { guardarPreferencias, leerPreferencias } from '@/lib/notificaciones'
+import { MisLogros } from '@/components/MisLogros'
+import { InsigniasDe, NivelDe, NombrePersona } from '@/components/Insignia'
+import { MiNivel } from '@/components/Nivel'
+import { Evidencias } from '@/components/Evidencias'
+import { usePuede } from '@/lib/permisos'
 
 const ESTADO_SOLICITUD: Record<Solicitud['estado'], string> = {
   pendiente: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
@@ -29,6 +38,7 @@ export function Perfil() {
   const [perfil, setPerfil] = useState<DatosPerfil | null>(null)
   const [error, setError] = useState('')
   const { porProyecto: noLeidos, porSolicitud } = useNoLeidos()
+  const puede = usePuede()
 
   const cargar = useCallback(() => {
     obtenerPerfil().then(setPerfil).catch((e: Error) => setError(e.message))
@@ -60,9 +70,13 @@ export function Perfil() {
         </span>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{usuario.nombre}</h1>
-          <p className="text-sm text-slate-500 capitalize dark:text-slate-400">
-            {usuario.rol}
+          <p className="flex flex-wrap items-center gap-x-1 text-sm text-slate-500 dark:text-slate-400">
+            {usuario.rol_nombre}
             {usuario.programa && ` · ${usuario.programa}`} · <span className="normal-case">{usuario.email}</span>
+          </p>
+          <p className="mt-1 flex flex-wrap items-center gap-2">
+            <a href="#nivel" aria-label="Ver mi nivel"><NivelDe usuarioId={usuario.id} /></a>
+            <a href="#logros"><InsigniasDe usuarioId={usuario.id} max={10} /></a>
           </p>
         </div>
         <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
@@ -74,7 +88,7 @@ export function Perfil() {
       </header>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
           <section>
             <SectionTitle extra={<Link to="/proyectos/nuevo" className="text-sm text-brand-700 hover:underline dark:text-brand-300">Registrar otro</Link>}>
               Mis proyectos
@@ -111,12 +125,16 @@ export function Perfil() {
             )}
           </section>
 
+          <MiNivel version={perfil} />
+          <MisLogros version={perfil} />
           <Alianzas alianzas={perfil.alianzas} alCambiar={cargar} noLeidos={porSolicitud} />
+          <Evidencias puedeSubir={puede('evidencias.subir')} proyectos={perfil.proyectos.map(({ proyecto }) => proyecto)} />
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <EditarPerfil perfil={perfil} alGuardar={cargar} />
-          <ParaMi version={usuario} />
+          <PreferenciasNotificaciones />
+          {puede('ia.usar') && <ParaMi version={usuario} />}
         </div>
       </div>
     </div>
@@ -138,12 +156,18 @@ function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; al
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [conversando, setConversando] = useState<Set<string>>(new Set())
+  const [decidiendo, setDecidiendo] = useState<{ s: Solicitud; accion: 'aceptar' | 'rechazar' } | null>(null)
+  const [detalle, setDetalle] = useState<Set<string>>(new Set())
+  const { confirmar, ventana } = useConfirmar()
   const { hash } = useLocation()
 
   // Un aviso de mensajes lleva a /perfil#solicitud-<id>: abrir esa conversación.
   useEffect(() => {
     const id = hash.startsWith('#solicitud-') ? hash.slice('#solicitud-'.length) : ''
-    if (id) setConversando((xs) => new Set(xs).add(id))
+    if (!id) return
+    setConversando((xs) => new Set(xs).add(id))
+    // Desde un aviso de solicitud nueva: llevar la vista a esa tarjeta.
+    requestAnimationFrame(() => document.getElementById(`alianza-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
   }, [hash])
 
   const alternarConversacion = (id: string) =>
@@ -165,11 +189,25 @@ function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; al
   const porResponder = alianzas.filter((a) => a.por_responder)
   const resto = alianzas.filter((a) => !a.por_responder)
 
-  const actuar = async (s: Solicitud, accion: 'aceptar' | 'rechazar' | 'cancelar') => {
+  const alternarDetalle = (id: string) =>
+    setDetalle((xs) => {
+      const nuevo = new Set(xs)
+      if (!nuevo.delete(id)) nuevo.add(id)
+      return nuevo
+    })
+
+  const cancelar = async (s: Solicitud) => {
+    const si = await confirmar({
+      titulo: `¿Retirar la ${s.tipo === 'solicitud' ? 'solicitud' : 'invitación'}?`,
+      detalle: `«${s.proyecto_titulo}». Le avisaremos a la otra persona.`,
+      aceptar: 'Retirar',
+      peligro: true,
+    })
+    if (!si) return
     setOcupado(s.id)
     setError('')
     try {
-      await responderSolicitud(s.id, accion)
+      await cancelarSolicitud(s.id)
       alCambiar()
     } catch (e) {
       setError((e as Error).message)
@@ -180,6 +218,18 @@ function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; al
 
   return (
     <section>
+      {ventana}
+      {decidiendo && (
+        <DecidirSolicitud
+          solicitud={decidiendo.s}
+          accion={decidiendo.accion}
+          alCerrar={() => setDecidiendo(null)}
+          alDecidir={() => {
+            setDecidiendo(null)
+            alCambiar()
+          }}
+        />
+      )}
       <SectionTitle>Alianzas</SectionTitle>
       {error && <p className="mb-2 text-sm text-rose-600">{error}</p>}
       {alianzas.length === 0 ? (
@@ -192,28 +242,29 @@ function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; al
           {porResponder.length > 0 && (
             <ul className="space-y-2">
               {porResponder.map((s) => (
-                <li key={s.id} className="card border-accent-300 p-4 dark:border-accent-500/40">
+                <li key={s.id} id={`alianza-${s.id}`} className="card scroll-mt-24 border-accent-300 p-4 dark:border-accent-500/40">
                   <p className="text-sm text-slate-800 dark:text-slate-200">
                     <Handshake size={15} className="mr-1.5 inline text-accent-600" aria-hidden />
                     {s.tipo === 'solicitud' ? (
-                      <><b>{s.usuario_nombre}</b> quiere unirse a <Link className="font-medium hover:underline" to={`/proyectos/${s.proyecto_id}`}>{s.proyecto_titulo}</Link></>
+                      <><b><NombrePersona id={s.usuario_id} nombre={s.usuario_nombre} /></b> quiere unirse a <Link className="font-medium hover:underline" to={`/proyectos/${s.proyecto_id}`}>{s.proyecto_titulo}</Link></>
                     ) : (
                       <>Te invitaron a <Link className="font-medium hover:underline" to={`/proyectos/${s.proyecto_id}`}>{s.proyecto_titulo}</Link></>
                     )}
                   </p>
-                  {s.mensaje && <p className="mt-1 text-sm text-slate-600 italic dark:text-slate-400">«{s.mensaje}»</p>}
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{formatDate(s.creado_en)}</p>
+                  <div className="mt-3"><FichaRecomendacion solicitud={s} /></div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button className="btn-primary" disabled={ocupado === s.id} onClick={() => actuar(s, 'aceptar')}>
-                      <Check size={15} aria-hidden /> Aceptar
+                    <button className="btn bg-emerald-600 text-white hover:bg-emerald-700" disabled={ocupado === s.id} onClick={() => setDecidiendo({ s, accion: 'aceptar' })}>
+                      <Check size={15} aria-hidden /> Aprobar
                     </button>
-                    <button className="btn-ghost" disabled={ocupado === s.id} onClick={() => actuar(s, 'rechazar')}>
+                    <button className="btn-ghost text-rose-700 dark:text-rose-400" disabled={ocupado === s.id} onClick={() => setDecidiendo({ s, accion: 'rechazar' })}>
                       <X size={15} aria-hidden /> Rechazar
                     </button>
                     {botonConversar(s)}
                   </div>
                   {conversando.has(s.id) && (
                     <div className="mt-3">
-                      <ChatSolicitud solicitud={s} />
+                      <ChatSolicitud solicitud={s} conFicha={false} />
                     </div>
                   )}
                 </li>
@@ -224,7 +275,7 @@ function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; al
           {resto.length > 0 && (
             <ul className="card divide-y divide-slate-200 dark:divide-slate-800">
               {resto.map((s) => (
-                <li key={s.id} className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm">
+                <li key={s.id} id={`alianza-${s.id}`} className="flex scroll-mt-24 flex-wrap items-center gap-3 px-5 py-3 text-sm">
                   <div className="min-w-0 flex-1">
                     <p className="text-slate-800 dark:text-slate-200">
                       {s.tipo === 'solicitud' ? `Solicitud de ${s.usuario_nombre}` : `Invitación a ${s.usuario_nombre}`} ·{' '}
@@ -232,19 +283,27 @@ function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; al
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       {formatDate(s.creado_en)}
+                      {s.rol_propuesto && ` · ${s.rol_propuesto}`}
+                      {s.motivo_nombre && <> · <span className="font-medium">Motivo:</span> {s.motivo_nombre}</>}
                       {s.respuesta && ` · «${s.respuesta}»`}
                     </p>
                   </div>
                   <Badge className={ESTADO_SOLICITUD[s.estado]}>{s.estado}</Badge>
+                  <button className="btn-ghost text-xs" onClick={() => alternarDetalle(s.id)} aria-expanded={detalle.has(s.id)}>
+                    {detalle.has(s.id) ? 'Ocultar detalle' : 'Detalle'}
+                  </button>
                   {botonConversar(s)}
                   {s.estado === 'pendiente' && (
-                    <button className="btn-ghost text-xs" disabled={ocupado === s.id} onClick={() => actuar(s, 'cancelar')}>
-                      Cancelar
+                    <button className="btn-ghost text-xs" disabled={ocupado === s.id} onClick={() => cancelar(s)}>
+                      Retirar
                     </button>
+                  )}
+                  {detalle.has(s.id) && (
+                    <div className="basis-full"><FichaRecomendacion solicitud={s} /></div>
                   )}
                   {conversando.has(s.id) && (
                     <div className="basis-full">
-                      <ChatSolicitud solicitud={s} />
+                      <ChatSolicitud solicitud={s} conFicha={!detalle.has(s.id)} />
                     </div>
                   )}
                 </li>
@@ -316,6 +375,68 @@ function EditarPerfil({ perfil, alGuardar }: { perfil: DatosPerfil; alGuardar: (
         {estado && !['guardando', 'guardado'].includes(estado) && <span className="text-sm text-rose-600">{estado}</span>}
       </div>
     </form>
+  )
+}
+
+const PREFERENCIAS: { clave: keyof PreferenciasCorreo; titulo: string; detalle: string }[] = [
+  { clave: 'solicitudes', titulo: 'Solicitudes e invitaciones nuevas', detalle: 'Cuando alguien pide unirse a tu proyecto, te invitan o (si revisas) llega algo por revisar.' },
+  { clave: 'respuestas', titulo: 'Respuestas', detalle: 'Cuando responden una solicitud tuya, revisan tus evidencias o deciden una postulación.' },
+  { clave: 'mensajes', titulo: 'Mensajes sin leer', detalle: 'Un resumen si te escribieron y no lo has leído en un rato.' },
+  { clave: 'logros', titulo: 'Insignias y niveles', detalle: 'Cuando ganas una insignia, te otorgan un reconocimiento o subes de nivel.' },
+]
+
+/** Qué avisos llegan también al correo. Los de la campana llegan siempre. */
+function PreferenciasNotificaciones() {
+  const [prefs, setPrefs] = useState<PreferenciasCorreo | null>(null)
+  const [estado, setEstado] = useState('')
+
+  useEffect(() => {
+    leerPreferencias().then(setPrefs).catch((e: Error) => setEstado(e.message))
+  }, [])
+
+  const cambiar = async (clave: keyof PreferenciasCorreo, valor: boolean) => {
+    if (!prefs) return
+    const anterior = prefs
+    const nuevo = { ...prefs, [clave]: valor }
+    setPrefs(nuevo)
+    setEstado('')
+    try {
+      setPrefs(await guardarPreferencias(nuevo))
+      setEstado('Guardado')
+    } catch (e) {
+      setPrefs(anterior)
+      setEstado((e as Error).message)
+    }
+  }
+
+  return (
+    <section className="card space-y-3 p-5" id="notificaciones">
+      <h2 className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+        <Bell size={16} aria-hidden /> Notificaciones por correo
+      </h2>
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        Los avisos siempre aparecen en la campana. Elige cuáles quieres recibir también en tu correo.
+      </p>
+      {!prefs ? (
+        <Skeleton className="h-24" />
+      ) : (
+        <ul className="space-y-2">
+          {PREFERENCIAS.map((p) => (
+            <li key={p.clave}>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="checkbox" className="mt-1 h-4 w-4 accent-brand-600" checked={prefs[p.clave]}
+                  onChange={(e) => cambiar(p.clave, e.target.checked)} />
+                <span className="text-sm">
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{p.titulo}</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">{p.detalle}</span>
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+      {estado && <p className={`text-xs ${estado === 'Guardado' ? 'text-emerald-600' : 'text-rose-600'}`}>{estado}</p>}
+    </section>
   )
 }
 

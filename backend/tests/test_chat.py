@@ -1,4 +1,4 @@
-from tests.conftest import registrar
+from tests.conftest import APRUEBA, RECO, registrar
 from tests.test_alianzas import _proyecto
 
 
@@ -6,8 +6,8 @@ def _con_colaborador(client, responsable):
     """Proyecto de `responsable` con Luis aceptado como colaborador."""
     pid = _proyecto(client, responsable)
     luis = registrar(client, "luis@ufpso.edu.co", nombre="Luis Gómez")
-    sid = client.post(f"/api/proyectos/{pid}/solicitudes", json={}, headers=luis).json()["id"]
-    client.post(f"/api/alianzas/{sid}/aceptar", json={}, headers=responsable)
+    sid = client.post(f"/api/proyectos/{pid}/solicitudes", json=RECO, headers=luis).json()["id"]
+    client.post(f"/api/alianzas/{sid}/aceptar", json=APRUEBA, headers=responsable)
     return pid, luis
 
 

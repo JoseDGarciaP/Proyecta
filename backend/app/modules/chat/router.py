@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,8 @@ from app.modules.chat.models import Lectura, LecturaSolicitud, Mensaje, MensajeB
 from app.modules.chat.schemas import Leido, MensajeEntrada, MensajeSalida, ResumenChat
 from app.modules.proyectos.models import Proyecto
 from app.modules.proyectos.router import obtener_proyecto
-from app.modules.usuarios.models import Rol, Usuario
+from app.modules.roles.servicio import exigir, puede
+from app.modules.usuarios.models import Usuario
 
 router = APIRouter(tags=["chat"])
 
@@ -70,7 +71,7 @@ class Conversacion:
     def eliminar(self, db: Session, usuario: Usuario, mensaje_id: int) -> None:
         """Quien lo escribió o un admin. Queda como «mensaje eliminado» para no romper el hilo."""
         mensaje = self.obtener(db, mensaje_id)
-        if mensaje.autor_id != usuario.id and usuario.rol != Rol.ADMIN:
+        if mensaje.autor_id != usuario.id and not puede(db, usuario, "chat.moderar"):
             raise HTTPException(status_code=403, detail="Solo quien escribió el mensaje puede eliminarlo")
         mensaje.eliminado = True
         mensaje.texto = ""
@@ -101,7 +102,7 @@ class Conversacion:
 def _chat_proyecto(db: Session, proyecto_id: uuid.UUID, usuario: Usuario) -> Conversacion:
     """El chat es privado: solo el responsable, los miembros y un admin (para moderar)."""
     proyecto = obtener_proyecto(db, proyecto_id)
-    if usuario.rol != Rol.ADMIN and not es_miembro(db, proyecto, usuario.id):
+    if not puede(db, usuario, "chat.moderar") and not es_miembro(db, proyecto, usuario.id):
         raise HTTPException(status_code=403, detail="El chat es solo para quienes hacen parte del proyecto")
     return Conversacion(Mensaje, Lectura, "proyecto_id", proyecto_id)
 
@@ -125,8 +126,16 @@ def listar_mensajes(
 
 
 @router.post("/api/proyectos/{proyecto_id}/mensajes", response_model=MensajeSalida, status_code=status.HTTP_201_CREATED)
-def enviar_mensaje(proyecto_id: uuid.UUID, datos: MensajeEntrada, usuario: UsuarioActual, db: DbSession):
-    return _chat_proyecto(db, proyecto_id, usuario).enviar(db, usuario, datos.texto)
+def enviar_mensaje(proyecto_id: uuid.UUID, datos: MensajeEntrada, usuario: UsuarioActual, db: DbSession, tareas: BackgroundTasks):
+    exigir(db, usuario, "chat.usar")
+    salida = _chat_proyecto(db, proyecto_id, usuario).enviar(db, usuario, datos.texto)
+    from app.modules.experiencia.servicio import sumar
+    from app.modules.insignias.servicio import evaluar
+
+    sumado = sumar(db, usuario, "mensaje_equipo", f"mensaje:{salida.id}", tareas=tareas)
+    if evaluar(db, usuario, tareas) or sumado:  # «Conversador/a»
+        db.commit()
+    return salida
 
 
 @router.patch("/api/proyectos/{proyecto_id}/mensajes/{mensaje_id}", response_model=MensajeSalida)
@@ -152,7 +161,7 @@ def _solicitud(db: Session, solicitud_id: uuid.UUID, usuario: Usuario) -> Solici
     solicitud = db.get(Solicitud, solicitud_id)
     if solicitud is None:
         raise HTTPException(status_code=404, detail="Solicitud no encontrada")
-    if usuario.rol != Rol.ADMIN and usuario.id not in (solicitud.usuario_id, solicitud.proyecto.creado_por_id):
+    if not puede(db, usuario, "chat.moderar") and usuario.id not in (solicitud.usuario_id, solicitud.proyecto.creado_por_id):
         raise HTTPException(status_code=403, detail="Esta conversación es entre quien solicita y el responsable del proyecto")
     return solicitud
 
@@ -176,6 +185,7 @@ def listar_mensajes_solicitud(
 @router.post("/api/alianzas/{solicitud_id}/mensajes", response_model=MensajeSalida, status_code=status.HTTP_201_CREATED)
 def enviar_mensaje_solicitud(solicitud_id: uuid.UUID, datos: MensajeEntrada, usuario: UsuarioActual, db: DbSession):
     """Solo mientras la solicitud está pendiente; después queda como historial."""
+    exigir(db, usuario, "chat.usar")
     return _chat_solicitud(db, solicitud_id, usuario, escribir=True).enviar(db, usuario, datos.texto)
 
 

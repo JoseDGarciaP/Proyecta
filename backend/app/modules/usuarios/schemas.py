@@ -2,7 +2,6 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.modules.usuarios.models import Rol
 
 
 class UsuarioPublico(BaseModel):
@@ -10,7 +9,8 @@ class UsuarioPublico(BaseModel):
 
     id: uuid.UUID
     nombre: str
-    rol: Rol
+    rol: str
+    rol_nombre: str
     programa: str | None
     bio: str | None
     habilidades: list[str]
@@ -20,6 +20,7 @@ class UsuarioPublico(BaseModel):
 class UsuarioPropio(UsuarioPublico):
     email: EmailStr
     verificado: bool
+    permisos: list[str] = []  # lo que su rol le deja hacer (la interfaz oculta lo demás)
 
 
 class UsuarioActualizar(BaseModel):

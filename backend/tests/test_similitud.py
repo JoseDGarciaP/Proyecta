@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 from app.models import Embedding
-from tests.conftest import registrar
+from tests.conftest import APRUEBA, RECO, registrar
 from tests.test_proyectos import PROYECTO
 
 
@@ -67,8 +67,8 @@ def test_colaboradores_por_perfil(client, estudiante, embeddings_falsos):
     assert "Python" in res["resultados"][0]["razon"]
 
     # Quien ya es miembro no se sugiere
-    sid = client.post(f"/api/proyectos/{pid}/solicitudes", json={}, headers=dev).json()["id"]
-    client.post(f"/api/alianzas/{sid}/aceptar", json={}, headers=estudiante)
+    sid = client.post(f"/api/proyectos/{pid}/solicitudes", json=RECO, headers=dev).json()["id"]
+    client.post(f"/api/alianzas/{sid}/aceptar", json=APRUEBA, headers=estudiante)
     assert client.get(f"/api/ia/proyectos/{pid}/colaboradores", headers=estudiante).json()["resultados"] == []
 
 

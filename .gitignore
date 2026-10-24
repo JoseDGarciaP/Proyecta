@@ -17,3 +17,5 @@ backend/.venv/
 __pycache__/
 *.pyc
 *.tsbuildinfo
+# Certificados y evidencias subidos en desarrollo
+backend/archivos/

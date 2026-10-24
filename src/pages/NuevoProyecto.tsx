@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, Save } from 'lucide-react'
 import { crearProyecto } from '@/lib/api'
-import { AREAS, ESTADOS, ESTADO_LABEL, ODS, type Area, type Estado } from '@/lib/types'
+import { AREAS, ESTADOS, ESTADO_LABEL, type Area, type Estado } from '@/lib/types'
+import { useAreas, useOds } from '@/lib/parametros'
 import { useSesion } from '@/lib/sesion'
 
 const inicial = {
@@ -28,6 +29,8 @@ export function NuevoProyecto() {
   const [error, setError] = useState<string | null>(null)
   const navegar = useNavigate()
   const { usuario } = useSesion()
+  const areas = useAreas()
+  const ods = useOds()
 
   const set = <K extends keyof typeof form>(clave: K, valor: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [clave]: valor }))
@@ -90,7 +93,7 @@ export function NuevoProyecto() {
           <div>
             <label className="label" htmlFor="area">Área</label>
             <select id="area" className="input" value={form.area} onChange={(e) => set('area', e.target.value as Area)}>
-              {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
+              {(areas.includes(form.area) ? areas : [form.area, ...areas]).map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
           <div>
@@ -133,7 +136,7 @@ export function NuevoProyecto() {
         <fieldset>
           <legend className="label">Objetivos de Desarrollo Sostenible</legend>
           <div className="flex flex-wrap gap-1.5">
-            {ODS.map((o) => {
+            {ods.map((o) => {
               const activo = form.ods.includes(o.id)
               return (
                 <button

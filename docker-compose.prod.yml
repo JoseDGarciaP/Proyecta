@@ -22,6 +22,7 @@ x-api-entorno: &api-entorno
   OLLAMA_URL: http://ollama:11434
   OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
   EMBEDDINGS_ACTIVOS: ${EMBEDDINGS_ACTIVOS:-true}
+  ARCHIVOS_DIR: /archivos
 
 services:
   db:
@@ -49,6 +50,7 @@ services:
         condition: service_healthy
     volumes:
       - modelos:/cache
+      - archivos:/archivos  # certificados y evidencias subidos
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/salud')"]
       interval: 30s
@@ -87,6 +89,7 @@ services:
 volumes:
   pgdata:
   modelos:
+  archivos:
   caddy_data:
   caddy_config:
   ollama:

@@ -10,7 +10,8 @@ export const AREAS = [
   'Social',
   'Energía',
 ] as const
-export type Area = (typeof AREAS)[number]
+/** Las áreas las administra el admin: estas son las iniciales (y las del modo demostración). */
+export type Area = (typeof AREAS)[number] | (string & {})
 
 export const TIPOS_ACTOR = ['universidad', 'empresa', 'estado', 'comunidad', 'ong'] as const
 export type TipoActor = (typeof TIPOS_ACTOR)[number]
@@ -62,14 +63,17 @@ export interface Oportunidad {
   ods?: number[]
 }
 
-export const ROLES = ['estudiante', 'docente', 'administrativo', 'aliado', 'admin'] as const
-export type Rol = (typeof ROLES)[number]
+/** Clave del rol: uno del sistema (estudiante, docente, administrativo, aliado, admin) o uno creado por el admin. */
+export type Rol = string
 
 export interface Usuario {
   id: string
   email: string
   nombre: string
   rol: Rol
+  rol_nombre: string
+  /** Lo que su rol le permite hacer (solo en el usuario propio). */
+  permisos?: string[]
   programa: string | null
   bio: string | null
   habilidades: string[]
@@ -136,7 +140,18 @@ export interface Solicitud {
   proyecto_titulo: string
   usuario_id: string
   usuario_nombre: string
+  /** Nota adicional opcional. */
   mensaje: string
+  /** Formato fijo: lo que ofrece quien pide unirse, o lo que propone el responsable al invitar. */
+  tipo_aporte_id: number | null
+  rol_propuesto: string
+  aporte: string
+  habilidades: string[]
+  disponibilidad_horas: number | null
+  motivacion: string
+  /** Decisión: motivo del catálogo y comentario de quien decidió. */
+  motivo_id: number | null
+  motivo_nombre: string
   respuesta: string
   creado_en: string
   respondida_en: string | null
@@ -212,4 +227,438 @@ export interface ResumenChat {
   titulo: string
   no_leidos: number
   ultimo: Mensaje | null
+}
+
+// ---- Parámetros de colaboración (los configura el admin) ----------------------------------------
+
+export type TipoMotivo = 'aprobacion' | 'rechazo'
+
+export interface Motivo {
+  id: number
+  tipo: TipoMotivo
+  nombre: string
+  descripcion: string
+  requiere_comentario: boolean
+  activo: boolean
+  orden: number
+}
+
+export interface TipoAporte {
+  id: number
+  nombre: string
+  descripcion: string
+  activo: boolean
+  orden: number
+}
+
+export type ParaPlantilla = 'solicitante' | 'responsable' | 'todos'
+
+export interface Plantilla {
+  id: number
+  titulo: string
+  texto: string
+  para: ParaPlantilla
+  activo: boolean
+  orden: number
+}
+
+export interface ParametrosColaboracion {
+  motivos: Motivo[]
+  tipos_aporte: TipoAporte[]
+  plantillas: Plantilla[]
+}
+
+/** Lo que se envía al pedir unirse o invitar. */
+export interface Recomendacion {
+  tipo_aporte_id: number
+  aporte: string
+  habilidades: string[]
+  disponibilidad_horas: number
+  motivacion: string
+  mensaje: string
+}
+
+// ---- Notificaciones ------------------------------------------------------------------------------
+
+export type TipoNotificacion =
+  | 'solicitud_nueva'
+  | 'invitacion_nueva'
+  | 'solicitud_aceptada'
+  | 'solicitud_rechazada'
+  | 'solicitud_cancelada'
+  | 'mensajes_sin_leer'
+  | 'cuenta'
+  | 'moderacion'
+  | 'insignia'
+  | 'nivel'
+  | 'evidencia'
+  | 'postulacion'
+  | 'revision'
+
+export interface Notificacion {
+  id: string
+  tipo: TipoNotificacion
+  titulo: string
+  cuerpo: string
+  enlace: string
+  leida: boolean
+  correo_enviado: boolean
+  creada_en: string
+}
+
+export interface PreferenciasCorreo {
+  solicitudes: boolean
+  respuestas: boolean
+  mensajes: boolean
+  logros: boolean
+}
+
+// ---- Administración ------------------------------------------------------------------------------
+
+export interface UsuarioAdmin {
+  id: string
+  email: string
+  nombre: string
+  rol: Rol
+  rol_nombre: string
+  programa: string | null
+  activo: boolean
+  verificado: boolean
+  con_google: boolean
+  creado_en: string
+  proyectos: number
+  colaboraciones: number
+}
+
+export interface PaginaUsuarios {
+  total: number
+  items: UsuarioAdmin[]
+}
+
+export interface AreaAdmin {
+  id: number
+  nombre: string
+  proyectos: number
+  oportunidades: number
+}
+
+export interface ItemCatalogo {
+  id: number
+  nombre: string
+}
+
+export interface Ajustes {
+  dominios_permitidos: string[]
+  correo_solicitudes: boolean
+  correo_respuestas: boolean
+  correo_mensajes: boolean
+  correo_cuenta: boolean
+  correo_logros: boolean
+  resumen_espera_minutos: number
+}
+
+export interface Conteo {
+  clave: string
+  total: number
+}
+
+export interface Estadisticas {
+  usuarios_total: number
+  usuarios_activos: number
+  usuarios_sin_verificar: number
+  usuarios_inactivos: number
+  usuarios_por_rol: Conteo[]
+  proyectos: number
+  oportunidades_abiertas: number
+  actores: number
+  solicitudes_por_estado: Conteo[]
+  tasa_aprobacion: number | null
+  motivos: { motivo: string; tipo: TipoMotivo; total: number }[]
+  aportes: Conteo[]
+  correos_30_dias: number
+  notificaciones_sin_leer: number
+}
+
+export interface ProyectoAdmin {
+  id: string
+  titulo: string
+  area: string
+  estado: Estado
+  responsable_id: string | null
+  responsable_nombre: string | null
+  responsable_email: string | null
+  miembros: number
+  solicitudes_pendientes: number
+  creado_en: string
+}
+
+export interface RegistroAdmin {
+  id: string
+  admin_nombre: string
+  accion: string
+  objeto: string
+  detalle: string
+  creado_en: string
+}
+
+// ---- Roles y permisos --------------------------------------------------------------------------
+
+export interface RolBreve {
+  clave: string
+  nombre: string
+  descripcion: string
+  institucional: boolean
+}
+
+export interface RolDef extends RolBreve {
+  registro_publico: boolean
+  sistema: boolean
+  permisos: string[]
+  orden: number
+  usuarios: number
+}
+
+export interface PermisoDef {
+  clave: string
+  grupo: string
+  nombre: string
+  descripcion: string
+  solo_admin: boolean
+}
+
+// ---- Insignias -------------------------------------------------------------------------------
+
+export type TipoInsignia = 'logro' | 'condecoracion' | 'reconocimiento'
+
+/** Un requisito de una regla automática. `valor`: área, número de ODS, clave de rol o texto, según el criterio. */
+export interface Condicion {
+  criterio: string
+  umbral: number
+  valor: string | null
+}
+
+export interface Reglas {
+  modo: 'todas' | 'alguna'
+  condiciones: Condicion[]
+}
+
+export interface Insignia {
+  id: number
+  nombre: string
+  descripcion: string
+  tipo: TipoInsignia
+  entidad: string
+  icono: string
+  color: string
+  /** null = la otorga la administración */
+  reglas: Reglas | null
+  vence_en: string | null
+  vigencia_dias: number | null
+  activo: boolean
+  orden: number
+  automatica: boolean
+  texto_regla: string
+  otorgadas: number
+}
+
+/** Insignia que tiene una persona. */
+export interface InsigniaBreve {
+  id: number
+  nombre: string
+  descripcion: string
+  tipo: TipoInsignia
+  entidad: string
+  icono: string
+  color: string
+  motivo: string
+  automatica: boolean
+  otorgada_en: string
+  fecha_evento: string | null
+  vence_en: string | null
+}
+
+export interface MisLogros {
+  obtenidas: InsigniaBreve[]
+  en_progreso: { insignia: Insignia; modo: 'todas' | 'alguna'; condiciones: { texto: string; actual: number; umbral: number }[]; avance: number }[]
+  manuales_disponibles: Insignia[]
+  vencidas: InsigniaBreve[]
+}
+
+export interface CriterioInsignia {
+  clave: string
+  nombre: string
+  unidad: string
+  valor: 'area' | 'ods' | 'rol' | 'texto' | null
+  binario: boolean
+  grupo: string
+}
+
+export interface OpcionesInsignia {
+  criterios: CriterioInsignia[]
+  iconos: string[]
+  colores: string[]
+  tipos: Record<TipoInsignia, string>
+}
+
+export interface PuestoRanking {
+  posicion: number
+  usuario_id: string
+  nombre: string
+  rol_nombre: string
+  programa: string | null
+  total: number
+  insignias: InsigniaBreve[]
+}
+
+export interface Otorgada {
+  usuario_id: string
+  nombre: string
+  email: string
+  motivo: string
+  automatica: boolean
+  otorgada_por: string | null
+  otorgada_en: string
+  fecha_evento: string | null
+  vence_en: string | null
+  retirada_en: string | null
+  estado: 'vigente' | 'vencida' | 'retirada'
+}
+
+export interface PerfilPublico {
+  usuario: Omit<Usuario, 'email' | 'permisos'>
+  xp: number
+  nivel: NivelBreve | null
+  insignias: InsigniaBreve[]
+  proyectos: { proyecto: Proyecto; rol: string }[]
+}
+
+// ---- Experiencia y niveles -------------------------------------------------------------------
+
+export interface NivelBreve {
+  id: number
+  nombre: string
+  icono: string
+  color: string
+  posicion: number
+}
+
+export interface Nivel {
+  id: number
+  nombre: string
+  descripcion: string
+  icono: string
+  color: string
+  xp_minima: number
+  insignias_minimas: number
+  insignias_requeridas: number[]
+  posicion: number
+  personas: number
+}
+
+export type NivelEntrada = Omit<Nivel, 'id' | 'posicion' | 'personas'>
+
+export interface AccionXP {
+  clave: string
+  nombre: string
+  descripcion: string
+  puntos: number
+  tope_diario: number | null
+  activo: boolean
+  orden: number
+}
+
+export interface MovimientoXP {
+  id: string
+  accion: string
+  accion_nombre: string
+  puntos: number
+  detalle: string
+  otorgado_por: string | null
+  creado_en: string
+}
+
+export interface MiExperiencia {
+  xp: number
+  xp_semana: number
+  nivel: NivelBreve | null
+  siguiente: { nivel: Nivel; xp_faltante: number; insignias_faltantes: number; requeridas_faltantes: string[] } | null
+  total_niveles: number
+  historial: MovimientoXP[]
+  acciones: AccionXP[]
+}
+
+export interface ExperienciaBreve {
+  xp: number
+  nivel: NivelBreve | null
+}
+
+export interface PuestoXP {
+  posicion: number
+  usuario_id: string
+  nombre: string
+  rol_nombre: string
+  programa: string | null
+  xp: number
+  xp_total: number
+  nivel: NivelBreve | null
+}
+
+export interface PersonaXP {
+  id: string
+  nombre: string
+  email: string
+  rol_nombre: string
+  xp: number
+  nivel: NivelBreve | null
+}
+
+export interface ResumenUsuarioXP {
+  usuario_id: string
+  nombre: string
+  xp: number
+  nivel: NivelBreve | null
+  historial: MovimientoXP[]
+}
+
+// ---- Postulaciones y evidencias ----------------------------------------------------------------
+
+export type EstadoPostulacion = 'enviada' | 'aceptada' | 'no_seleccionada' | 'retirada'
+
+export interface Postulacion {
+  id: string
+  oportunidad_id: string
+  oportunidad_titulo: string
+  oportunidad_entidad: string
+  oportunidad_cierra_en: string
+  proyecto_id: string
+  proyecto_titulo: string
+  usuario_nombre: string | null
+  estado: EstadoPostulacion
+  nota: string
+  comentario: string
+  creado_en: string
+  decidida_en: string | null
+}
+
+export type TipoEvidencia = 'certificado' | 'constancia' | 'informe' | 'foto' | 'otro'
+export type EstadoEvidencia = 'pendiente' | 'aprobada' | 'rechazada'
+
+export interface Evidencia {
+  id: string
+  usuario_id: string
+  usuario_nombre: string
+  proyecto_id: string | null
+  proyecto_titulo: string | null
+  titulo: string
+  descripcion: string
+  tipo: TipoEvidencia
+  archivo_nombre: string
+  archivo_tipo: string
+  archivo_tamano: number
+  estado: EstadoEvidencia
+  xp_otorgada: number
+  comentario: string
+  revisada_por: string | null
+  revisada_en: string | null
+  creado_en: string
 }

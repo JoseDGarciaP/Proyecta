@@ -12,6 +12,7 @@ from app.modules.alianzas.router import solicitudes_de
 from app.modules.alianzas.schemas import SolicitudSalida
 from app.modules.proyectos.models import Proyecto
 from app.modules.proyectos.schemas import ProyectoSalida
+from app.modules.usuarios.router import propio
 from app.modules.usuarios.schemas import UsuarioPropio
 
 router = APIRouter(prefix="/api/perfil", tags=["perfil"])
@@ -51,7 +52,7 @@ def mi_perfil(usuario: UsuarioActual, db: DbSession):
     propios = [m.proyecto.id for m in mios if m.mi_rol == "responsable"]
     miembros_en_mios = len(db.scalars(select(Miembro.usuario_id).where(Miembro.proyecto_id.in_(propios))).all())
     return Perfil(
-        usuario=UsuarioPropio.model_validate(usuario),
+        usuario=propio(db, usuario),
         resumen=Resumen(
             proyectos=len(mios),
             colaboraciones=len(miembro_de),

@@ -16,6 +16,11 @@ import { Verificar } from '@/pages/Verificar'
 import { Recuperar } from '@/pages/Recuperar'
 import { Restablecer } from '@/pages/Restablecer'
 import { RequiereSesion } from '@/components/RequiereSesion'
+import { Notificaciones } from '@/pages/Notificaciones'
+import { Admin } from '@/pages/Admin'
+import { PerfilPersona } from '@/pages/PerfilPersona'
+import { Logros } from '@/pages/Logros'
+import { tiene, tienePanel } from '@/lib/permisos'
 import { useSesion } from '@/lib/sesion'
 import type { ReactNode } from 'react'
 
@@ -23,6 +28,18 @@ import type { ReactNode } from 'react'
 function SoloVisitantes({ children }: { children: ReactNode }) {
   const { usuario } = useSesion()
   return usuario ? <Navigate to="/" replace /> : children
+}
+
+/** El panel de administración solo para roles con algún permiso admin.* (la API también lo exige). */
+function SoloAdmin({ children }: { children: ReactNode }) {
+  const { usuario } = useSesion()
+  return tienePanel(usuario) ? children : <Navigate to="/" replace />
+}
+
+/** Páginas que exigen un permiso del rol. */
+function ConPermiso({ permiso, children }: { permiso: string; children: ReactNode }) {
+  const { usuario } = useSesion()
+  return tiene(usuario, permiso) ? children : <Navigate to="/" replace />
 }
 
 export default function App() {
@@ -40,11 +57,16 @@ export default function App() {
       <Route element={<RequiereSesion><Layout /></RequiereSesion>}>
         <Route index element={<Dashboard />} />
         <Route path="proyectos" element={<Proyectos />} />
-        <Route path="proyectos/nuevo" element={<NuevoProyecto />} />
+        <Route path="proyectos/nuevo" element={<ConPermiso permiso="proyectos.crear"><NuevoProyecto /></ConPermiso>} />
         <Route path="proyectos/:id" element={<ProyectoDetalle />} />
-        <Route path="actores" element={<Actores />} />
-        <Route path="oportunidades" element={<Oportunidades />} />
+        <Route path="actores" element={<ConPermiso permiso="actores.ver"><Actores /></ConPermiso>} />
+        <Route path="oportunidades" element={<ConPermiso permiso="oportunidades.ver"><Oportunidades /></ConPermiso>} />
+        <Route path="logros" element={<Logros />} />
+        <Route path="personas/:id" element={<ConPermiso permiso="usuarios.ver"><PerfilPersona /></ConPermiso>} />
         <Route path="perfil" element={<Perfil />} />
+        <Route path="notificaciones" element={<Notificaciones />} />
+        <Route path="admin" element={<SoloAdmin><Admin /></SoloAdmin>} />
+        <Route path="admin/:pestana" element={<SoloAdmin><Admin /></SoloAdmin>} />
         <Route path="*" element={<NoEncontrado />} />
       </Route>
     </Routes>

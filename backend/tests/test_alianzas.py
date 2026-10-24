@@ -1,4 +1,4 @@
-from tests.conftest import registrar
+from tests.conftest import APRUEBA, RECHAZA, RECO, registrar
 from tests.test_proyectos import PROYECTO
 
 
@@ -16,23 +16,23 @@ def test_solicitar_y_aceptar_crea_miembro_e_historial(client, estudiante):
     pid = _proyecto(client, estudiante)
     luis = registrar(client, "luis@ufpso.edu.co", nombre="Luis Gómez")
 
-    res = client.post(f"/api/proyectos/{pid}/solicitudes", json={"mensaje": "Sé de sensores"}, headers=luis)
+    res = client.post(f"/api/proyectos/{pid}/solicitudes", json={**RECO, "mensaje": "Sé de sensores"}, headers=luis)
     assert res.status_code == 201, res.text
     solicitud = res.json()
     assert solicitud["estado"] == "pendiente" and solicitud["por_responder"] is False
 
     # Duplicada o respondida por quien no corresponde
-    assert client.post(f"/api/proyectos/{pid}/solicitudes", json={}, headers=luis).status_code == 409
-    assert client.post(f"/api/alianzas/{solicitud['id']}/aceptar", json={}, headers=luis).status_code == 403
+    assert client.post(f"/api/proyectos/{pid}/solicitudes", json=RECO, headers=luis).status_code == 409
+    assert client.post(f"/api/alianzas/{solicitud['id']}/aceptar", json=APRUEBA, headers=luis).status_code == 403
 
     pendientes = client.get("/api/alianzas", headers=estudiante).json()
     assert [s["por_responder"] for s in pendientes] == [True]
 
-    res = client.post(f"/api/alianzas/{solicitud['id']}/aceptar", json={"respuesta": "¡Bienvenido!"}, headers=estudiante)
+    res = client.post(f"/api/alianzas/{solicitud['id']}/aceptar", json={**APRUEBA, "respuesta": "¡Bienvenido!"}, headers=estudiante)
     assert res.json()["estado"] == "aceptada"
     assert [m["nombre"] for m in client.get(f"/api/proyectos/{pid}/miembros", headers=estudiante).json()] == ["Luis Gómez"]
-    assert client.post(f"/api/alianzas/{solicitud['id']}/rechazar", json={}, headers=estudiante).status_code == 409
-    assert client.post(f"/api/proyectos/{pid}/solicitudes", json={}, headers=luis).status_code == 409  # ya es miembro
+    assert client.post(f"/api/alianzas/{solicitud['id']}/rechazar", json=RECHAZA, headers=estudiante).status_code == 409
+    assert client.post(f"/api/proyectos/{pid}/solicitudes", json=RECO, headers=luis).status_code == 409  # ya es miembro
 
     perfil = client.get("/api/perfil", headers=luis).json()
     assert perfil["resumen"] == {"proyectos": 1, "colaboraciones": 1, "alianzas_activas": 1, "por_responder": 0}
@@ -42,7 +42,7 @@ def test_solicitar_y_aceptar_crea_miembro_e_historial(client, estudiante):
 
 def test_el_dueno_no_se_solicita_a_si_mismo(client, estudiante):
     pid = _proyecto(client, estudiante)
-    assert client.post(f"/api/proyectos/{pid}/solicitudes", json={}, headers=estudiante).status_code == 409
+    assert client.post(f"/api/proyectos/{pid}/solicitudes", json=RECO, headers=estudiante).status_code == 409
 
 
 def test_invitacion_la_responde_el_invitado(client, estudiante):
@@ -51,15 +51,15 @@ def test_invitacion_la_responde_el_invitado(client, estudiante):
     maria_id = _yo(client, maria)["id"]
     otro = registrar(client, "otro@ufpso.edu.co", nombre="Otro Usuario")
 
-    assert client.post(f"/api/proyectos/{pid}/invitaciones", json={"usuario_id": maria_id}, headers=otro).status_code == 403
-    inv = client.post(f"/api/proyectos/{pid}/invitaciones", json={"usuario_id": maria_id}, headers=estudiante).json()
+    assert client.post(f"/api/proyectos/{pid}/invitaciones", json={**RECO, "usuario_id": maria_id}, headers=otro).status_code == 403
+    inv = client.post(f"/api/proyectos/{pid}/invitaciones", json={**RECO, "usuario_id": maria_id}, headers=estudiante).json()
     assert inv["tipo"] == "invitacion"
-    assert client.post(f"/api/alianzas/{inv['id']}/aceptar", json={}, headers=estudiante).status_code == 403
+    assert client.post(f"/api/alianzas/{inv['id']}/aceptar", json=APRUEBA, headers=estudiante).status_code == 403
 
-    assert client.post(f"/api/alianzas/{inv['id']}/rechazar", json={}, headers=maria).json()["estado"] == "rechazada"
+    assert client.post(f"/api/alianzas/{inv['id']}/rechazar", json=RECHAZA, headers=maria).json()["estado"] == "rechazada"
     assert client.get(f"/api/proyectos/{pid}/miembros", headers=estudiante).json() == []
     # Tras un rechazo se puede volver a invitar, y quien invita puede cancelar
-    inv2 = client.post(f"/api/proyectos/{pid}/invitaciones", json={"usuario_id": maria_id}, headers=estudiante).json()
+    inv2 = client.post(f"/api/proyectos/{pid}/invitaciones", json={**RECO, "usuario_id": maria_id}, headers=estudiante).json()
     assert client.post(f"/api/alianzas/{inv2['id']}/cancelar", headers=maria).status_code == 403
     assert client.post(f"/api/alianzas/{inv2['id']}/cancelar", headers=estudiante).json()["estado"] == "cancelada"
 
@@ -68,8 +68,8 @@ def test_miembro_puede_retirarse(client, estudiante):
     pid = _proyecto(client, estudiante)
     luis = registrar(client, "luis@ufpso.edu.co", nombre="Luis Gómez")
     luis_id = _yo(client, luis)["id"]
-    sid = client.post(f"/api/proyectos/{pid}/solicitudes", json={}, headers=luis).json()["id"]
-    client.post(f"/api/alianzas/{sid}/aceptar", json={}, headers=estudiante)
+    sid = client.post(f"/api/proyectos/{pid}/solicitudes", json=RECO, headers=luis).json()["id"]
+    client.post(f"/api/alianzas/{sid}/aceptar", json=APRUEBA, headers=estudiante)
 
     intruso = registrar(client, "intruso@ufpso.edu.co", nombre="Intruso")
     assert client.delete(f"/api/proyectos/{pid}/miembros/{luis_id}", headers=intruso).status_code == 403

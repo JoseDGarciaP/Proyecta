@@ -17,7 +17,8 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-RUN useradd --create-home proyecta && mkdir -p /cache && chown proyecta /cache
+# /archivos guarda los certificados y evidencias que sube la gente (volumen «archivos» en producción).
+RUN useradd --create-home proyecta && mkdir -p /cache /archivos && chown proyecta /cache /archivos
 USER proyecta
 
 EXPOSE 8000
