@@ -147,7 +147,7 @@ export function Layout() {
                     onClick={() => {
                       salir()
                       // Recarga completa: no queda nada del usuario en memoria.
-                      window.location.replace('/bienvenida')
+                      window.location.replace(`${import.meta.env.BASE_URL}bienvenida`)
                     }}
                     className="btn-ghost px-2.5" title={`Salir (${usuario.email})`}>
                     <LogOut size={16} aria-label="Salir" />

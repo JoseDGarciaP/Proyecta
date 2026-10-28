@@ -9,11 +9,16 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Con CON_EMBEDDINGS=false (servidores de 512 MB, como el plan gratuito de Render) no se instala
+# PyTorch ni sentence-transformers: la similitud usa palabras en común.
+ARG CON_EMBEDDINGS=true
+
 # PyTorch solo CPU (~200 MB). Desde PyPI en x86_64 traería las librerías de CUDA (varios GB).
-RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
+RUN if [ "$CON_EMBEDDINGS" = "true" ]; then pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN if [ "$CON_EMBEDDINGS" = "true" ]; then pip install -r requirements.txt; \
+    else grep -v '^sentence-transformers' requirements.txt > /tmp/req.txt && pip install -r /tmp/req.txt; fi
 
 COPY . .
 
@@ -23,4 +28,5 @@ USER proyecta
 
 EXPOSE 8000
 # Aplica las migraciones pendientes y arranca. Un solo proceso: el modelo de similitud ocupa ~1 GB de RAM.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+# PORT lo define el servidor si hace falta (Render); por defecto 8000.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]

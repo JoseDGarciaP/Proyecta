@@ -1,0 +1,62 @@
+# Publica la interfaz (React + Vite) en GitHub Pages cada vez que se sube algo a main.
+#
+# GitHub Pages solo sirve archivos estáticos: la API (carpeta backend) se despliega aparte
+# y la interfaz la consulta en la dirección guardada en la variable del repositorio VITE_API_URL
+# (Settings → Secrets and variables → Actions → Variables). Sin esa variable la página
+# queda en modo demostración con datos de ejemplo.
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Compilar
+        run: npm run build
+        env:
+          # La página queda en https://<usuario>.github.io/<repositorio>/
+          VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+      # Pages no conoce las rutas de React (/proyectos, /verificar…): al no encontrarlas
+      # entrega 404.html, que es la misma app, y React Router muestra la página correcta.
+      - name: Rutas de la aplicación
+        run: |
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  publicar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - id: despliegue
+        uses: actions/deploy-pages@v4

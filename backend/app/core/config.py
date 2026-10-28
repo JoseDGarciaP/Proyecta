@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,6 +30,9 @@ class Settings(BaseSettings):
     smtp_usuario: str = ""
     smtp_password: str = ""
     smtp_remitente: str = ""
+    # Alternativa al SMTP por HTTPS (Brevo, capa gratuita de 300 correos/día). Sirve donde el
+    # proveedor bloquea los puertos de correo, como el plan gratuito de Render. Tiene prioridad sobre SMTP.
+    brevo_api_key: str = ""
     # Resumen por correo de mensajes sin leer: la API lo revisa cada `resumen_intervalo_minutos`.
     # Con false no corre solo (se puede lanzar con `python -m scripts.enviar_resumenes` o desde el panel de admin).
     resumen_automatico: bool = True
@@ -57,6 +61,15 @@ class Settings(BaseSettings):
     # Si no está instalado o no se puede cargar, se usa similitud por palabras en común.
     embeddings_activos: bool = True
     embeddings_modelo: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+    @field_validator("database_url")
+    @classmethod
+    def _driver_psycopg(cls, url: str) -> str:
+        """Supabase y otros dan la cadena como postgresql://…; SQLAlchemy necesita el driver psycopg."""
+        for prefijo in ("postgres://", "postgresql://"):
+            if url.startswith(prefijo):
+                return "postgresql+psycopg://" + url[len(prefijo):]
+        return url
 
     @property
     def allowed_domains(self) -> list[str]:

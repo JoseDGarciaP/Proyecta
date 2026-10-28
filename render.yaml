@@ -1,0 +1,50 @@
+# API de Proyecta en Render (plan gratuito) con la base de datos en Supabase.
+# Render → New → Blueprint → elegir este repositorio. Pide los valores marcados con sync: false.
+# Guía completa: docs/despliegue-github-pages-supabase.md
+services:
+  - type: web
+    name: proyecta-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/salud
+    autoDeploy: true
+    envVars:
+      # 512 MB de RAM: sin el modelo de similitud semántica (usa palabras en común).
+      # Render pasa las variables como argumentos de construcción: CON_EMBEDDINGS llega al Dockerfile.
+      - key: CON_EMBEDDINGS
+        value: "false"
+      - key: EMBEDDINGS_ACTIVOS
+        value: "false"
+      - key: PORT
+        value: "8000"
+      # Cadena del «Session pooler» de Supabase (Connect → Connection string → Session pooler).
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      # https://<usuario>.github.io/<repositorio>   (sin barra al final)
+      - key: FRONTEND_URL
+        sync: false
+      # https://<usuario>.github.io   (solo el origen, sin la ruta del repositorio)
+      - key: CORS_ORIGINS
+        sync: false
+      - key: ALLOWED_EMAIL_DOMAINS
+        value: ufpso.edu.co
+      - key: VERIFICAR_DNS_CORREO
+        value: "true"
+      # Render gratis bloquea el SMTP: los correos salen por la API HTTPS de Brevo.
+      - key: BREVO_API_KEY
+        sync: false
+      # Remitente verificado en Brevo, p. ej.  Proyecta <tu-correo@gmail.com>
+      - key: SMTP_REMITENTE
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: IA_PROVEEDOR
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ARCHIVOS_DIR
+        value: /archivos

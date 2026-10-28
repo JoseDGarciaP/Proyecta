@@ -1,6 +1,7 @@
-"""Envío de correos por SMTP.
+"""Envío de correos por SMTP o por la API HTTPS de Brevo.
 
-Sin SMTP_HOST configurado no se envía nada: el mensaje se escribe en la consola de la API
+Con BREVO_API_KEY se usa Brevo (sirve donde el proveedor bloquea los puertos SMTP, como el plan
+gratuito de Render). Sin Brevo ni SMTP_HOST no se envía nada: el mensaje se escribe en la consola de la API
 (útil en desarrollo) y queda en `enviados`, que las pruebas revisan.
 """
 
@@ -9,6 +10,9 @@ import logging
 import smtplib
 from dataclasses import dataclass
 from email.message import EmailMessage
+from email.utils import parseaddr
+
+import httpx
 
 from app.core.config import get_settings
 
@@ -26,8 +30,35 @@ class Correo:
 enviados: list[Correo] = []
 
 
+BREVO_URL = "https://api.brevo.com/v3/smtp/email"
+
+
+def _enviar_brevo(correo: Correo) -> None:
+    settings = get_settings()
+    nombre, direccion = parseaddr(settings.smtp_remitente or settings.smtp_usuario)
+    try:
+        respuesta = httpx.post(
+            BREVO_URL,
+            headers={"api-key": settings.brevo_api_key, "accept": "application/json"},
+            json={
+                "sender": {"name": nombre or "Proyecta", "email": direccion},
+                "to": [{"email": correo.para}],
+                "subject": correo.asunto,
+                "textContent": correo.texto,
+                "htmlContent": correo.html,
+            },
+            timeout=20,
+        )
+        respuesta.raise_for_status()
+    except httpx.HTTPError:
+        log.exception("No se pudo enviar el correo a %s por Brevo", correo.para)
+
+
 def enviar(correo: Correo) -> None:
     settings = get_settings()
+    if settings.brevo_api_key:
+        _enviar_brevo(correo)
+        return
     if not settings.smtp_host:
         enviados.append(correo)
         log.warning("SMTP sin configurar. Correo para %s: %s\n%s", correo.para, correo.asunto, correo.texto)
