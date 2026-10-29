@@ -9,6 +9,7 @@ import { CampoCorreo } from '@/components/CampoCorreo'
 import { CampoContrasena } from '@/components/CampoContrasena'
 import { revisarCorreo } from '@/lib/correo'
 import { useDominiosPermitidos, useRolesRegistro } from '@/lib/parametros'
+import { PROGRAMAS } from '@/lib/programas'
 
 // Mientras cargan los roles configurados por el admin (o en modo demostración).
 const ROLES_INICIALES = [
@@ -27,6 +28,7 @@ export function Registro() {
   const [error, setError] = useState<string | null>(null)
   const [registrado, setRegistrado] = useState(false)
   const [intento, setIntento] = useState(false)
+  const [confirmacion, setConfirmacion] = useState('')
   const rolesApi = useRolesRegistro()
   const roles = rolesApi.length ? rolesApi : ROLES_INICIALES
   const rolElegido = roles.find((r) => r.clave === form.rol)
@@ -41,6 +43,10 @@ export function Registro() {
     setIntento(true)
     const revision = revisarCorreo(form.email, { institucional, dominios })
     if (revision.error) return
+    if (form.password !== confirmacion) {
+      setError('Las contraseñas no coinciden.')
+      return
+    }
     setEnviando(true)
     setError(null)
     try {
@@ -90,7 +96,7 @@ export function Registro() {
         </div>
         <div>
           <label className="label" htmlFor="rol">Soy</label>
-          <select id="rol" className="input" value={form.rol} onChange={(e) => set('rol', e.target.value as Rol)}>
+          <select id="rol" className="input" value={form.rol} onChange={(e) => setForm((f) => ({ ...f, rol: e.target.value as Rol, programa: '' }))}>
             {roles.map((r) => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
           </select>
           {rolElegido?.descripcion && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{rolElegido.descripcion}</p>}
@@ -106,8 +112,31 @@ export function Registro() {
           minLength={8}
         />
         <div>
+          <CampoContrasena
+            id="confirmacion"
+            etiqueta="Repite la contraseña"
+            valor={confirmacion}
+            alCambiar={(v) => {
+              setConfirmacion(v)
+              if (error === 'Las contraseñas no coinciden.') setError(null)
+            }}
+            autoComplete="new-password"
+            minLength={8}
+          />
+          {confirmacion && confirmacion !== form.password && (
+            <p className="mt-1.5 text-sm text-rose-600 dark:text-rose-400">Las contraseñas no coinciden.</p>
+          )}
+        </div>
+        <div>
           <label className="label" htmlFor="programa">{institucional ? 'Programa o dependencia' : 'Organización'}</label>
-          <input id="programa" className="input" value={form.programa ?? ''} onChange={(e) => set('programa', e.target.value)} />
+          {institucional ? (
+            <select id="programa" required className="input" value={form.programa ?? ''} onChange={(e) => set('programa', e.target.value)}>
+              <option value="" disabled>Selecciona tu programa</option>
+              {PROGRAMAS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          ) : (
+            <input id="programa" className="input" value={form.programa ?? ''} onChange={(e) => set('programa', e.target.value)} />
+          )}
         </div>
         {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
         <button type="submit" className="btn-primary w-full justify-center" disabled={enviando}>
