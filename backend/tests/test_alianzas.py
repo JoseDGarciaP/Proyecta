@@ -84,3 +84,21 @@ def test_perfil_del_responsable(client, estudiante):
     assert perfil["proyectos"][0]["mi_rol"] == "responsable"
     assert perfil["resumen"]["proyectos"] == 1 and perfil["alianzas"] == []
     assert client.get("/api/perfil").status_code == 401
+
+
+def test_solo_el_lider_edita_el_proyecto_no_los_colaboradores(client, estudiante):
+    pid = _proyecto(client, estudiante)
+    luis = registrar(client, "luis@ufpso.edu.co", nombre="Luis Gómez")
+    sid = client.post(f"/api/proyectos/{pid}/solicitudes", json=RECO, headers=luis).json()["id"]
+    client.post(f"/api/alianzas/{sid}/aceptar", json=APRUEBA, headers=estudiante)
+
+    # Ya es miembro del equipo, pero no puede cambiar la formulación
+    cambio = {"titulo": "Título cambiado por otro", "descripcion": "otra cosa", "equipo": ["Luis"], "etiquetas": ["x"]}
+    assert client.patch(f"/api/proyectos/{pid}", json=cambio, headers=luis).status_code == 403
+    assert client.delete(f"/api/proyectos/{pid}", headers=luis).status_code == 403
+
+    # El líder sí
+    res = client.patch(f"/api/proyectos/{pid}", json=cambio, headers=estudiante)
+    assert res.status_code == 200, res.text
+    datos = res.json()
+    assert datos["titulo"] == "Título cambiado por otro" and datos["equipo"] == ["Luis"] and datos["etiquetas"] == ["x"]

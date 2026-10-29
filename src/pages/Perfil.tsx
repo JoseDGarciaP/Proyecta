@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Bell, Check, Handshake, Loader2, MessageCircle, MessageSquare, Send, Sparkles, UserRound, X } from 'lucide-react'
+import { Bell, Check, Handshake, Loader2, MessageCircle, MessageSquare, Pencil, Send, Sparkles, UserRound, X } from 'lucide-react'
 import {
   actualizarPerfil,
   listaATexto,
@@ -119,6 +119,12 @@ export function Perfil() {
                       : 'bg-accent-100 text-accent-800 dark:bg-accent-500/15 dark:text-accent-300'}>
                       {mi_rol === 'responsable' ? 'Responsable' : 'Colaborador'}
                     </Badge>
+                    {mi_rol === 'responsable' && (
+                      <Link to={`/proyectos/${proyecto.id}/editar`} className="btn-ghost px-2.5 py-1 text-xs"
+                        aria-label={`Editar «${proyecto.titulo}»`}>
+                        <Pencil size={13} aria-hidden /> Editar
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

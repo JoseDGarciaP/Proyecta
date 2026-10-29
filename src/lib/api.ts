@@ -43,6 +43,17 @@ export async function crearProyecto(entrada: NuevoProyecto): Promise<Proyecto> {
   return nuevo
 }
 
+/** Cambia los datos de un proyecto. La API solo lo permite a quien lo registró (o a un admin). */
+export async function actualizarProyecto(id: string, cambios: Partial<NuevoProyecto>): Promise<Proyecto> {
+  if (apiHabilitada) return pedir<Proyecto>(`/proyectos/${id}`, { method: 'PATCH', json: cambios })
+  await espera(200)
+  const actual = memoria.find((p) => p.id === id)
+  if (!actual) throw new Error('Proyecto no encontrado')
+  const nuevo: Proyecto = { ...actual, ...cambios, lider: cambios.lider || actual.lider }
+  memoria = memoria.map((p) => (p.id === id ? nuevo : p))
+  return nuevo
+}
+
 /** Si el rol no tiene permiso de ver algo (403), se muestra vacío en lugar de romper la página. */
 const sinPermisoVacio = <T,>(p: Promise<T[]>): Promise<T[]> =>
   p.catch((e) => {

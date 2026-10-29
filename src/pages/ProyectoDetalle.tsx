@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, Users, Wallet } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Pencil, Users, Wallet } from 'lucide-react'
 import { obtenerProyecto, listarActores, listarOportunidades } from '@/lib/api'
 import type { Actor, Oportunidad, Proyecto } from '@/lib/types'
 import { useOds } from '@/lib/parametros'
-import { usePuede } from '@/lib/permisos'
+import { usePuede, usePuedeEditar } from '@/lib/permisos'
 import { EstadoBadge, Progress, Skeleton, EmptyState } from '@/components/ui'
 import { PanelIA } from '@/components/PanelIA'
 import { ChatProyecto } from '@/components/ChatProyecto'
@@ -26,6 +26,7 @@ export function ProyectoDetalle() {
   const puede = usePuede()
   const { usuario } = useSesion()
   const [esEquipo, setEsEquipo] = useState(false)
+  const puedeEditar = usePuedeEditar(proyecto)
 
   useEffect(() => {
     let vigente = true
@@ -68,9 +69,16 @@ export function ProyectoDetalle() {
 
   return (
     <div className="space-y-6">
-      <Link to="/proyectos" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-400">
-        <ArrowLeft size={15} aria-hidden /> Proyectos
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link to="/proyectos" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-400">
+          <ArrowLeft size={15} aria-hidden /> Proyectos
+        </Link>
+        {puedeEditar && (
+          <Link to={`/proyectos/${proyecto.id}/editar`} className="btn-ghost text-sm">
+            <Pencil size={14} aria-hidden /> Editar proyecto
+          </Link>
+        )}
+      </div>
 
       <header className="card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
