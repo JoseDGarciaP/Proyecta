@@ -9,7 +9,7 @@ import sys
 from sqlalchemy import select
 
 from app.core.database import SessionLocal
-from app.core.security import hash_password
+from app.core.security import faltantes_contrasena, hash_password
 from app.models import Usuario
 from app.modules.usuarios.models import Rol
 
@@ -26,6 +26,8 @@ def main() -> None:
             print(f"{email} ahora es administrador")
         else:
             password = getpass.getpass("Contraseña: ")
+            if faltan := faltantes_contrasena(password):
+                sys.exit("La contraseña debe tener " + ", ".join(faltan) + ".")
             db.add(Usuario(email=email, nombre=nombre, hashed_password=hash_password(password),
                            rol=Rol.ADMIN.value, habilidades=[], intereses=[], verificado=True))
             print(f"Administrador {email} creado")

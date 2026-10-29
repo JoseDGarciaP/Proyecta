@@ -50,7 +50,7 @@ def client(db):
     app.dependency_overrides.clear()
 
 
-def auth(client, email, password="clave-segura"):
+def auth(client, email, password="Clave-Segura1"):
     res = client.post("/api/auth/login", data={"username": email, "password": password})
     assert res.status_code == 200, res.text
     return {"Authorization": f"Bearer {res.json()['access_token']}"}
@@ -58,7 +58,7 @@ def auth(client, email, password="clave-segura"):
 
 def registrar(client, email, nombre="Ana Pérez", **extra):
     """Registra y confirma el correo con el enlace del mensaje, como lo haría la persona."""
-    res = client.post("/api/auth/registro", json={"email": email, "password": "clave-segura", "nombre": nombre, **extra})
+    res = client.post("/api/auth/registro", json={"email": email, "password": "Clave-Segura1", "nombre": nombre, **extra})
     assert res.status_code == 201, res.text
     assert client.post("/api/auth/verificar", json={"token": token_del_correo(email)}).status_code == 200
     return auth(client, email)
@@ -78,7 +78,7 @@ def estudiante(client):
 
 @pytest.fixture
 def admin(client, db):
-    db.add(Usuario(email="admin@ufpso.edu.co", hashed_password=hash_password("clave-segura"),
+    db.add(Usuario(email="admin@ufpso.edu.co", hashed_password=hash_password("Clave-Segura1"),
                    nombre="Admin", rol=Rol.ADMIN.value, habilidades=[], intereses=[], verificado=True))
     db.commit()
     return auth(client, "admin@ufpso.edu.co")

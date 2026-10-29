@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2, Save, XCircle } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { CampoContrasena } from '@/components/CampoContrasena'
+import { contrasenaValida } from '@/lib/contrasena'
 
 /** Destino del enlace del correo: elige una contraseña nueva y deja la sesión iniciada. */
 export function Restablecer() {
@@ -28,6 +29,10 @@ export function Restablecer() {
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!contrasenaValida(password)) {
+      setError('La contraseña no cumple todos los requisitos.')
+      return
+    }
     if (password !== confirmacion) {
       setError('Las contraseñas no coinciden.')
       return
@@ -51,20 +56,26 @@ export function Restablecer() {
       </header>
       <section className="card space-y-4 p-6">
         <CampoContrasena
-          etiqueta="Contraseña nueva (mínimo 8 caracteres)"
+          etiqueta="Contraseña nueva"
           valor={password}
           alCambiar={setPassword}
           autoComplete="new-password"
           minLength={8}
+          requisitos
         />
-        <CampoContrasena
-          id="confirmacion"
-          etiqueta="Repite la contraseña"
-          valor={confirmacion}
-          alCambiar={setConfirmacion}
-          autoComplete="new-password"
-          minLength={8}
-        />
+        <div>
+          <CampoContrasena
+            id="confirmacion"
+            etiqueta="Repite la contraseña"
+            valor={confirmacion}
+            alCambiar={setConfirmacion}
+            autoComplete="new-password"
+            minLength={8}
+          />
+          {confirmacion && confirmacion !== password && (
+            <p className="mt-1.5 text-sm text-rose-600 dark:text-rose-400">Las contraseñas no coinciden.</p>
+          )}
+        </div>
         {error && (
           <p className="text-sm text-rose-600 dark:text-rose-400">
             {error}{' '}

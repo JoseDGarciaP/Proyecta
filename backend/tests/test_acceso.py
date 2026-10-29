@@ -5,7 +5,7 @@ from app.core.security import create_access_token, create_token
 from app.modules.auth import google
 from tests.conftest import auth, token_del_correo
 
-DATOS = {"email": "ana@ufpso.edu.co", "password": "clave-segura", "nombre": "Ana Pérez"}
+DATOS = {"email": "ana@ufpso.edu.co", "password": "Clave-Segura1", "nombre": "Ana Pérez"}
 
 
 @pytest.mark.parametrize("ruta", ["/api/proyectos", "/api/oportunidades", "/api/actores", "/api/usuarios",

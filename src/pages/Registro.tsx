@@ -10,6 +10,7 @@ import { CampoContrasena } from '@/components/CampoContrasena'
 import { revisarCorreo } from '@/lib/correo'
 import { useDominiosPermitidos, useRolesRegistro } from '@/lib/parametros'
 import { PROGRAMAS } from '@/lib/programas'
+import { contrasenaValida } from '@/lib/contrasena'
 
 // Mientras cargan los roles configurados por el admin (o en modo demostración).
 const ROLES_INICIALES = [
@@ -43,6 +44,10 @@ export function Registro() {
     setIntento(true)
     const revision = revisarCorreo(form.email, { institucional, dominios })
     if (revision.error) return
+    if (!contrasenaValida(form.password)) {
+      setError('La contraseña no cumple todos los requisitos.')
+      return
+    }
     if (form.password !== confirmacion) {
       setError('Las contraseñas no coinciden.')
       return
@@ -105,11 +110,12 @@ export function Registro() {
           forzarRevision={intento}
           ayuda={institucional ? `Usa tu correo institucional ${listaDominios}.` : 'Como aliado externo puedes usar tu correo personal o el de tu organización.'} />
         <CampoContrasena
-          etiqueta="Contraseña (mínimo 8 caracteres)"
+          etiqueta="Contraseña"
           valor={form.password}
           alCambiar={(v) => set('password', v)}
           autoComplete="new-password"
           minLength={8}
+          requisitos
         />
         <div>
           <CampoContrasena

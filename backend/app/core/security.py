@@ -3,10 +3,40 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
+from pydantic_core import PydanticCustomError
 
 from app.core.config import get_settings
 
 ALGORITHM = "HS256"
+
+
+CONTRASENA_MIN = 8
+CONTRASENA_MAX = 20
+
+
+def faltantes_contrasena(password: str) -> list[str]:
+    """Requisitos que no cumple una contraseña nueva (vacío = válida). La interfaz repite estas reglas."""
+    faltan = []
+    if not CONTRASENA_MIN <= len(password) <= CONTRASENA_MAX:
+        faltan.append(f"entre {CONTRASENA_MIN} y {CONTRASENA_MAX} caracteres")
+    if not any(c.isupper() for c in password):
+        faltan.append("una mayúscula")
+    if not any(c.islower() for c in password):
+        faltan.append("una minúscula")
+    if not any(c.isdigit() for c in password):
+        faltan.append("un número")
+    if not any(not c.isalnum() and not c.isspace() for c in password):
+        faltan.append("un símbolo")
+    return faltan
+
+
+def validar_contrasena(password: str) -> str:
+    """Validador de Pydantic para contraseñas nuevas (registro y restablecer). El ingreso no la usa:
+    las cuentas creadas antes de estas reglas siguen entrando con su contraseña."""
+    faltan = faltantes_contrasena(password)
+    if faltan:
+        raise PydanticCustomError("contrasena_debil", "La contraseña debe tener {detalle}.", {"detalle": ", ".join(faltan)})
+    return password
 
 
 def hash_password(password: str) -> str:

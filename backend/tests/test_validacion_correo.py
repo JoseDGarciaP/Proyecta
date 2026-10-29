@@ -6,7 +6,7 @@ from app.core.validacion_correo import dominio_recibe_correo as DNS_REAL  # ante
 
 
 def registro(client, email, rol="aliado"):
-    return client.post("/api/auth/registro", json={"email": email, "password": "clave-segura", "nombre": "Persona", "rol": rol})
+    return client.post("/api/auth/registro", json={"email": email, "password": "Clave-Segura1", "nombre": "Persona", "rol": rol})
 
 
 @pytest.mark.parametrize("escrito, sugerido", [
@@ -75,18 +75,18 @@ def test_cuenta_sin_confirmar_no_aparta_el_correo(client):
     from tests.conftest import auth, token_del_correo
 
     assert client.post("/api/auth/registro", json={
-        "email": "luis@ufpso.edu.co", "password": "clave-del-intruso", "nombre": "Intruso"}).status_code == 201
+        "email": "luis@ufpso.edu.co", "password": "Intruso-Clave9", "nombre": "Intruso"}).status_code == 201
     res = client.post("/api/auth/registro", json={
-        "email": "luis@ufpso.edu.co", "password": "clave-segura", "nombre": "Luis Real"})
+        "email": "luis@ufpso.edu.co", "password": "Clave-Segura1", "nombre": "Luis Real"})
     assert res.status_code == 201
     assert client.post("/api/auth/verificar", json={"token": token_del_correo("luis@ufpso.edu.co")}).status_code == 200
     yo = client.get("/api/usuarios/yo", headers=auth(client, "luis@ufpso.edu.co"))
     assert yo.json()["nombre"] == "Luis Real"
-    assert client.post("/api/auth/login", data={"username": "luis@ufpso.edu.co", "password": "clave-del-intruso"}).status_code == 401
+    assert client.post("/api/auth/login", data={"username": "luis@ufpso.edu.co", "password": "Intruso-Clave9"}).status_code == 401
 
 
 def test_ingreso_ignora_mayusculas_y_espacios(client, estudiante):
-    res = client.post("/api/auth/login", data={"username": " ANA@ufpso.edu.co ", "password": "clave-segura"})
+    res = client.post("/api/auth/login", data={"username": " ANA@ufpso.edu.co ", "password": "Clave-Segura1"})
     assert res.status_code == 200
 
 

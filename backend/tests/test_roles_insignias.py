@@ -99,7 +99,7 @@ def test_roles_en_el_registro(client, admin):
     client.post("/api/admin/roles", json={"nombre": "Interno"}, headers=admin)
     claves = [r["clave"] for r in client.get("/api/auth/roles").json()]
     assert "egresado" in claves and "interno" not in claves and "admin" not in claves
-    base = {"password": "clave-segura", "nombre": "Persona Nueva"}
+    base = {"password": "Clave-Segura1", "nombre": "Persona Nueva"}
     assert client.post("/api/auth/registro", json={**base, "email": "e@ufpso.edu.co", "rol": "egresado"}).status_code == 201
     assert client.post("/api/auth/registro", json={**base, "email": "e2@gmail.com", "rol": "egresado"}).status_code == 400
     assert client.post("/api/auth/registro", json={**base, "email": "i@gmail.com", "rol": "invitado"}).status_code == 201

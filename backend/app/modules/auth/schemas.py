@@ -1,11 +1,18 @@
-from pydantic import BaseModel, EmailStr, Field
+from typing import Annotated
+
+from pydantic import AfterValidator, BaseModel, EmailStr, Field
+
+from app.core.security import validar_contrasena
+
+# Contraseña nueva: 8 a 20 caracteres con mayúscula, minúscula, número y símbolo.
+ContrasenaNueva = Annotated[str, AfterValidator(validar_contrasena)]
 
 
 
 class Registro(BaseModel):
     # Se valida en app.core.validacion_correo para dar mensajes claros (tipeo, desechables, DNS).
     email: str = Field(min_length=3, max_length=254)
-    password: str = Field(min_length=8, max_length=72)
+    password: ContrasenaNueva
     nombre: str = Field(min_length=3, max_length=150)
     rol: str = Field(default="estudiante", max_length=40)
     programa: str | None = Field(default=None, max_length=150)
@@ -26,7 +33,7 @@ class Reenvio(BaseModel):
 
 class Restablecer(BaseModel):
     token: str
-    password: str = Field(min_length=8, max_length=72)
+    password: ContrasenaNueva
 
 
 class IngresoGoogle(BaseModel):
