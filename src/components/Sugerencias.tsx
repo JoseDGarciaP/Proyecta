@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import type { MetodoSimilitud, Sugerencia } from '@/lib/types'
 import type { ReactNode } from 'react'
 import { InsigniasDe, NivelDe } from '@/components/Insignia'
+import { useSesion } from '@/lib/sesion'
+import { tienePanel } from '@/lib/permisos'
 
 const RUTA: Record<Sugerencia['tipo'], (id: string) => string | null> = {
   proyecto: (id) => `/proyectos/${id}`,
@@ -49,12 +51,14 @@ export function ListaSugerencias({
   )
 }
 
+/** Aviso técnico sobre cómo se calculan las sugerencias: solo lo ve quien administra la plataforma. */
 export function NotaMetodo({ metodo }: { metodo: MetodoSimilitud | undefined }) {
-  if (metodo !== 'lexico') return null
+  const { usuario } = useSesion()
+  if (metodo !== 'lexico' || !tienePanel(usuario)) return null
   return (
-    <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
-      Similitud por palabras en común: el modelo de sentence-transformers no está cargado en el backend. Ejecuta
-      <code> python -m scripts.indexar_embeddings</code> para descargarlo.
+    <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+      Solo administradores: estas sugerencias se calculan por palabras en común porque la similitud semántica
+      está desactivada en el servidor.
     </p>
   )
 }

@@ -97,18 +97,15 @@ export function Layout() {
           ))}
         </nav>
 
-        <div className="mt-4 px-5">
-          <div className="rounded-lg border border-dashed border-slate-300 p-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
-            <p className="font-medium text-slate-700 dark:text-slate-300">
-              {apiHabilitada ? 'Conectado a la API' : 'Modo demostración'}
-            </p>
-            <p className="mt-1 leading-relaxed">
-              {apiHabilitada
-                ? 'Los datos se leen y escriben a través del backend de Proyecta.'
-                : 'Datos de ejemplo en memoria. Define VITE_API_URL para conectar el backend.'}
-            </p>
+        {/* Solo en modo demostración (sin API): en producción la gente no necesita ver detalles técnicos. */}
+        {!apiHabilitada && (
+          <div className="mt-4 px-5">
+            <div className="rounded-lg border border-dashed border-slate-300 p-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <p className="font-medium text-slate-700 dark:text-slate-300">Modo demostración</p>
+              <p className="mt-1 leading-relaxed">Datos de ejemplo en memoria. Define VITE_API_URL para conectar el backend.</p>
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {abierto && (

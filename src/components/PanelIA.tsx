@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { analizarProyecto, type RespuestaIA } from '@/lib/ai'
 import type { Oportunidad, Proyecto } from '@/lib/types'
+import { useSesion } from '@/lib/sesion'
+import { tienePanel } from '@/lib/permisos'
 
 export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oportunidades: Oportunidad[] }) {
   const [respuesta, setRespuesta] = useState<RespuestaIA | null>(null)
   const [cargando, setCargando] = useState(false)
+  const esAdmin = tienePanel(useSesion().usuario)
 
   const ejecutar = async () => {
     setCargando(true)
@@ -65,9 +68,9 @@ export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oport
           )}
 
           {respuesta.simulado && (
-            <p className="text-xs text-amber-700 dark:text-amber-400">
-              Resumen generado con reglas locales porque no hay un modelo disponible. Instala Ollama y ejecuta
-              <code> ollama pull llama3.2:3b</code> para que lo redacte un modelo gratuito.
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Resumen automático básico: el asistente de IA no está disponible en este momento.
+              {esAdmin && ' (Solo administradores: configura el proveedor de IA del servidor para que lo redacte un modelo).'}
             </p>
           )}
         </div>
