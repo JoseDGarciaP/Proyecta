@@ -159,6 +159,45 @@ export interface Solicitud {
   por_responder: boolean
 }
 
+/** Invitación enviada a un correo que aún no tiene cuenta (la ve quien registró el proyecto). */
+export interface InvitacionCorreo {
+  id: string
+  proyecto_id: string
+  email: string
+  /** «aceptada» = la aceptó desde el enlace y falta que cree la cuenta. */
+  estado: EstadoSolicitud
+  rol_propuesto: string
+  creado_en: string
+  expira_en: string
+  vencida: boolean
+}
+
+/** Resultado de invitar por correo: si el correo ya tenía cuenta se envía una invitación normal. */
+export interface ResultadoInvitarCorreo {
+  modo: 'usuario' | 'correo'
+  solicitud: Solicitud | null
+  invitacion: InvitacionCorreo | null
+}
+
+/** Lo que ve quien abre el enlace de la invitación (sin sesión). */
+export interface InvitacionPublica {
+  email: string
+  estado: EstadoSolicitud
+  vencida: boolean
+  proyecto_id: string
+  proyecto_titulo: string
+  proyecto_resumen: string
+  invitado_por: string
+  rol_propuesto: string
+  aporte: string
+  habilidades: string[]
+  disponibilidad_horas: number | null
+  motivacion: string
+  mensaje: string
+  cuenta_existe: boolean
+  es_miembro: boolean
+}
+
 export interface Miembro {
   usuario_id: string
   nombre: string

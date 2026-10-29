@@ -16,6 +16,9 @@ class Registro(BaseModel):
     nombre: str = Field(min_length=3, max_length=150)
     rol: str = Field(default="estudiante", max_length=40)
     programa: str | None = Field(default=None, max_length=150)
+    # Código del enlace de una invitación a un proyecto. Si llegó a este mismo correo, prueba que
+    # el buzón es de quien se registra: la cuenta queda confirmada y entra al equipo si aceptó.
+    invitacion: str | None = Field(default=None, max_length=200)
 
 
 class Token(BaseModel):

@@ -8,14 +8,17 @@ export interface DatosRegistro {
   password: string
   rol: Rol
   programa: string | null
+  /** Código del enlace de una invitación a un proyecto (confirma el correo si coincide). */
+  invitacion?: string
 }
 
 interface Sesion {
   usuario: Usuario | null
   cargando: boolean
   ingresar: (email: string, password: string) => Promise<void>
-  /** Crea la cuenta; queda pendiente de confirmar el correo (no inicia sesión). */
-  registrar: (datos: DatosRegistro) => Promise<void>
+  /** Crea la cuenta; queda pendiente de confirmar el correo (no inicia sesión), salvo que llegue
+   * con el código de una invitación enviada a ese mismo correo: entonces ya queda confirmada. */
+  registrar: (datos: DatosRegistro) => Promise<Usuario>
   /** Confirma el correo con el token del enlace e inicia sesión. */
   verificarCorreo: (tokenCorreo: string) => Promise<void>
   reenviarVerificacion: (email: string) => Promise<void>
@@ -57,7 +60,7 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   }
 
   const registrar = async (datos: DatosRegistro) => {
-    await pedir('/auth/registro', { method: 'POST', json: datos })
+    return pedir<Usuario>('/auth/registro', { method: 'POST', json: datos })
   }
 
   const verificarCorreo = async (tokenCorreo: string) => {

@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     verificacion_horas: int = 48
     # Vigencia del enlace para restablecer la contraseña (se invalida apenas se usa).
     restablecer_minutos: int = 60
+    # Días que dura el enlace de una invitación a un proyecto enviada a alguien sin cuenta.
+    invitacion_dias: int = 14
     # Antes de crear una cuenta se consulta el DNS del dominio (registros MX) para descartar
     # correos inventados. Con false solo se revisa formato, tipeo y dominios desechables.
     verificar_dns_correo: bool = True

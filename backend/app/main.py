@@ -11,6 +11,7 @@ from app.core.deps import get_current_user, requiere, requiere_panel
 from app.modules.actores.router import router as actores
 from app.modules.admin.router import routers as admin
 from app.modules.alianzas.router import router as alianzas
+from app.modules.alianzas import invitaciones
 from app.modules.auth.router import router as auth
 from app.modules.catalogo.router import router as catalogo
 from app.modules.chat.router import router as chat
@@ -62,12 +63,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Público: ingreso/registro, catálogos (los usa el formulario de registro) y cifras de la página de inicio.
-for r in (auth, catalogo, publico, roles.publico):
+# Público: ingreso/registro, catálogos (los usa el formulario de registro), cifras de la página de inicio
+# y el enlace de las invitaciones por correo (quien lo abre aún no tiene cuenta).
+for r in (auth, catalogo, publico, roles.publico, invitaciones.publico):
     app.include_router(r)
 
 # Todo lo demás exige una sesión de un usuario con el correo verificado.
-for r in (usuarios, perfil, proyectos, alianzas, chat, actores, oportunidades, notificaciones, parametros,
+for r in (usuarios, perfil, proyectos, alianzas, invitaciones.router, chat, actores, oportunidades, notificaciones, parametros,
           roles.lectura, insignias.router, experiencia.router, postulaciones.router, evidencias.router):
     app.include_router(r, dependencies=[Depends(get_current_user)])
 app.include_router(ia, dependencies=[Depends(requiere("ia.usar"))])

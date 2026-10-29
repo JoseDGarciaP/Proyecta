@@ -19,6 +19,7 @@ from app.core.security import (
     huella_password,
     verify_password,
 )
+from app.modules.alianzas import invitaciones
 from app.modules.auth import google
 from app.modules.parametros import ajustes
 from app.modules.auth.schemas import (
@@ -90,10 +91,13 @@ def registrar(datos: Registro, db: DbSession, tareas: BackgroundTasks):
     usuario.nombre = datos.nombre
     usuario.rol = rol.clave
     usuario.programa = datos.programa
-    usuario.verificado = False
+    usuario.verificado = _invitacion_a(db, datos.invitacion, email)
     db.commit()
     db.refresh(usuario)
-    enviar_verificacion(usuario, tareas)
+    if usuario.verificado:
+        invitaciones.reclamar(db, usuario, tareas)
+    else:
+        enviar_verificacion(usuario, tareas)
     return usuario
 
 
@@ -108,7 +112,7 @@ def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
 
 
 @router.post("/verificar", response_model=Token)
-def verificar(datos: Verificacion, db: DbSession):
+def verificar(datos: Verificacion, db: DbSession, tareas: BackgroundTasks):
     """Confirma el correo con el enlace recibido y deja la sesión iniciada."""
     sub = decode_token(datos.token, "verificar")
     usuario_id = _uuid(sub) if sub else None
@@ -117,6 +121,7 @@ def verificar(datos: Verificacion, db: DbSession):
         raise HTTPException(status_code=400, detail="El enlace no es válido o ya venció. Pide uno nuevo.")
     usuario.verificado = True
     db.commit()
+    invitaciones.reclamar(db, usuario, tareas)
     return Token(access_token=create_access_token(str(usuario.id)))
 
 
@@ -139,7 +144,7 @@ def recuperar(datos: Reenvio, db: DbSession, tareas: BackgroundTasks):
 
 
 @router.post("/restablecer", response_model=Token)
-def restablecer(datos: Restablecer, db: DbSession):
+def restablecer(datos: Restablecer, db: DbSession, tareas: BackgroundTasks):
     """Cambia la contraseña con el enlace del correo y deja la sesión iniciada."""
     payload = decode_payload(datos.token, "restablecer")
     usuario_id = _uuid(payload["sub"]) if payload else None
@@ -150,11 +155,12 @@ def restablecer(datos: Restablecer, db: DbSession):
     usuario.hashed_password = hash_password(datos.password)
     usuario.verificado = True  # abrió el enlace desde su buzón: el correo es suyo
     db.commit()
+    invitaciones.reclamar(db, usuario, tareas)
     return Token(access_token=create_access_token(str(usuario.id)))
 
 
 @router.post("/google", response_model=Token)
-def ingresar_con_google(datos: IngresoGoogle, db: DbSession):
+def ingresar_con_google(datos: IngresoGoogle, db: DbSession, tareas: BackgroundTasks):
     try:
         cuenta = google.verificar(datos.credential)
     except google.TokenGoogleInvalido as error:
@@ -185,6 +191,7 @@ def ingresar_con_google(datos: IngresoGoogle, db: DbSession):
     usuario.google_sub = cuenta["sub"]
     usuario.verificado = True  # Google ya verificó el correo
     db.commit()
+    invitaciones.reclamar(db, usuario, tareas)
     return Token(access_token=create_access_token(str(usuario.id)))
 
 
@@ -193,6 +200,16 @@ def validar_correo(email: str) -> str:
         return validacion_correo.validar(email).email
     except validacion_correo.CorreoNoValido as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+def _invitacion_a(db: Session, token: str | None, email: str) -> bool:
+    """True si `token` es el código de una invitación a un proyecto enviada a `email`."""
+    if not token:
+        return False
+    from app.modules.alianzas.models import InvitacionCorreo
+
+    invitacion = db.scalar(select(InvitacionCorreo).where(InvitacionCorreo.token_hash == invitaciones.huella(token)))
+    return invitacion is not None and invitacion.email.lower() == email.lower()
 
 
 def _buscar(db: Session, email: str) -> Usuario | None:

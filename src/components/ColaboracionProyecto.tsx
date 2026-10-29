@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Handshake, MessageCircle, UserPlus, Users } from 'lucide-react'
+import { Handshake, Mail, MessageCircle, UserPlus, Users, X } from 'lucide-react'
 import {
+  cancelarInvitacionCorreo,
   colaboradoresSugeridos,
   invitar,
+  invitarPorCorreo,
+  listarInvitacionesCorreo,
   listarMiembros,
   misSolicitudes,
   proyectosSimilares,
@@ -11,7 +14,9 @@ import {
 } from '@/lib/colaboracion'
 import { apiHabilitada } from '@/lib/http'
 import { useSesion } from '@/lib/sesion'
-import type { Miembro, Proyecto, Recomendacion, RespuestaSugerencias, Solicitud, Sugerencia } from '@/lib/types'
+import type { InvitacionCorreo, Miembro, Proyecto, Recomendacion, RespuestaSugerencias, Solicitud, Sugerencia } from '@/lib/types'
+import { revisarCorreo } from '@/lib/correo'
+import { useDominiosPermitidos } from '@/lib/parametros'
 import { ListaSugerencias, NotaMetodo } from '@/components/Sugerencias'
 import { ChatSolicitud } from '@/components/ChatSolicitud'
 import { FormularioRecomendacion } from '@/components/FormularioRecomendacion'
@@ -75,9 +80,12 @@ export function MiembrosProyecto({ proyecto }: { proyecto: Proyecto }) {
             Ingresa para solicitar unirte
           </Link>
         ) : esResponsable ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Eres responsable de este proyecto. Las solicitudes llegan a <Link to="/perfil" className="underline">tu perfil</Link>.
-          </p>
+          <div className="space-y-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Eres responsable de este proyecto. Las solicitudes llegan a <Link to="/perfil" className="underline">tu perfil</Link>.
+            </p>
+            {puede('colaboracion.invitar') && <InvitarPorCorreo proyecto={proyecto} />}
+          </div>
         ) : esMiembro ? (
           <p className="text-sm text-emerald-700 dark:text-emerald-400">Haces parte de este proyecto.</p>
         ) : pendiente ? (
@@ -119,6 +127,104 @@ export function MiembrosProyecto({ proyecto }: { proyecto: Proyecto }) {
         )}
       </div>
     </section>
+  )
+}
+
+/**
+ * Para quien registró el proyecto: invitar a alguien escribiendo su correo (institucional o, si es
+ * aliado externo, el personal). Si ya tiene cuenta recibe una invitación normal; si no, le llega un
+ * correo con un enlace para aceptar y crear su cuenta, y al registrarse queda en el equipo.
+ */
+function InvitarPorCorreo({ proyecto }: { proyecto: Proyecto }) {
+  const [abierto, setAbierto] = useState(false)
+  const [email, setEmail] = useState('')
+  const [errorCorreo, setErrorCorreo] = useState('')
+  const [aviso, setAviso] = useState('')
+  const [pendientes, setPendientes] = useState<InvitacionCorreo[]>([])
+  const dominios = useDominiosPermitidos()
+
+  useEffect(() => {
+    listarInvitacionesCorreo(proyecto.id).then(setPendientes).catch(() => setPendientes([]))
+  }, [proyecto.id])
+
+  const enviar = async (reco: Recomendacion) => {
+    const revision = revisarCorreo(email)
+    if (revision.error) {
+      setErrorCorreo(email.trim() ? revision.error : 'Escribe el correo de la persona.')
+      throw new Error('Revisa el correo de la persona.')
+    }
+    const res = await invitarPorCorreo(proyecto.id, revision.normalizado, reco)
+    if (res.modo === 'usuario') {
+      setAviso(`${res.solicitud?.usuario_nombre ?? revision.normalizado} ya tenía cuenta: le llegó la invitación a su perfil y a su correo.`)
+    } else {
+      setAviso(`Enviamos la invitación a ${revision.normalizado}. Cuando cree su cuenta y acepte, aparecerá en el equipo.`)
+      if (res.invitacion) setPendientes((xs) => [res.invitacion!, ...xs.filter((x) => x.email !== res.invitacion!.email)])
+    }
+    setAbierto(false)
+    setEmail('')
+  }
+
+  const cancelar = async (inv: InvitacionCorreo) => {
+    await cancelarInvitacionCorreo(inv.id)
+    setPendientes((xs) => xs.filter((x) => x.id !== inv.id))
+  }
+
+  return (
+    <div className="space-y-3">
+      <button className="btn-ghost w-full justify-center text-sm" onClick={() => { setAviso(''); setAbierto(true) }}>
+        <Mail size={15} aria-hidden /> Invitar por correo
+      </button>
+      {aviso && <p className="text-xs text-emerald-700 dark:text-emerald-400" role="status">{aviso}</p>}
+      {pendientes.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Invitaciones por correo sin registrarse</p>
+          <ul className="mt-1.5 space-y-1.5">
+            {pendientes.map((inv) => (
+              <li key={inv.id} className="flex items-start justify-between gap-2 text-xs">
+                <span className="min-w-0">
+                  <span className="block truncate text-slate-800 dark:text-slate-200">{inv.email}</span>
+                  <span className={inv.vencida ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}>
+                    {inv.vencida ? 'Venció sin respuesta' : inv.estado === 'aceptada' ? 'Aceptó · falta que cree su cuenta' : 'Esperando respuesta'}
+                    {' · '}{inv.rol_propuesto}
+                  </span>
+                </span>
+                <button className="shrink-0 rounded p-1 text-slate-400 hover:text-rose-600" title="Retirar invitación"
+                  aria-label={`Retirar la invitación a ${inv.email}`} onClick={() => cancelar(inv)}>
+                  <X size={14} aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {abierto && (
+        <Modal
+          titulo="Invitar por correo"
+          descripcion={<>Al proyecto «{proyecto.titulo}». Si la persona aún no está registrada, le llegará un correo para aceptar y crear su cuenta; al registrarse quedará en el equipo.</>}
+          alCerrar={() => setAbierto(false)}
+        >
+          <div className="mb-3">
+            <label className="label" htmlFor="invitar-correo">Correo de la persona</label>
+            <input id="invitar-correo" type="email" required className="input" inputMode="email" autoCapitalize="none"
+              spellCheck={false} placeholder={`nombre@${dominios[0] ?? "correo.edu.co"}`} value={email} aria-invalid={Boolean(errorCorreo)}
+              onChange={(e) => { setEmail(e.target.value); setErrorCorreo('') }}
+              onBlur={() => email.trim() && setErrorCorreo(revisarCorreo(email).error ?? '')} />
+            {errorCorreo ? (
+              <p className="mt-1.5 text-sm text-amber-700 dark:text-amber-400">
+                {errorCorreo}
+                {revisarCorreo(email).sugerencia && (
+                  <button type="button" className="ml-2 font-medium text-brand-700 underline dark:text-brand-400"
+                    onClick={() => { setEmail(revisarCorreo(email).sugerencia!); setErrorCorreo('') }}>Usar este</button>
+                )}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Su correo institucional; si es un aliado externo, puede ser el personal.</p>
+            )}
+          </div>
+          <FormularioRecomendacion modo="invitacion" alEnviar={enviar} alCancelar={() => setAbierto(false)} />
+        </Modal>
+      )}
+    </div>
   )
 }
 

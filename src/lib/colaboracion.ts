@@ -1,9 +1,12 @@
 import { pedir } from './http'
 import type {
+  InvitacionCorreo,
+  InvitacionPublica,
   Miembro,
   Perfil,
   Recomendacion,
   RespuestaSugerencias,
+  ResultadoInvitarCorreo,
   Solicitud,
   SugerenciasParaMi,
   Usuario,
@@ -27,6 +30,21 @@ export const solicitarUnion = (proyectoId: string, reco: Recomendacion) =>
 
 export const invitar = (proyectoId: string, usuarioId: string, reco: Recomendacion) =>
   pedir<Solicitud>(`/proyectos/${proyectoId}/invitaciones`, { method: 'POST', json: { ...reco, usuario_id: usuarioId } })
+
+/** Invita por correo: si la persona no tiene cuenta le llega un enlace para aceptar y registrarse. */
+export const invitarPorCorreo = (proyectoId: string, email: string, reco: Recomendacion) =>
+  pedir<ResultadoInvitarCorreo>(`/proyectos/${proyectoId}/invitaciones-correo`, { method: 'POST', json: { ...reco, email } })
+
+export const listarInvitacionesCorreo = (proyectoId: string) =>
+  pedir<InvitacionCorreo[]>(`/proyectos/${proyectoId}/invitaciones-correo`)
+
+export const cancelarInvitacionCorreo = (id: string) =>
+  pedir<InvitacionCorreo>(`/invitaciones-correo/${id}/cancelar`, { method: 'POST' })
+
+/** Enlace del correo (no necesita sesión). */
+export const verInvitacion = (codigo: string) => pedir<InvitacionPublica>(`/invitaciones/${encodeURIComponent(codigo)}`)
+export const responderInvitacion = (codigo: string, accion: 'aceptar' | 'rechazar') =>
+  pedir<InvitacionPublica>(`/invitaciones/${encodeURIComponent(codigo)}/${accion}`, { method: 'POST' })
 
 export const misSolicitudes = () => pedir<Solicitud[]>('/alianzas')
 

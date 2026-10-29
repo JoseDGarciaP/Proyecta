@@ -97,6 +97,13 @@ def invitar(proyecto_id: uuid.UUID, datos: NuevaInvitacion, usuario: UsuarioActu
     invitado = db.get(Usuario, datos.usuario_id)
     if invitado is None or not invitado.activo:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    solicitud = invitar_usuario(db, proyecto, usuario, invitado, datos, tareas)
+    return SolicitudSalida.de(solicitud, usuario.id)
+
+
+def invitar_usuario(db: Session, proyecto: Proyecto, usuario: Usuario, invitado: Usuario, datos: Recomendacion,
+                    tareas: BackgroundTasks) -> Solicitud:
+    """Crea la invitación para alguien que ya tiene cuenta y le avisa (campana y correo)."""
     _validar_nueva(db, proyecto, invitado.id)
     solicitud = _nueva(db, proyecto, invitado, TipoSolicitud.INVITACION, datos)
     db.flush()
@@ -111,7 +118,7 @@ def invitar(proyecto_id: uuid.UUID, datos: NuevaInvitacion, usuario: UsuarioActu
         detalles=_detalles(solicitud), boton="Ver la invitación",
     )
     db.commit()
-    return SolicitudSalida.de(solicitud, usuario.id)
+    return solicitud
 
 
 @router.get("/api/proyectos/{proyecto_id}/miembros", response_model=list[MiembroSalida])

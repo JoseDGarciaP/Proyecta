@@ -164,3 +164,36 @@ def cuenta_creada(para: str, nombre: str, enlace: str, horas: int) -> Correo:
         f"«¿Olvidaste tu contraseña?» en la página de ingreso.</p>"
     )
     return Correo(para=para, asunto="Tu cuenta en Proyecta está lista", texto=texto, html=cuerpo)
+
+
+def invitacion_proyecto(para: str, quien_invita: str, proyecto: str, detalles: list[tuple[str, str]], enlace: str,
+                        dias: int) -> Correo:
+    """Invitación a un proyecto para alguien que aún no tiene cuenta en Proyecta."""
+    texto = "\n\n".join([
+        "Hola:",
+        f"{quien_invita} te invitó a hacer parte del equipo del proyecto «{proyecto}» en Proyecta.",
+        "\n".join(f"{k}: {v}" for k, v in detalles),
+        f"Para ver la invitación y aceptarla (o rechazarla) abre este enlace:\n{enlace}",
+        "Si aceptas, crea tu cuenta con este mismo correo y quedarás en el equipo automáticamente.",
+        f"El enlace vence en {dias} días. Si no esperabas este mensaje, puedes ignorarlo.",
+    ])
+    e = html.escape
+    filas = "".join(
+        f'<tr><td style="padding:4px 12px 4px 0;color:#64748b;vertical-align:top;white-space:nowrap">{e(k)}</td>'
+        f'<td style="padding:4px 0;color:#0f172a">{e(v)}</td></tr>'
+        for k, v in detalles
+    )
+    cuerpo = (
+        '<div style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;color:#0f172a;line-height:1.5">'
+        "<p>Hola:</p>"
+        f'<p style="font-size:17px;font-weight:600;margin:16px 0 8px">{e(quien_invita)} te invitó al proyecto '
+        f"«{e(proyecto)}» en Proyecta</p>"
+        f'<table style="border-collapse:collapse;font-size:14px;margin:12px 0">{filas}</table>'
+        f'<p style="margin:20px 0"><a href="{e(enlace, quote=True)}" style="background:#2563eb;color:#fff;'
+        'padding:10px 18px;border-radius:8px;text-decoration:none">Ver la invitación</a></p>'
+        "<p>Si aceptas, crea tu cuenta con este mismo correo y quedarás en el equipo automáticamente.</p>"
+        f'<p style="color:#64748b;font-size:12px;border-top:1px solid #e2e8f0;padding-top:12px">El enlace vence en '
+        f"{dias} días. Si no esperabas este mensaje, puedes ignorarlo.</p>"
+        "</div>"
+    )
+    return Correo(para=para, asunto=f"Te invitaron al proyecto «{proyecto}» en Proyecta", texto=texto, html=cuerpo)

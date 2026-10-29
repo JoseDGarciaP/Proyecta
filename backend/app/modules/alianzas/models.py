@@ -64,3 +64,37 @@ class Solicitud(UuidPk, Timestamps, Base):
 
     usuario: Mapped[Usuario] = relationship(lazy="joined")
     proyecto: Mapped[Proyecto] = relationship(lazy="joined")
+
+
+class InvitacionCorreo(UuidPk, Timestamps, Base):
+    """Invitación a un proyecto enviada a un correo que todavía no tiene cuenta en Proyecta.
+
+    El correo trae un enlace con un código de un solo uso (aquí se guarda solo su huella SHA-256).
+    La persona puede aceptarla desde el enlace antes de registrarse; cuando crea la cuenta (o entra
+    con Google) con ese mismo correo, la invitación se convierte en una `Solicitud` normal: si ya la
+    había aceptado, entra directo al equipo; si no, le aparece pendiente en su perfil.
+    """
+
+    __tablename__ = "invitaciones_correo"
+
+    proyecto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("proyectos.id", ondelete="CASCADE"), index=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    invitado_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    estado: Mapped[EstadoSolicitud] = mapped_column(enum_col(EstadoSolicitud), default=EstadoSolicitud.PENDIENTE, index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expira_en: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    respondida_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Solicitud creada al registrarse la persona (desde ahí sigue el flujo normal de alianzas).
+    solicitud_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("solicitudes_alianza.id", ondelete="SET NULL"))
+
+    # Mismo formato fijo de una invitación normal.
+    tipo_aporte_id: Mapped[int | None] = mapped_column(ForeignKey("tipos_aporte.id", ondelete="SET NULL"))
+    rol_propuesto: Mapped[str] = mapped_column(String(120), default="")
+    aporte: Mapped[str] = mapped_column(Text, default="")
+    habilidades: Mapped[list[str]] = mapped_column(JSON, default=list)
+    disponibilidad_horas: Mapped[int | None] = mapped_column(SmallInteger)
+    motivacion: Mapped[str] = mapped_column(Text, default="")
+    mensaje: Mapped[str] = mapped_column(Text, default="")
+
+    proyecto: Mapped[Proyecto] = relationship(lazy="joined")
+    invitado_por: Mapped[Usuario | None] = relationship(lazy="joined")

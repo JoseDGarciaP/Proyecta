@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Loader2, UserPlus } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Handshake, Loader2, UserPlus } from 'lucide-react'
 import { useSesion, type DatosRegistro } from '@/lib/sesion'
-import type { Rol } from '@/lib/types'
+import type { InvitacionPublica, Rol } from '@/lib/types'
+import { verInvitacion } from '@/lib/colaboracion'
 import { BotonGoogle } from '@/components/BotonGoogle'
 import { AvisoVerificacion } from '@/components/AvisoVerificacion'
 import { CampoCorreo } from '@/components/CampoCorreo'
@@ -21,9 +22,14 @@ const ROLES_INICIALES = [
 ]
 
 export function Registro() {
-  const { registrar, ingresarConGoogle } = useSesion()
+  const { registrar, ingresar, ingresarConGoogle } = useSesion()
   const navegar = useNavigate()
-  const destino = (useLocation().state as { desde?: string } | null)?.desde ?? '/'
+  const [params] = useSearchParams()
+  // Llega desde el enlace de una invitación a un proyecto (página /invitacion).
+  const codigoInvitacion = params.get('invitacion')
+  const [invitacion, setInvitacion] = useState<InvitacionPublica | null>(null)
+  const destinoPrevio = (useLocation().state as { desde?: string } | null)?.desde ?? '/'
+  const destino = invitacion ? `/proyectos/${invitacion.proyecto_id}` : destinoPrevio
   const [form, setForm] = useState<DatosRegistro>({ nombre: '', email: '', password: '', rol: 'estudiante', programa: '' })
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,6 +42,23 @@ export function Registro() {
   const institucional = rolElegido?.institucional ?? true
   const dominios = useDominiosPermitidos()
   const listaDominios = dominios.map((d) => `@${d}`).join(' o ')
+
+  useEffect(() => {
+    if (!codigoInvitacion) return
+    verInvitacion(codigoInvitacion)
+      .then((inv) => {
+        setInvitacion(inv)
+        setForm((f) => ({ ...f, email: f.email || inv.email }))
+      })
+      .catch(() => setInvitacion(null))
+  }, [codigoInvitacion])
+
+  // Un correo invitado que no es institucional solo puede registrarse con un rol que no lo exija (aliado).
+  useEffect(() => {
+    if (!invitacion || !dominios.length || dominios.includes(invitacion.email.split('@')[1])) return
+    const libre = roles.find((r) => !r.institucional)
+    if (libre) setForm((f) => (f.email === invitacion.email ? { ...f, rol: libre.clave as Rol, programa: '' } : f))
+  }, [invitacion, dominios.join(','), rolesApi.length])
 
   const set = <K extends keyof DatosRegistro>(clave: K, valor: DatosRegistro[K]) => setForm((f) => ({ ...f, [clave]: valor }))
 
@@ -55,7 +78,17 @@ export function Registro() {
     setEnviando(true)
     setError(null)
     try {
-      await registrar({ ...form, nombre: form.nombre.trim(), email: revision.normalizado, programa: form.programa?.trim() || null })
+      const delInvitado = Boolean(invitacion && codigoInvitacion && revision.normalizado === invitacion.email)
+      const cuenta = await registrar({
+        ...form, nombre: form.nombre.trim(), email: revision.normalizado, programa: form.programa?.trim() || null,
+        invitacion: delInvitado ? codigoInvitacion! : undefined,
+      })
+      if (cuenta.verificado) {
+        // El enlace de la invitación ya probó que el correo es suyo: entra y queda en el equipo.
+        await ingresar(revision.normalizado, form.password)
+        navegar(destino, { replace: true })
+        return
+      }
       setRegistrado(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible crear la cuenta.')
@@ -93,6 +126,16 @@ export function Registro() {
           Estudiantes, docentes y administrativos se registran con su correo institucional {listaDominios}; los aliados externos pueden usar su correo personal. Te enviaremos un enlace para confirmar que el correo es tuyo.
         </p>
       </header>
+      {invitacion && (
+        <p className="flex items-start gap-2 rounded-lg bg-brand-50 p-3 text-sm text-brand-800 dark:bg-brand-500/10 dark:text-brand-200">
+          <Handshake size={16} className="mt-0.5 shrink-0" aria-hidden />
+          <span>
+            {invitacion.estado === 'aceptada' ? 'Aceptaste' : 'Tienes'} la invitación de {invitacion.invitado_por} al proyecto{' '}
+            <b>«{invitacion.proyecto_titulo}»</b>. Crea tu cuenta con <b>{invitacion.email}</b>
+            {invitacion.estado === 'aceptada' ? ' y quedarás en el equipo automáticamente.' : ' y la verás en tu perfil para aceptarla.'}
+          </span>
+        </p>
+      )}
       <section className="card space-y-4 p-6">
         <BotonGoogle alIngresar={conGoogle} />
         <div>
