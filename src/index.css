@@ -117,3 +117,21 @@
     font-stretch: 82%;
   }
 }
+
+@media print {
+  nav,
+  aside,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .card {
+    border-color: #d1d5db !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}

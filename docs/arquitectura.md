@@ -11,7 +11,7 @@
 | Esquema | SQLAlchemy 2 + Alembic | Las migraciones quedan versionadas en el repositorio. |
 | Autenticación | JWT propio con contraseña cifrada (bcrypt) y **confirmación del correo** por enlace; o **Continuar con Google** (cuentas @ufpso.edu.co, ya verificadas por Google). Correo institucional obligatorio salvo para aliados externos. Todo el contenido exige sesión; los visitantes solo ven la bienvenida | Asegura que las cuentas son de personas reales de la universidad. |
 | Similitud semántica | **sentence-transformers** (`paraphrase-multilingual-MiniLM-L12-v2`, CPU) + **pgvector**, sin LlamaIndex. Vectores en la tabla `embeddings`, recalculados solo cuando cambia el texto; similitud léxica si no hay modelo | Gratuito y en español; pgvector ya resuelve la similitud (distancia coseno `<=>`) junto a los datos. |
-| LLM | **Ollama local y gratuito** (`llama3.2:3b`) por defecto; Claude opcional con `IA_PROVEEDOR=anthropic`; reglas locales si no hay modelo | El equipo quiere un modelo gratuito, y la plataforma funciona igual sin modelo. |
+| LLM | **Ollama local y gratuito** (`llama3.2:3b`), **Groq** en la nube (`IA_PROVEEDOR=groq`) o **Claude** (`IA_PROVEEDOR=anthropic`); reglas locales si no hay modelo | Funciona con modelos gratuitos locales o en línea, y la plataforma sigue operativa con heurística local si el proveedor no responde. |
 | Oportunidades | Las carga un administrador | Garantiza datos desde el día uno. Importarlas de Minciencias/SENA queda como mejora. |
 
 ## 2. Vista general
@@ -26,14 +26,14 @@ FastAPI (backend/app)
  ├─ usuarios        datos, habilidades, intereses
  ├─ perfil          mis proyectos, mis alianzas y resumen en una consulta
  ├─ catalogo        áreas y 17 ODS
- ├─ proyectos       registro, filtros, permisos de autor
+ ├─ proyectos       registro, filtros, permisos de autor, vinculación de actores y exportación CSV
  ├─ alianzas        solicitudes e invitaciones, miembros e historial
  ├─ chat            chat del equipo de cada proyecto y conversación de cada solicitud (consulta cada 4 s)
  ├─ actores         organizaciones aliadas y su vínculo con proyectos
  ├─ oportunidades   convocatorias, fondos, mentorías, infraestructura
  ├─ similitud       embeddings (sentence-transformers) guardados en pgvector
- └─ ia              resumen ── Ollama local (o Claude); recomendación explicable,
-                    similares, colaboradores, búsqueda semántica, sugerencias para mí
+ └─ ia              resumen, diagnóstico de formulación y pitch de postulación (Groq / Ollama / Claude);
+                    recomendación explicable, similares, colaboradores, búsqueda semántica, sugerencias para mí
         │
         ▼
 PostgreSQL (+ pgvector)
@@ -73,11 +73,12 @@ cambian al pasar de los datos de ejemplo a la base real.
 | | Todo lo demás | con sesión y correo confirmado |
 | GET/PATCH | `/api/usuarios/yo` | con sesión |
 | GET | `/api/usuarios`, `/api/usuarios/{id}` | con sesión |
-| GET | `/api/proyectos` (filtros `q`, `area`, `estado`, `ods`), `/api/proyectos/{id}` | con sesión |
+| GET | `/api/proyectos` (filtros `q`, `area`, `estado`, `ods`), `/api/proyectos/exportar.csv`, `/api/proyectos/{id}` | con sesión |
 | POST | `/api/proyectos` | con sesión |
 | PATCH/DELETE | `/api/proyectos/{id}` | autor o admin |
 | GET | `/api/actores`, `/api/oportunidades` (filtros `q`, `area`, `ods`, `tipo`, `abiertas`) | con sesión |
 | POST/PUT/DELETE | `/api/actores...`, `/api/oportunidades...` | admin |
+| GET | `/api/admin/estadisticas`, `/api/admin/reporte.csv` | admin (`admin.resumen`) |
 | GET | `/api/perfil` | con sesión |
 | POST | `/api/proyectos/{id}/solicitudes` | con sesión |
 | POST | `/api/proyectos/{id}/invitaciones` | responsable del proyecto |
@@ -93,7 +94,7 @@ cambian al pasar de los datos de ejemplo a la base real.
 | GET/POST/PATCH/DELETE | `/api/alianzas/{id}/mensajes...` y `POST /api/alianzas/{id}/mensajes/leidos` (mismos cursores) | quien envió o recibió la solicitud y el responsable; admin puede leer y borrar. Escribir y editar solo mientras está pendiente |
 | GET | `/api/chats` (chats de mis proyectos y conversaciones de mis solicitudes, con mensajes sin leer) | con sesión |
 | GET | `/api/ia/estado` | con sesión |
-| POST | `/api/ia/proyectos/{id}/analisis` | con sesión |
+| POST | `/api/ia/proyectos/{id}/analisis`, `/api/ia/proyectos/{id}/pitch/{oportunidad_id}` | con sesión |
 | GET | `/api/ia/proyectos/{id}/similares`, `/api/ia/buscar?q=` | con sesión |
 | GET | `/api/ia/proyectos/{id}/colaboradores`, `/api/ia/para-mi` | con sesión |
 
@@ -105,11 +106,11 @@ Documentación interactiva en `http://localhost:8000/docs`.
 |---|---|---|
 | 0 | Requisitos, historias de usuario, diagramas, tablero en Trello | pendiente (documentación) |
 | 1 | Interfaz base, autenticación, catálogo de áreas y ODS | **hecho** |
-| 2 | Proyectos: registro, explorador, detalle; falta edición y vínculo de actores en la interfaz | **en curso** |
-| 3 | Pantallas de administrador para actores y oportunidades; datos reales de convocatorias | pendiente |
-| 4 | IA: embeddings, recomendación de colaboradores, búsqueda en lenguaje natural | **hecho** (falta medir la calidad con datos reales) |
-| 5 | Alianzas (solicitar unirse, aceptar/rechazar, historial) y notificaciones | **en curso**: alianzas, perfil y chat del equipo hechos; faltan notificaciones |
-| 6 | Estadísticas, auditoría, despliegue (API en Render/Railway, base en Supabase, interfaz en Vercel), pruebas con usuarios | pendiente |
+| 2 | Proyectos: registro, explorador, detalle, edición y vínculo de actores en la interfaz | **hecho** |
+| 3 | Pantallas de administrador para actores y oportunidades; datos reales de convocatorias | **hecho** |
+| 4 | IA: embeddings, recomendación de colaboradores, búsqueda en lenguaje natural, copiloto de formulación y pitch de postulación | **hecho** |
+| 5 | Alianzas (solicitar unirse, aceptar/rechazar, historial) y notificaciones | **hecho** |
+| 6 | Estadísticas, exportación de reportes CSV/PDF, auditoría y despliegue (Render/Supabase/GitHub Pages/Docker) | **hecho** |
 
 ## 7. Pendientes de definir con el equipo
 

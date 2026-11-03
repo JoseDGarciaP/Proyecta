@@ -1,7 +1,7 @@
-import { apiHabilitada, ErrorApi, pedir } from './http'
+import { apiHabilitada, descargarArchivo, ErrorApi, pedir } from './http'
 import { actoresMock, oportunidadesMock, proyectosMock } from '@/data/mock'
 import type { Actor, Metricas, NuevoProyecto, Oportunidad, Proyecto } from './types'
-import { ESTADOS } from './types'
+import { ESTADOS, ODS } from './types'
 import { slug } from './format'
 
 /**
@@ -54,6 +54,64 @@ export async function actualizarProyecto(id: string, cambios: Partial<NuevoProye
   return nuevo
 }
 
+export interface FiltrosExportarProyectos {
+  q?: string
+  area?: string
+  estado?: string
+}
+
+function escaparCsv(valor: string | number): string {
+  const texto = String(valor ?? '')
+  return /[",\n\r]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto
+}
+
+/** Descarga los proyectos filtrados en CSV (desde FastAPI o generado localmente en modo demostración). */
+export async function exportarProyectosCsv(
+  filtros: FiltrosExportarProyectos,
+  proyectosVisibles: Proyecto[],
+): Promise<void> {
+  if (apiHabilitada) {
+    const params = new URLSearchParams(
+      Object.entries(filtros).filter(([, v]) => Boolean(v)) as [string, string][],
+    )
+    const qs = params.toString()
+    await descargarArchivo(`/proyectos/exportar.csv${qs ? `?${qs}` : ''}`, 'proyectos-proyecta.csv')
+    return
+  }
+
+  const encabezados = [
+    'ID', 'Título', 'Área', 'Estado', 'Avance (%)', 'Presupuesto (COP)',
+    'Líder', 'Integrantes equipo', 'ODS', 'Etiquetas', 'Fecha inicio', 'Fecha cierre', 'Registrado en',
+  ]
+  const filas = proyectosVisibles.map((p) => [
+    p.id,
+    p.titulo,
+    p.area,
+    p.estado,
+    p.avance,
+    p.presupuesto,
+    p.lider,
+    p.equipo.join(', '),
+    (p.ods ?? []).map((n) => `ODS ${n}`).join(', '),
+    p.etiquetas.join(', '),
+    p.fecha_inicio,
+    p.fecha_fin ?? '',
+    p.creado_en,
+  ])
+  const contenido =
+    '\ufeff' +
+    [encabezados, ...filas].map((fila) => fila.map(escaparCsv).join(',')).join('\r\n')
+  const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const enlace = document.createElement('a')
+  enlace.href = url
+  enlace.download = 'proyectos-proyecta.csv'
+  document.body.appendChild(enlace)
+  enlace.click()
+  enlace.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
 /** Si el rol no tiene permiso de ver algo (403), se muestra vacío en lugar de romper la página. */
 const sinPermisoVacio = <T,>(p: Promise<T[]>): Promise<T[]> =>
   p.catch((e) => {
@@ -96,7 +154,22 @@ export function calcularMetricas(proyectos: Proyecto[], actores: Actor[]): Metri
     finalizados: proyectos.filter((p) => p.estado === 'finalizado' && p.fecha_fin?.slice(0, 7) === clave).length,
   }))
 
-  return { total, enEjecucion, actores: actores.length, presupuesto, avancePromedio, porEstado, porArea, porMes }
+  const conteoOds = new Map<number, number>()
+  for (const p of proyectos) {
+    for (const n of p.ods ?? []) {
+      conteoOds.set(n, (conteoOds.get(n) ?? 0) + 1)
+    }
+  }
+  const porOds = ODS.map((o) => ({
+    id: o.id,
+    ods: `ODS ${o.id}`,
+    nombre: `ODS ${o.id}: ${o.nombre}`,
+    total: conteoOds.get(o.id) ?? 0,
+  }))
+    .filter((o) => o.total > 0)
+    .sort((a, b) => b.total - a.total || a.id - b.id)
+
+  return { total, enEjecucion, actores: actores.length, presupuesto, avancePromedio, porEstado, porArea, porMes, porOds }
 }
 
 function ultimosMeses(n: number) {

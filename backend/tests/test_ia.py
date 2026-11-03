@@ -23,6 +23,8 @@ def test_recomienda_con_explicacion(client, estudiante, admin):
     assert [r["oportunidad_id"] for r in cuerpo["recomendaciones"]] == [afin["id"]]
     razon = cuerpo["recomendaciones"][0]["razon"]
     assert "Agroindustria" in razon and "ODS 2" in razon
+    assert any("ODS" in f for f in cuerpo["fortalezas"])
+    assert len(cuerpo["pasos_sugeridos"]) >= 1
 
 
 def test_proyecto_inexistente(client, estudiante):
@@ -108,3 +110,39 @@ def test_groq_sin_clave_usa_reglas(client, estudiante, monkeypatch):
     monkeypatch.setattr(servicio, "_transporte", httpx.MockTransport(lambda r: httpx.Response(500)))
     pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
     assert client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante).json()["simulado"] is True
+
+
+def test_estado_incluye_modelo_groq(client, estudiante, monkeypatch):
+    from app.core.config import Settings
+    from app.modules.ia import router as ia_router
+
+    monkeypatch.setattr(ia_router, "get_settings", lambda: Settings(ia_proveedor="groq", groq_model="llama-3.3-70b-versatile"))
+    res = client.get("/api/ia/estado", headers=estudiante)
+    assert res.status_code == 200
+    assert res.json()["proveedor"] == "groq"
+    assert res.json()["modelo"] == "llama-3.3-70b-versatile"
+
+
+def test_generar_pitch_postulacion(client, estudiante, admin, monkeypatch):
+    import httpx
+
+    op = _oportunidad(admin, client)
+    pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
+
+    # Modo heurístico (sin proveedor activo)
+    res_heur = client.post(f"/api/ia/proyectos/{pid}/pitch/{op['id']}", headers=estudiante)
+    assert res_heur.status_code == 200
+    datos_heur = res_heur.json()
+    assert datos_heur["simulado"] is True
+    assert "Riego inteligente" in datos_heur["pitch"]
+    assert any("Agroindustria" in p for p in datos_heur["puntos_clave"])
+
+    # Modo con modelo Groq
+    _usar_proveedor(
+        monkeypatch,
+        "groq",
+        lambda r: httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "Nuestro equipo postula Riego inteligente."}}]}),
+    )
+    res_ia = client.post(f"/api/ia/proyectos/{pid}/pitch/{op['id']}", headers=estudiante)
+    assert res_ia.status_code == 200
+    assert (res_ia.json()["pitch"], res_ia.json()["simulado"]) == ("Nuestro equipo postula Riego inteligente.", False)

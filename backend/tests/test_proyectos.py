@@ -47,6 +47,17 @@ def test_filtros(client, estudiante):
     assert len(client.get("/api/proyectos", params={"q": "lectura"}, headers=estudiante).json()) == 1
 
 
+def test_exportar_proyectos_csv(client, estudiante):
+    client.post("/api/proyectos", json=PROYECTO, headers=estudiante)
+    client.post("/api/proyectos", json={**PROYECTO, "titulo": "Tutorías entre pares", "area": "Educación"}, headers=estudiante)
+    res = client.get("/api/proyectos/exportar.csv", params={"area": "Educación"}, headers=estudiante)
+    assert res.status_code == 200
+    assert "text/csv" in res.headers["content-type"]
+    texto = res.text
+    assert "Tutorías entre pares" in texto
+    assert "Riego inteligente para cebolla" not in texto
+
+
 def test_solo_el_autor_edita(client, estudiante):
     pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
     otro = registrar(client, "otro@ufpso.edu.co", "Otro Usuario")
