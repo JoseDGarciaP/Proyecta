@@ -1,6 +1,8 @@
+import csv
+import io
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from sqlalchemy import String, cast, or_, select
 from sqlalchemy.orm import Session
 
@@ -55,15 +57,11 @@ def _experiencia(db: Session, proyecto: Proyecto, avance_antes: int, estado_ante
         sumar_a_varios(db, equipo, "proyecto_finalizado", str(proyecto.id), f"«{proyecto.titulo}» finalizado", tareas)
 
 
-@router.get("", response_model=list[ProyectoSalida])
-def listar_proyectos(
-    db: DbSession,
-    q: str | None = Query(default=None, description="Busca en título, resumen, líder y etiquetas"),
+def _consulta_proyectos(
+    q: str | None = None,
     area: str | None = None,
     estado: Estado | None = None,
     ods: int | None = None,
-    limit: int = Query(default=200, le=500),
-    offset: int = 0,
 ):
     stmt = select(Proyecto)
     if q:
@@ -78,8 +76,63 @@ def listar_proyectos(
         stmt = stmt.where(Proyecto.estado == estado)
     if ods:
         stmt = stmt.where(Proyecto.ods.any(Ods.id == ods))
-    orden = stmt.order_by(Proyecto.creado_en.desc(), Proyecto.actualizado_en.desc()).limit(limit).offset(offset)
+    return stmt.order_by(Proyecto.creado_en.desc(), Proyecto.actualizado_en.desc())
+
+
+@router.get("", response_model=list[ProyectoSalida])
+def listar_proyectos(
+    db: DbSession,
+    q: str | None = Query(default=None, description="Busca en título, resumen, líder y etiquetas"),
+    area: str | None = None,
+    estado: Estado | None = None,
+    ods: int | None = None,
+    limit: int = Query(default=200, le=500),
+    offset: int = 0,
+):
+    orden = _consulta_proyectos(q=q, area=area, estado=estado, ods=ods).limit(limit).offset(offset)
     return [ProyectoSalida.de(p) for p in db.scalars(orden).unique()]
+
+
+@router.get("/exportar.csv")
+def exportar_proyectos_csv(
+    db: DbSession,
+    q: str | None = Query(default=None, description="Filtra por título, resumen, líder y etiquetas"),
+    area: str | None = None,
+    estado: Estado | None = None,
+    ods: int | None = None,
+):
+    """Descarga el listado de proyectos filtrado en formato CSV (con BOM UTF-8 compatible con Excel)."""
+    proyectos = list(db.scalars(_consulta_proyectos(q=q, area=area, estado=estado, ods=ods).limit(500)).unique())
+    buf = io.StringIO()
+    buf.write("\ufeff")  # BOM UTF-8 para que Microsoft Excel reconozca tildes y eñes automáticamente
+    writer = csv.writer(buf)
+    writer.writerow([
+        "ID", "Título", "Área", "Estado", "Avance (%)", "Presupuesto (COP)",
+        "Líder", "Integrantes equipo", "ODS", "Actores vinculados",
+        "Etiquetas", "Fecha inicio", "Fecha cierre", "Registrado en",
+    ])
+    for p in proyectos:
+        writer.writerow([
+            str(p.id),
+            p.titulo,
+            p.area.nombre,
+            p.estado.value,
+            p.avance,
+            p.presupuesto,
+            p.lider,
+            ", ".join(p.equipo),
+            ", ".join(f"ODS {o.id}" for o in sorted(p.ods, key=lambda x: x.id)),
+            ", ".join(a.nombre for a in p.actores),
+            ", ".join(p.etiquetas),
+            p.fecha_inicio.isoformat(),
+            p.fecha_fin.isoformat() if p.fecha_fin else "",
+            p.creado_en.isoformat(),
+        ])
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="proyectos-proyecta.csv"'},
+    )
 
 
 @router.post("", response_model=ProyectoSalida, status_code=status.HTTP_201_CREATED,

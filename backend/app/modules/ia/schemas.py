@@ -15,7 +15,17 @@ class Recomendacion(BaseModel):
 class RespuestaAnalisis(BaseModel):
     resumen: str
     recomendaciones: list[Recomendacion]
+    fortalezas: list[str] = []
+    pasos_sugeridos: list[str] = []
     simulado: bool  # True cuando el resumen sale de la heurística y no de un modelo
+
+
+class RespuestaPitch(BaseModel):
+    """Borrador de carta de postulación de un proyecto a una oportunidad de apoyo."""
+
+    pitch: str
+    puntos_clave: list[str] = []
+    simulado: bool
 
 
 class Sugerencia(BaseModel):

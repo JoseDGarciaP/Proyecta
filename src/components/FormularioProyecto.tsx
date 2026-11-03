@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react'
-import { Loader2, Save } from 'lucide-react'
-import { AREAS, ESTADOS, ESTADO_LABEL, type Area, type Estado, type NuevoProyecto, type Proyecto } from '@/lib/types'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Building2, Loader2, Save } from 'lucide-react'
+import { listarActores } from '@/lib/api'
+import { AREAS, ESTADOS, ESTADO_LABEL, type Actor, type Area, type Estado, type NuevoProyecto, type Proyecto } from '@/lib/types'
 import { useAreas, useOds } from '@/lib/parametros'
 import { useSesion } from '@/lib/sesion'
 
@@ -20,6 +21,7 @@ export interface DatosFormularioProyecto {
   fecha_inicio: string
   fecha_fin: string
   ods: number[]
+  actores: string[]
 }
 
 export const formularioVacio = (): DatosFormularioProyecto => ({
@@ -37,6 +39,7 @@ export const formularioVacio = (): DatosFormularioProyecto => ({
   fecha_inicio: new Date().toISOString().slice(0, 10),
   fecha_fin: '',
   ods: [],
+  actores: [],
 })
 
 /** Carga un proyecto existente en el formulario (para editarlo). */
@@ -55,12 +58,13 @@ export const formularioDe = (p: Proyecto): DatosFormularioProyecto => ({
   fecha_inicio: p.fecha_inicio.slice(0, 10),
   fecha_fin: p.fecha_fin?.slice(0, 10) ?? '',
   ods: p.ods ?? [],
+  actores: p.actores ?? [],
 })
 
 const separar = (valor: string) => [...new Set(valor.split(',').map((v) => v.trim()).filter(Boolean))]
 
-/** Convierte el formulario en lo que recibe la API (sin actores: esos se gestionan aparte). */
-export const datosDe = (f: DatosFormularioProyecto): Omit<NuevoProyecto, 'actores'> => ({
+/** Convierte el formulario en lo que recibe la API (incluyendo actores vinculados). */
+export const datosDe = (f: DatosFormularioProyecto): NuevoProyecto => ({
   titulo: f.titulo.trim(),
   resumen: f.resumen.trim(),
   descripcion: f.descripcion.trim(),
@@ -75,6 +79,7 @@ export const datosDe = (f: DatosFormularioProyecto): Omit<NuevoProyecto, 'actore
   fecha_inicio: f.fecha_inicio,
   fecha_fin: f.fecha_fin || null,
   ods: f.ods,
+  actores: f.actores,
 })
 
 /** Formulario de los datos de un proyecto: lo usan «Registrar proyecto» y «Editar proyecto». */
@@ -90,11 +95,16 @@ export function FormularioProyecto({
   acciones?: (reiniciar: () => void) => ReactNode
 }) {
   const [form, setForm] = useState(inicial)
+  const [actoresCatalogo, setActoresCatalogo] = useState<Actor[]>([])
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { usuario } = useSesion()
   const areas = useAreas()
   const ods = useOds()
+
+  useEffect(() => {
+    listarActores().then(setActoresCatalogo).catch(() => setActoresCatalogo([]))
+  }, [])
 
   const set = <K extends keyof DatosFormularioProyecto>(clave: K, valor: DatosFormularioProyecto[K]) =>
     setForm((f) => ({ ...f, [clave]: valor }))
@@ -206,6 +216,37 @@ export function FormularioProyecto({
             })}
           </div>
         </fieldset>
+
+        {actoresCatalogo.length > 0 && (
+          <fieldset>
+            <legend className="label flex items-center gap-1.5">
+              <Building2 size={14} aria-hidden /> Actores aliados vinculados (opcional)
+            </legend>
+            <div className="flex flex-wrap gap-1.5">
+              {actoresCatalogo.map((a) => {
+                const activo = form.actores.includes(a.id)
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    aria-pressed={activo}
+                    title={`${a.tipo} · ${a.sector}`}
+                    onClick={() =>
+                      set('actores', activo ? form.actores.filter((id) => id !== a.id) : [...form.actores, a.id])
+                    }
+                    className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                      activo
+                        ? 'border-accent-600 bg-accent-600 text-white dark:border-accent-400 dark:bg-accent-500'
+                        : 'border-slate-300 text-slate-600 hover:border-accent-400 dark:border-slate-700 dark:text-slate-400'
+                    }`}
+                  >
+                    {a.nombre} <span className="opacity-75">({a.tipo})</span>
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+        )}
 
         <div>
           <label className="label" htmlFor="etiquetas">Etiquetas (separadas por comas)</label>

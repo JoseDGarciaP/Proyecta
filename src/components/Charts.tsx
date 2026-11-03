@@ -135,3 +135,31 @@ export function EstadosChart({ datos, oscuro }: ChartProps & { datos: Metricas['
     </ResponsiveContainer>
   )
 }
+
+export function OdsChart({ datos, oscuro }: ChartProps & { datos: NonNullable<Metricas['porOds']> }) {
+  const t = chartTheme(oscuro)
+  const tip = tooltipStyle(oscuro)
+
+  if (datos.length === 0) {
+    return (
+      <div className="grid h-[220px] place-items-center text-center text-sm text-slate-500 dark:text-slate-400">
+        Asocia Objetivos de Desarrollo Sostenible (ODS) a los proyectos para visualizar su cobertura.
+      </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={datos} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+        <CartesianGrid stroke={t.grid} strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="ods" tick={{ fontSize: 11, fill: t.axis }} tickLine={false} axisLine={false} />
+        <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: t.axis }} tickLine={false} axisLine={false} width={34} />
+        <Tooltip
+          {...tip}
+          labelFormatter={(_, payload) => payload?.[0]?.payload?.nombre ?? ''}
+        />
+        <Bar dataKey="total" name="Proyectos vinculados" fill={t.duo[1]} radius={[4, 4, 0, 0]} barSize={22} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}

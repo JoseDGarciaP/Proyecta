@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, Send } from 'lucide-react'
+import { Loader2, Send, Sparkles } from 'lucide-react'
 import { ESTADO_POSTULACION, postulacionesDeProyecto, postular, retirarPostulacion } from '@/lib/experiencia'
+import { redactarPitch } from '@/lib/ai'
 import type { Oportunidad, Postulacion } from '@/lib/types'
 import { Modal } from '@/components/Modal'
 import { Badge, Skeleton } from '@/components/ui'
@@ -20,6 +21,21 @@ export function ModalPostular({ oportunidad, proyectos, yaPostulados, alCerrar, 
   const [proyecto, setProyecto] = useState(disponibles[0]?.id ?? '')
   const [nota, setNota] = useState('')
   const [estado, setEstado] = useState('')
+  const [redactandoIA, setRedactandoIA] = useState(false)
+  const [puntosClave, setPuntosClave] = useState<string[]>([])
+
+  const generarConIA = async () => {
+    if (!proyecto) return
+    setRedactandoIA(true)
+    try {
+      const actual = disponibles.find((p) => p.id === proyecto)
+      const res = await redactarPitch(proyecto, oportunidad, actual?.titulo)
+      setNota(res.pitch.slice(0, 1500))
+      setPuntosClave(res.puntos_clave)
+    } finally {
+      setRedactandoIA(false)
+    }
+  }
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,16 +59,60 @@ export function ModalPostular({ oportunidad, proyectos, yaPostulados, alCerrar, 
         <form onSubmit={enviar} className="space-y-4">
           <label className="block">
             <span className="label">Proyecto</span>
-            <select className="input" value={proyecto} onChange={(e) => setProyecto(e.target.value)}>
+            <select
+              className="input"
+              value={proyecto}
+              onChange={(e) => {
+                setProyecto(e.target.value)
+                setPuntosClave([])
+              }}
+            >
               {disponibles.map((p) => <option key={p.id} value={p.id}>{p.titulo}</option>)}
             </select>
           </label>
-          <label className="block">
-            <span className="label">¿Por qué encaja con esta oportunidad?</span>
-            <textarea className="input min-h-28" required minLength={10} maxLength={1500} value={nota} onChange={(e) => setNota(e.target.value)}
-              placeholder="Qué problema resuelve, en qué etapa está y cómo usaría el apoyo." />
+          <div>
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+              <label htmlFor="nota-postulacion" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                ¿Por qué encaja con esta oportunidad?
+              </label>
+              <button
+                type="button"
+                className="btn-ghost px-2.5 py-1 text-xs"
+                onClick={generarConIA}
+                disabled={!proyecto || redactandoIA}
+              >
+                {redactandoIA ? (
+                  <Loader2 size={13} className="animate-spin" aria-hidden />
+                ) : (
+                  <Sparkles size={13} className="text-brand-600 dark:text-brand-400" aria-hidden />
+                )}
+                {redactandoIA ? 'Redactando…' : 'Redactar borrador con IA'}
+              </button>
+            </div>
+            <textarea
+              id="nota-postulacion"
+              className="input min-h-28"
+              required
+              minLength={10}
+              maxLength={1500}
+              value={nota}
+              onChange={(e) => setNota(e.target.value)}
+              placeholder="Qué problema resuelve, en qué etapa está y cómo usaría el apoyo."
+            />
             <span className="mt-1 block text-right text-[11px] text-slate-400 tabular-nums">{nota.length}/1500</span>
-          </label>
+            {puntosClave.length > 0 && (
+              <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                {puntosClave.map((punto, i) => (
+                  <li
+                    key={i}
+                    className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                  >
+                    {punto}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <p className="rounded-lg bg-brand-50 p-3 text-xs text-brand-800 dark:bg-brand-500/10 dark:text-brand-200">
             Quien gestiona la oportunidad revisará la postulación y el equipo recibirá la respuesta. Postular da experiencia y, si el proyecto queda seleccionado, todo el equipo gana más.
           </p>

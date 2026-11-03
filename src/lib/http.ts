@@ -72,3 +72,21 @@ export async function abrirArchivo(ruta: string): Promise<void> {
   else window.location.assign(url)
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
+
+/** Descarga un archivo protegido (p. ej. reporte CSV) directamente al equipo del usuario. */
+export async function descargarArchivo(ruta: string, nombreArchivo: string): Promise<void> {
+  const t = token.leer()
+  const res = await fetch(`${base}/api${ruta}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+  if (!res.ok) {
+    const datos = await res.json().catch(() => null)
+    throw new ErrorApi(datos?.detail || `Error ${res.status}`, res.status)
+  }
+  const url = URL.createObjectURL(await res.blob())
+  const enlace = document.createElement('a')
+  enlace.href = url
+  enlace.download = nombreArchivo
+  document.body.appendChild(enlace)
+  enlace.click()
+  enlace.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}

@@ -1,4 +1,4 @@
-import { pedir } from './http'
+import { descargarArchivo, pedir } from './http'
 import type {
   Actor, Ajustes, AreaAdmin, Estadisticas, ItemCatalogo, Motivo, Oportunidad, PaginaUsuarios, Plantilla,
   ProyectoAdmin, RegistroAdmin, Rol, TipoAporte, UsuarioAdmin, RolDef, PermisoDef, Insignia, Otorgada, InsigniaBreve,
@@ -7,6 +7,8 @@ import type {
 /** Llamadas del panel de administración (todas exigen rol admin en la API). */
 
 export const estadisticas = () => pedir<Estadisticas>('/admin/estadisticas')
+export const exportarReporteInstitucional = () =>
+  descargarArchivo('/admin/reporte.csv', 'reporte-institucional-proyecta.csv')
 
 export interface FiltroUsuarios {
   q?: string

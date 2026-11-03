@@ -3,7 +3,8 @@
 Plataforma para **centralizar proyectos e iniciativas** y facilitar su articulación con actores
 y oportunidades de apoyo. Reúne en un solo lugar el registro y seguimiento de proyectos, el
 directorio de actores, la cartelera de convocatorias y un asistente de IA que resume proyectos,
-sugiere oportunidades afines y propone colaboradores.
+evalúa la madurez de su formulación, sugiere oportunidades afines, redacta borradores de
+postulación y propone colaboradores.
 
 ## Objetivo
 
@@ -28,9 +29,16 @@ oportunidades e IA exigen una cuenta con el correo confirmado.
 
 ### Proyectos y panel
 
-El panel muestra métricas generales (proyectos por estado, por área y por mes, presupuesto y
-avance promedio). Cada proyecto tiene su ficha con área, ODS, estado, avance, equipo, necesidades
-y conversación propia.
+El panel muestra métricas generales (proyectos por estado, por área, por mes y por aporte a los
+17 Objetivos de Desarrollo Sostenible, presupuesto y avance promedio). Cada proyecto tiene su
+ficha con área, ODS, actores aliados vinculados, estado, avance, equipo, necesidades y
+conversación propia.
+
+- **Vinculación de actores aliados:** al registrar o editar un proyecto se pueden seleccionar
+  organizaciones aliadas del directorio para reflejar su articulación.
+- **Exportación de reportes y fichas:** el explorador de proyectos permite descargar el listado
+  filtrado en formato **CSV** (compatible con Microsoft Excel) y cada proyecto cuenta con vista de
+  impresión limpia para exportar su **ficha ejecutiva en PDF**.
 
 ### Perfil y alianzas
 
@@ -51,16 +59,19 @@ el motivo lo pide. Al aprobar, la persona queda como miembro con el rol propuest
 
 ### Asistente de IA y similitud
 
-- **Resúmenes de proyectos** redactados por un modelo de lenguaje. Si el modelo no responde, el
-  resumen sale de reglas locales y la interfaz lo marca como simulado.
-- **Recomendación de oportunidades** que explica por qué se sugiere cada una (área, ODS en común,
-  etiquetas y vigencia; solo convocatorias abiertas).
+- **Resúmenes ejecutivos y diagnóstico de formulación:** redacta un resumen del proyecto y evalúa
+  automáticamente las fortalezas de la ficha y las recomendaciones para fortalecer su formulación.
+  Si el modelo no responde, el resumen sale de reglas locales y la interfaz lo marca como simulado.
+- **Recomendación de oportunidades y borrador de postulación (*pitch*):** explica por qué se sugiere
+  cada convocatoria (área, ODS en común, etiquetas y vigencia; solo convocatorias abiertas) y
+  genera un borrador persuasivo de carta de postulación adaptado a la oportunidad elegida.
 - **Similitud semántica** entre textos, en varios lugares de la plataforma:
 
 | Función | Dónde se ve |
 |---|---|
 | Proyectos que buscan un perfil como el mío | Mi perfil → Sugerencias para ti |
 | Oportunidades para mis proyectos | Mi perfil y Asistente de articulación |
+| Borrador de postulación con IA (*pitch*) | Detalle del proyecto y ventana de postulación en Oportunidades |
 | Proyectos similares (articularse o evitar duplicados) | Detalle del proyecto |
 | Posibles colaboradores según «Lo que necesita» | Detalle del proyecto (solo su responsable) |
 | Búsqueda por significado de convocatorias | Oportunidades |
@@ -89,20 +100,35 @@ Cada persona elige en su perfil qué correos recibe.
   Leyenda. Piden XP mínima e insignias; al subir llega un aviso y se muestra una celebración. El
   nivel aparece junto al nombre y hay un ranking por semana, mes o de siempre.
 - **Postulaciones:** el equipo de un proyecto lo postula a una oportunidad explicando por qué
-  encaja; quien gestiona oportunidades lo marca como seleccionado o no, y el equipo recibe aviso y XP.
+  encaja (con opción de redactar el borrador con IA); quien gestiona oportunidades lo marca como
+  seleccionado o no, y el equipo recibe aviso y XP.
 - **Evidencias:** certificados, constancias, informes o fotos que se suben en el perfil o en el
   proyecto; un administrador los revisa y decide cuánta XP dar o los rechaza con un motivo.
 
 ### Administración
 
-- **Resumen:** usuarios, solicitudes por estado, tasa de aprobación, motivos y aportes más usados.
+- **Resumen:** usuarios, solicitudes por estado, tasa de aprobación, motivos y aportes más usados,
+  y descarga del **reporte institucional consolidado en CSV**.
 - **Usuarios:** buscar, filtrar, cambiar rol, activar o desactivar, editar datos y crear cuentas.
 - **Colaboración:** motivos de aprobación y rechazo, tipos de aporte y plantillas de mensaje.
 - **Áreas y ODS**, **Moderación** de proyectos, oportunidades y actores, y **Ajustes** generales.
 - **Roles y permisos:** matriz de permisos por acción para cada rol y roles nuevos (p. ej.
   «Coordinador de semillero»). La interfaz oculta lo que el rol no puede hacer y la API lo rechaza.
 - **Insignias**, **Niveles y XP** y **Evidencias**.
-- **Bitácora:** quién hizo qué y cuándo.
+- **Bitácora:** quién hizo qué y cuándo (incluyendo la trazabilidad de reportes exportados).
+
+## Ejecución en desarrollo local
+
+- **Modo demostración (solo interfaz, sin backend):**
+  ```bash
+  npm install
+  npm run dev
+  ```
+- **Entorno completo con Docker (PostgreSQL + FastAPI con migraciones y datos semilla + Vite):**
+  ```bash
+  docker compose --profile fullstack up --build
+  ```
+  *(Si solo deseas levantar la base de datos PostgreSQL con `pgvector` para correr Python y Node de forma nativa, ejecuta `docker compose up -d`).*
 
 ## Tecnologías
 
@@ -111,6 +137,6 @@ Cada persona elige en su perfil qué correos recibe.
 | Interfaz | React, React Router, Vite, TypeScript, Tailwind CSS, Recharts |
 | API | Python, FastAPI, SQLAlchemy, Alembic |
 | Base de datos | PostgreSQL con pgvector |
-| IA | Modelos de lenguaje (Groq u Ollama) y sentence-transformers |
+| IA | Modelos de lenguaje (Groq, Ollama o Claude) y sentence-transformers |
 
 La arquitectura y el modelo de datos están en [`docs/arquitectura.md`](docs/arquitectura.md).

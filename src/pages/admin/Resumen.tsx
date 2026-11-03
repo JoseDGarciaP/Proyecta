@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { estadisticas } from '@/lib/admin'
+import { Download, Loader2 } from 'lucide-react'
+import { estadisticas, exportarReporteInstitucional } from '@/lib/admin'
 import { Skeleton } from '@/components/ui'
 import { Aviso, Tarjeta, useCarga } from './comun'
 
@@ -12,6 +14,17 @@ const ESTADO: Record<string, { label: string; color: string }> = {
 
 export function Resumen() {
   const { datos: e, error } = useCarga(estadisticas)
+  const [exportando, setExportando] = useState(false)
+
+  const descargarReporte = async () => {
+    setExportando(true)
+    try {
+      await exportarReporteInstitucional()
+    } finally {
+      setExportando(false)
+    }
+  }
+
   if (error) return <Aviso>{error}</Aviso>
   if (!e) return <Skeleton className="h-96" />
 
@@ -21,6 +34,21 @@ export function Resumen() {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Indicadores consolidados de usuarios, proyectos, alianzas y notificaciones.
+        </p>
+        <button
+          type="button"
+          className="btn-ghost text-xs"
+          onClick={descargarReporte}
+          disabled={exportando}
+        >
+          {exportando ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Download size={14} aria-hidden />}
+          Exportar reporte institucional (CSV)
+        </button>
+      </div>
+
       <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Cifra titulo="Usuarios activos" valor={e.usuarios_activos} detalle={`${e.usuarios_total} cuentas en total`} enlace="/admin/usuarios" />
         <Cifra titulo="Sin verificar" valor={e.usuarios_sin_verificar} detalle={`${e.usuarios_inactivos} desactivadas`} enlace="/admin/usuarios" />
