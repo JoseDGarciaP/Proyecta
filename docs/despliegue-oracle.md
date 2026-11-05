@@ -7,7 +7,8 @@ con HTTPS automático. Tiempo aproximado: 1 a 2 horas la primera vez.
 Navegador ──HTTPS──► Caddy (interfaz + certificado)
                        └── /api ──► API FastAPI ──► PostgreSQL + pgvector
                                          ├── Groq (IA para "Analizar", gratis)
-                                         └── Gmail SMTP (correos de confirmación)
+                                         └── Brevo o Gmail SMTP (correos)
+GitHub (push a main) ──Actions + SSH──► la VM se actualiza sola
 ```
 
 **Por qué Oracle y no GitHub Pages, Render o Supabase:** GitHub Pages solo sirve archivos estáticos (la interfaz), no la API
@@ -23,7 +24,12 @@ también el modelo de similitud semántica.
 ## 1. Crear la cuenta y la máquina virtual
 
 1. Regístrate en https://signup.cloud.oracle.com. Como *Home Region* elige una cercana con buena disponibilidad
-   (por ejemplo **US East (Ashburn)** o **Brazil East (São Paulo)**). La región de origen no se puede cambiar después.
+   (por ejemplo **Colombia Central (Bogotá)** si aparece, **Brazil East (São Paulo)** o **US East (Ashburn)**).
+   La región de origen no se puede cambiar después.
+   - **Recomendado:** cuando la cuenta esté lista, pásala a *Pay As You Go* (**Billing → Upgrade and Manage Payment**).
+     Sigue costando $0 mientras uses solo recursos *Always Free*, pero Oracle deja de recuperar las VMs inactivas
+     (ver «Problemas comunes») y hay más capacidad para crear la VM ARM. Crea también una alerta de presupuesto
+     de 1 USD en **Billing → Budgets** para enterarte si algo empieza a cobrar.
 2. En el menú: **Compute → Instances → Create instance**.
    - **Name:** `proyecta`
    - **Image:** *Canonical Ubuntu 24.04* (la versión que diga *aarch64*).
@@ -87,7 +93,7 @@ Vuelve a entrar con el mismo comando `ssh` (para que tome el grupo `docker`).
 ## 5. Descargar Proyecta y configurarlo
 
 ```bash
-git clone https://github.com/mmi-cmd/Proyecta
+git clone https://github.com/JoseDGarciaP/Proyecta
 cd Proyecta
 cp deploy/produccion.env.example deploy/.env.produccion
 openssl rand -hex 32   # copia el resultado para POSTGRES_PASSWORD
@@ -100,11 +106,23 @@ Llena como mínimo `DOMINIO`, `POSTGRES_PASSWORD` y `SECRET_KEY`. Guarda con `Ct
 | Variable | De dónde sale |
 |---|---|
 | `DOMINIO` | `proyecta-ufpso.duckdns.org` (sin `https://`) |
-| `SMTP_USUARIO` / `SMTP_PASSWORD` | Gmail del equipo + contraseña de aplicación (https://myaccount.google.com/apppasswords) |
+| `BREVO_API_KEY` + `SMTP_REMITENTE` | Los mismos que tenías en Render (Brevo → SMTP & API → API Keys). Si los usas, deja `SMTP_HOST` vacío. |
+| `SMTP_USUARIO` / `SMTP_PASSWORD` | O, en vez de Brevo: Gmail del equipo + contraseña de aplicación (https://myaccount.google.com/apppasswords) |
 | `GROQ_API_KEY` | https://console.groq.com/keys → *Create API Key* (gratis) |
 | `GOOGLE_CLIENT_ID` | El mismo de la Parte 4d de la guía local (ver el paso 7) |
 
-## 6. Encender
+## 6. Encender y traer los datos de Supabase
+
+Si Proyecta ya estaba funcionando con Supabase, este script crea las tablas en la VM, copia todos los datos
+de Supabase (usuarios, proyectos, roles, notificaciones…) y enciende todo. Usa la cadena del **Session pooler**
+(Supabase → **Connect → Connection string → Session pooler**, puerto 5432) con la contraseña real en lugar de
+`[YOUR-PASSWORD]`, y ponla entre comillas:
+
+```bash
+sh deploy/traer-de-supabase.sh "postgresql://postgres.xxxx:CLAVE@aws-0-xx.pooler.supabase.com:5432/postgres"
+```
+
+Para empezar con la base vacía, en cambio:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file deploy/.env.produccion up -d --build
@@ -119,7 +137,7 @@ docker compose -f docker-compose.prod.yml --env-file deploy/.env.produccion logs
 
 Cuando `api` diga *healthy*, abre `https://proyecta-ufpso.duckdns.org`. Las migraciones se aplican solas al arrancar.
 
-**Datos de ejemplo y administrador (opcional):**
+**Datos de ejemplo y administrador (opcional, solo si empezaste con la base vacía):**
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file deploy/.env.produccion exec api python -m scripts.seed_demo
@@ -135,13 +153,47 @@ En https://console.cloud.google.com → **APIs y servicios → Credenciales →*
 - Mientras la app esté en modo *Prueba*, solo entran los correos que agregues en *Usuarios de prueba*. Para abrirla a todos,
   pulsa **Publicar aplicación** en la pantalla de consentimiento (como solo pide correo y nombre, no requiere revisión).
 
-## 8. Mantenerlo
+## 8. Despliegue automático con GitHub Actions
 
-**Actualizar después de un merge a `main`:**
+El flujo `.github/workflows/oracle.yml` entra por SSH a la VM cada vez que se sube algo a `main` y ejecuta
+`deploy/actualizar.sh` (baja el código, reconstruye y aplica las migraciones). Se usa una llave solo para GitHub,
+distinta de la tuya, para poder quitarla sin perder el acceso.
 
-```bash
-cd ~/Proyecta && sh deploy/actualizar.sh
-```
+1. En PowerShell, en tu PC:
+
+   ```powershell
+   ssh-keygen -t ed25519 -f "$HOME\Documents\proyecta-actions" -C "github-actions"   # pulsa Enter dos veces (sin frase)
+   Get-Content "$HOME\Documents\proyecta-actions.pub"   # copia esta línea
+   ```
+
+2. En la VM, autoriza esa llave (pega la línea copiada entre las comillas):
+
+   ```bash
+   echo "ssh-ed25519 AAAA... github-actions" >> ~/.ssh/authorized_keys
+   ```
+
+3. En GitHub → el repositorio → **Settings → Secrets and variables → Actions**:
+   - Pestaña **Secrets** → *New repository secret* → `ORACLE_SSH_KEY` con **todo** el contenido de
+     `proyecta-actions` (el archivo sin `.pub`, desde `-----BEGIN` hasta `-----END ... KEY-----`).
+   - Pestaña **Variables** → `ORACLE_HOST` = la IP pública o el dominio, `ORACLE_USUARIO` = `ubuntu`,
+     `ORACLE_DOMINIO` = `proyecta-ufpso.duckdns.org`.
+4. En **Actions → Desplegar en Oracle → Run workflow** pruébalo una vez. Debe terminar en verde con «API en línea».
+
+Con `ORACLE_HOST` definida, el flujo de GitHub Pages deja de correr: la interfaz se sirve desde la VM.
+
+**Actualizar a mano** (si algún día Actions falla): `cd ~/Proyecta && sh deploy/actualizar.sh`
+
+## 9. Apagar lo anterior (Render, cron y Pages)
+
+Cuando la VM funcione y el despliegue automático esté en verde:
+
+- **cron-job.org:** desactiva el trabajo que llamaba a Render cada 10 minutos.
+- **Render:** en el servicio `proyecta-api` → **Settings → Delete Web Service** (o déjalo suspendido).
+- **GitHub Pages:** **Settings → Pages → Unpublish site**, para que nadie entre por la dirección vieja de `github.io`.
+- **Supabase:** guarda el proyecto unos días como respaldo; luego pueden pausarlo o borrarlo.
+- **Google:** el origen `https://josedgarciap.github.io` ya se puede quitar de los orígenes autorizados.
+
+## 10. Mantenerlo
 
 **Copias de seguridad diarias** (guarda 14 días en `~/respaldos`):
 
@@ -149,6 +201,9 @@ cd ~/Proyecta && sh deploy/actualizar.sh
 mkdir -p ~/respaldos
 (crontab -l 2>/dev/null; echo "30 3 * * * sh $HOME/Proyecta/deploy/respaldo.sh >> $HOME/respaldos/registro.log 2>&1") | crontab -
 ```
+
+Esas copias viven en la misma VM. De vez en cuando bájalas a tu PC (PowerShell):
+`scp -i "$HOME\Documents\proyecta.key" "ubuntu@TU_IP_PUBLICA:~/respaldos/*.sql.gz" "$HOME\Documents\"`
 
 Restaurar una copia: `gunzip -c ~/respaldos/ARCHIVO.sql.gz | docker compose -f docker-compose.prod.yml --env-file deploy/.env.produccion exec -T db psql -U proyecta -d proyecta`
 
@@ -178,4 +233,7 @@ En 2 núcleos ARM cada análisis tarda entre 20 y 60 segundos. Groq responde en 
 | No llega el correo de confirmación | Revisa spam y `logs api`: si dice `No se pudo enviar`, revisa `SMTP_USUARIO` y la contraseña de aplicación. |
 | "Analizar" dice "reglas locales" | Falta `GROQ_API_KEY` o se agotó el límite gratuito del día. |
 | Google: `origin_mismatch` | Falta `https://TU_DOMINIO` en los orígenes autorizados (paso 7). |
-| Oracle avisa que la instancia está inactiva | Oracle puede recuperar VMs gratuitas que pasan 7 días con CPU, red **y** memoria por debajo del 20 %. Con poco tráfico la memoria de la API (~1,5 GB) puede no alcanzar ese 20 % de 12 GB. Para evitarlo, activa el perfil de Ollama (sección anterior): mantiene ~3 GB en uso. |
+| Oracle avisa que la instancia está inactiva | Oracle puede recuperar VMs gratuitas que pasan 7 días con CPU, red **y** memoria por debajo del 20 %. Con poco tráfico la memoria de la API (~1,5 GB) no alcanza ese 20 % de 12 GB. La solución es pasar la cuenta a *Pay As You Go* (paso 1): a esas cuentas no les recuperan VMs. Otra opción es activar el perfil de Ollama (sección anterior), que mantiene ~3 GB en uso. |
+| Actions: `Permission denied (publickey)` | La llave pública no quedó en `~/.ssh/authorized_keys` de la VM, o el secreto `ORACLE_SSH_KEY` no tiene el archivo completo. |
+| `traer-de-supabase.sh`: versiones de migración distintas | Supabase y la VM deben tener la misma versión de `main`. Despliega la misma versión en ambos y repite. |
+| `traer-de-supabase.sh`: `password authentication failed` o no conecta | Usa la cadena del *Session pooler* (puerto 5432), con la contraseña de la base y entre comillas. |

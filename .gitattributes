@@ -1,0 +1,4 @@
+# Los scripts y la configuración del servidor deben quedar con saltos de línea de Linux.
+*.sh text eol=lf
+deploy/Caddyfile text eol=lf
+*.yml text eol=lf
