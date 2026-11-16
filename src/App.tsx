@@ -17,6 +17,7 @@ import { Verificar } from '@/pages/Verificar'
 import { Invitacion } from '@/pages/Invitacion'
 import { Recuperar } from '@/pages/Recuperar'
 import { Restablecer } from '@/pages/Restablecer'
+import { Privacidad } from '@/pages/Privacidad'
 import { RequiereSesion } from '@/components/RequiereSesion'
 import { Notificaciones } from '@/pages/Notificaciones'
 import { Admin } from '@/pages/Admin'
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="verificar" element={<Verificar />} />
         <Route path="restablecer" element={<Restablecer />} />
         <Route path="invitacion" element={<Invitacion />} />
+        <Route path="privacidad" element={<Privacidad />} />
       </Route>
       {/* Todo lo demás es solo para usuarios registrados (en modo demostración queda abierto). */}
       <Route element={<RequiereSesion><Layout /></RequiereSesion>}>
