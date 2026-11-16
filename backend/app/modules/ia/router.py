@@ -20,7 +20,7 @@ from app.modules.oportunidades.models import Oportunidad
 from app.modules.proyectos.models import Proyecto
 from app.modules.proyectos.router import obtener_proyecto
 from app.modules.similitud import codificador, textos
-from app.modules.similitud.servicio import Resultado, ordenar, similitudes
+from app.modules.similitud.servicio import MINIMO, Resultado, ordenar, similitudes
 from app.modules.usuarios.models import Rol, Usuario
 
 router = APIRouter(prefix="/api/ia", tags=["inteligencia artificial"])
@@ -93,24 +93,57 @@ def proyectos_similares(proyecto_id: uuid.UUID, db: DbSession, limite: int = Que
     ])
 
 
+# Peso de la coincidencia directa de habilidades frente a la similitud del perfil completo.
+PESO_HABILIDADES = 0.3
+# Con este número de habilidades requeridas en común el factor llega a su máximo.
+HABILIDADES_PARA_MAXIMO = 3
+
+
+def _factor_habilidades(u: Usuario, proyecto: Proyecto) -> tuple[float, list[str]]:
+    """Habilidades del usuario que el proyecto pide en sus necesidades o etiquetas, y un factor de 0 a 1.
+
+    Compara palabra a palabra sin tildes ni plurales: «Python» coincide con «programación en Python».
+    """
+    requeridas = textos.palabras(" ".join([proyecto.necesidades, *proyecto.etiquetas]))
+    coinciden = [h for h in dict.fromkeys(set(u.habilidades)) if h and textos.palabras(h) & requeridas]
+    coinciden.sort(key=str.lower)
+    return min(1.0, len(coinciden) / HABILIDADES_PARA_MAXIMO), coinciden
+
+
 @router.get("/proyectos/{proyecto_id}/colaboradores", response_model=RespuestaSugerencias)
 def colaboradores_sugeridos(proyecto_id: uuid.UUID, db: DbSession, _: UsuarioActual, limite: int = Query(default=5, le=20)):
-    """Personas cuyo perfil (habilidades, intereses, programa) encaja con lo que el proyecto necesita."""
+    """Personas cuyo perfil (habilidades, intereses, programa) encaja con lo que el proyecto necesita.
+
+    Solo cuentas activas que no son de administración ni ya están en el equipo. El puntaje combina la
+    similitud del perfil completo (70 %) con las habilidades que el proyecto pide de forma directa (30 %).
+    """
     proyecto = obtener_proyecto(db, proyecto_id)
     ya = {m for m in db.scalars(select(Miembro.usuario_id).where(Miembro.proyecto_id == proyecto.id))}
     ya.add(proyecto.creado_por_id)
     candidatos = [u for u in db.scalars(select(Usuario).where(Usuario.activo.is_(True), Usuario.rol != Rol.ADMIN.value))
                   if u.id not in ya and textos.usuario(u)]
     consulta = textos.necesidades(proyecto)
-    resultados, metodo = ordenar(db, consulta, "usuario", candidatos, textos.usuario, limite)
+    sims, metodo = similitudes(db, consulta, "usuario", candidatos, textos.usuario)
+    puntuados = []
+    for u in candidatos:
+        similitud = sims.get(u.id, 0.0)
+        factor, habilidades = _factor_habilidades(u, proyecto)
+        if similitud < MINIMO[metodo] and not habilidades:
+            continue
+        puntaje = round((1 - PESO_HABILIDADES) * similitud + PESO_HABILIDADES * factor, 3)
+        puntuados.append((puntaje, u, habilidades))
+    puntuados.sort(key=lambda x: x[0], reverse=True)
+
     salida = []
-    for r in resultados:
-        u: Usuario = r.objeto
-        comunes = _comunes(consulta, ", ".join(u.habilidades + u.intereses))
-        razon = f"Su perfil coincide en un {_pct(r)} con lo que busca el proyecto"
+    for puntaje, u, habilidades in puntuados[:limite]:
+        if habilidades:
+            razon = f"Tiene {len(habilidades)} habilidad(es) que el proyecto requiere: {', '.join(habilidades)}."
+        else:
+            comunes = _comunes(consulta, ", ".join(u.habilidades + u.intereses))
+            razon = f"Su perfil coincide en un {round(puntaje * 100)} % con lo que busca el proyecto" + (
+                f": {', '.join(comunes)}." if comunes else ".")
         salida.append(Sugerencia(
-            id=u.id, tipo="usuario", titulo=u.nombre, detalle=u.programa or u.rol_nombre, similitud=r.similitud,
-            razon=razon + (f": {', '.join(comunes)}." if comunes else "."),
+            id=u.id, tipo="usuario", titulo=u.nombre, detalle=u.programa or u.rol_nombre, similitud=puntaje, razon=razon,
         ))
     return RespuestaSugerencias(metodo=metodo, resultados=salida)
 

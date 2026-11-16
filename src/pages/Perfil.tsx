@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Bell, Check, Handshake, Loader2, MessageCircle, MessageSquare, Pencil, Send, Sparkles, UserRound, X } from 'lucide-react'
+import { Bell, Check, Handshake, Loader2, MessageCircle, MessageSquare, Pencil, RotateCcw, Send, Sparkles, UserRound, X } from 'lucide-react'
 import {
   actualizarPerfil,
   listaATexto,
@@ -11,7 +11,7 @@ import {
 } from '@/lib/colaboracion'
 import { apiHabilitada } from '@/lib/http'
 import { useSesion } from '@/lib/sesion'
-import type { Perfil as DatosPerfil, PreferenciasCorreo, Solicitud, SugerenciasParaMi } from '@/lib/types'
+import type { Perfil as DatosPerfil, EstadoSolicitud, PreferenciasCorreo, Solicitud, SugerenciasParaMi } from '@/lib/types'
 import { Badge, EmptyState, EstadoBadge, SectionTitle, Skeleton } from '@/components/ui'
 import { ListaSugerencias, NotaMetodo } from '@/components/Sugerencias'
 import { formatDate } from '@/lib/format'
@@ -27,11 +27,12 @@ import { MiNivel } from '@/components/Nivel'
 import { Evidencias } from '@/components/Evidencias'
 import { usePuede } from '@/lib/permisos'
 
-const ESTADO_SOLICITUD: Record<Solicitud['estado'], string> = {
-  pendiente: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
-  aceptada: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
-  rechazada: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300',
-  cancelada: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+/** Estado de una alianza con el nombre de negocio (la API usa aceptada/cancelada). Orden = orden del filtro. */
+const ESTADO_ALIANZA: Record<EstadoSolicitud, { etiqueta: string; clase: string }> = {
+  aceptada: { etiqueta: 'Activa', clase: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300' },
+  pendiente: { etiqueta: 'Pendiente', clase: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300' },
+  rechazada: { etiqueta: 'Rechazada', clase: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300' },
+  cancelada: { etiqueta: 'Anulada', clase: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400' },
 }
 
 export function Perfil() {
@@ -192,8 +193,23 @@ function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; al
       )}
     </button>
   )
-  const porResponder = alianzas.filter((a) => a.por_responder)
-  const resto = alianzas.filter((a) => !a.por_responder)
+  const [filtroEstado, setFiltroEstado] = useState<EstadoSolicitud | ''>('')
+  const [filtroProyecto, setFiltroProyecto] = useState('')
+  // Solo los proyectos que aparecen en las alianzas de esta persona, en orden alfabético.
+  const proyectos = useMemo(
+    () => [...new Map(alianzas.map((a) => [a.proyecto_id, a.proyecto_titulo])).entries()]
+      .sort((a, b) => a[1].localeCompare(b[1], 'es')),
+    [alianzas],
+  )
+  const filtradas = alianzas.filter((a) =>
+    (!filtroEstado || a.estado === filtroEstado) && (!filtroProyecto || a.proyecto_id === filtroProyecto))
+  const hayFiltros = Boolean(filtroEstado || filtroProyecto)
+  const limpiar = () => {
+    setFiltroEstado('')
+    setFiltroProyecto('')
+  }
+  const porResponder = filtradas.filter((a) => a.por_responder)
+  const resto = filtradas.filter((a) => !a.por_responder)
 
   const alternarDetalle = (id: string) =>
     setDetalle((xs) => {
@@ -245,6 +261,42 @@ function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; al
         />
       ) : (
         <div className="space-y-4">
+          <div className="card flex flex-wrap items-end gap-3 p-4">
+            <div className="w-44">
+              <label className="label" htmlFor="alianzas-estado">Estado</label>
+              <select id="alianzas-estado" className="input" value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value as EstadoSolicitud | '')}>
+                <option value="">Todos</option>
+                {(Object.keys(ESTADO_ALIANZA) as EstadoSolicitud[]).map((e) => (
+                  <option key={e} value={e}>{ESTADO_ALIANZA[e].etiqueta}</option>
+                ))}
+              </select>
+            </div>
+            <div className="min-w-56 flex-1">
+              <label className="label" htmlFor="alianzas-proyecto">Proyecto</label>
+              <select id="alianzas-proyecto" className="input" value={filtroProyecto} onChange={(e) => setFiltroProyecto(e.target.value)}>
+                <option value="">Todos</option>
+                {proyectos.map(([id, titulo]) => <option key={id} value={id}>{titulo}</option>)}
+              </select>
+            </div>
+            {hayFiltros && (
+              <button type="button" className="btn-ghost h-10 text-sm" onClick={limpiar}>
+                <RotateCcw size={14} aria-hidden /> Limpiar filtros
+              </button>
+            )}
+            <p className="basis-full text-xs text-slate-500 dark:text-slate-400" role="status">
+              {hayFiltros ? `${filtradas.length} de ${alianzas.length} alianzas` : `${alianzas.length} ${alianzas.length === 1 ? 'alianza' : 'alianzas'}`}
+            </p>
+          </div>
+
+          {filtradas.length === 0 && (
+            <EmptyState
+              titulo="Ninguna alianza coincide"
+              detalle="No hay alianzas con ese estado en el proyecto elegido."
+              accion={<button className="btn-primary mt-2" onClick={limpiar}>Limpiar filtros</button>}
+            />
+          )}
+
           {porResponder.length > 0 && (
             <ul className="space-y-2">
               {porResponder.map((s) => (
@@ -294,7 +346,7 @@ function Alianzas({ alianzas, alCambiar, noLeidos }: { alianzas: Solicitud[]; al
                       {s.respuesta && ` · «${s.respuesta}»`}
                     </p>
                   </div>
-                  <Badge className={ESTADO_SOLICITUD[s.estado]}>{s.estado}</Badge>
+                  <Badge className={ESTADO_ALIANZA[s.estado].clase}>{ESTADO_ALIANZA[s.estado].etiqueta}</Badge>
                   <button className="btn-ghost text-xs" onClick={() => alternarDetalle(s.id)} aria-expanded={detalle.has(s.id)}>
                     {detalle.has(s.id) ? 'Ocultar detalle' : 'Detalle'}
                   </button>

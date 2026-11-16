@@ -110,3 +110,23 @@ def test_analisis_suma_similitud_semantica(client, estudiante, admin, embeddings
 def test_estado_informa_embeddings(client, estudiante):
     emb = client.get("/api/ia/estado", headers=estudiante).json()["embeddings"]
     assert emb["activos"] is False and emb["modelo"]
+
+
+def test_colaboradores_suman_habilidades_requeridas_y_excluyen_inactivos(client, estudiante, admin):
+    """Ep5-Hu2: la coincidencia directa de habilidades pesa en el puntaje y las cuentas inactivas no salen."""
+    pid = _crear(client, estudiante, necesidades="Buscamos apoyo en Python, Docker y PostgreSQL.", etiquetas=["datos"])
+    tres = _con_perfil(client, "tres@ufpso.edu.co", "Tres Habilidades", habilidades=["Python", "Docker", "PostgreSQL"])
+    _con_perfil(client, "una@ufpso.edu.co", "Una Habilidad", habilidades=["Python", "fotografía", "dibujo"])
+    _con_perfil(client, "nada@ufpso.edu.co", "Sin Coincidencia", habilidades=["cocina"], intereses=["música"])
+
+    res = client.get(f"/api/ia/proyectos/{pid}/colaboradores", headers=estudiante).json()
+    titulos = [r["titulo"] for r in res["resultados"]]
+    assert titulos[:2] == ["Tres Habilidades", "Una Habilidad"]
+    assert "Sin Coincidencia" not in titulos
+    assert "Docker, PostgreSQL, Python" in res["resultados"][0]["razon"]
+
+    # Una cuenta desactivada desaparece de las sugerencias
+    tres_id = client.get("/api/usuarios/yo", headers=tres).json()["id"]
+    assert client.patch(f"/api/admin/usuarios/{tres_id}", json={"activo": False}, headers=admin).status_code == 200
+    res = client.get(f"/api/ia/proyectos/{pid}/colaboradores", headers=estudiante).json()
+    assert "Tres Habilidades" not in [r["titulo"] for r in res["resultados"]]
