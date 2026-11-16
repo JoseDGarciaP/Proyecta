@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, CalendarDays, Pencil, Users, Wallet } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Pencil, Printer, Users, Wallet } from 'lucide-react'
 import { obtenerProyecto, listarActores, listarOportunidades } from '@/lib/api'
 import type { Actor, Oportunidad, Proyecto } from '@/lib/types'
 import { useOds } from '@/lib/parametros'
@@ -69,15 +69,20 @@ export function ProyectoDetalle() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3">
         <Link to="/proyectos" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-400">
           <ArrowLeft size={15} aria-hidden /> Proyectos
         </Link>
-        {puedeEditar && (
-          <Link to={`/proyectos/${proyecto.id}/editar`} className="btn-ghost text-sm">
-            <Pencil size={14} aria-hidden /> Editar proyecto
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="btn-ghost text-sm" onClick={() => window.print()}>
+            <Printer size={14} aria-hidden /> Exportar ficha PDF
+          </button>
+          {puedeEditar && (
+            <Link to={`/proyectos/${proyecto.id}/editar`} className="btn-ghost text-sm">
+              <Pencil size={14} aria-hidden /> Editar proyecto
+            </Link>
+          )}
+        </div>
       </div>
 
       <header className="card p-6">
@@ -177,20 +182,28 @@ export function ProyectoDetalle() {
               </ul>
             )}
           </section>
-          <MiembrosProyecto proyecto={proyecto} />
+          <div className="no-print">
+            <MiembrosProyecto proyecto={proyecto} />
+          </div>
         </div>
       </div>
 
       {apiHabilitada && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="no-print grid gap-4 lg:grid-cols-2">
           <PostulacionesProyecto proyectoId={proyecto.id} esEquipo={esEquipo} />
           <Evidencias proyectoId={proyecto.id} titulo="Evidencias del proyecto" puedeSubir={esEquipo && puede('evidencias.subir')} />
         </div>
       )}
 
-      <ChatProyecto proyecto={proyecto} />
+      <div className="no-print">
+        <ChatProyecto proyecto={proyecto} />
+      </div>
       {puede('ia.usar') && <PanelIA proyecto={proyecto} oportunidades={oportunidades} />}
-      {puede('ia.usar') && <RedProyecto proyecto={proyecto} />}
+      {puede('ia.usar') && (
+        <div className="no-print">
+          <RedProyecto proyecto={proyecto} />
+        </div>
+      )}
     </div>
   )
 }

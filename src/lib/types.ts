@@ -111,6 +111,7 @@ export interface Metricas {
   porEstado: { estado: Estado; total: number }[]
   porArea: { area: string; total: number }[]
   porMes: { mes: string; nuevos: number; finalizados: number }[]
+  porOds?: { id: number; ods: string; nombre: string; total: number }[]
 }
 
 export const ESTADO_LABEL: Record<Estado, string> = {

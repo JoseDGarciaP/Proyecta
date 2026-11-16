@@ -8,8 +8,14 @@ from sqlalchemy import or_, select
 from app.core.config import get_settings
 from app.core.deps import DbSession, UsuarioActual
 from app.modules.alianzas.models import Miembro
-from app.modules.ia.schemas import RespuestaAnalisis, RespuestaSugerencias, Sugerencia, SugerenciasParaMi
-from app.modules.ia.servicio import analizar, puntuar
+from app.modules.ia.schemas import (
+    RespuestaAnalisis,
+    RespuestaPitch,
+    RespuestaSugerencias,
+    Sugerencia,
+    SugerenciasParaMi,
+)
+from app.modules.ia.servicio import analizar, generar_pitch, puntuar
 from app.modules.oportunidades.models import Oportunidad
 from app.modules.proyectos.models import Proyecto
 from app.modules.proyectos.router import obtener_proyecto
@@ -23,7 +29,11 @@ router = APIRouter(prefix="/api/ia", tags=["inteligencia artificial"])
 @router.get("/estado")
 def estado():
     settings = get_settings()
-    modelo = {"ollama": settings.ollama_model, "anthropic": settings.anthropic_model}.get(settings.ia_proveedor)
+    modelo = {
+        "ollama": settings.ollama_model,
+        "groq": settings.groq_model,
+        "anthropic": settings.anthropic_model,
+    }.get(settings.ia_proveedor)
     return {"proveedor": settings.ia_proveedor, "modelo": modelo, "embeddings": codificador.estado()}
 
 
@@ -54,6 +64,16 @@ async def analizar_proyecto(proyecto_id: uuid.UUID, db: DbSession):
     oportunidades = _abiertas(db)
     semantica = _semantica(db, proyecto, oportunidades)
     return await analizar(proyecto, oportunidades, semantica)
+
+
+@router.post("/proyectos/{proyecto_id}/pitch/{oportunidad_id}", response_model=RespuestaPitch)
+async def redactar_pitch_postulacion(proyecto_id: uuid.UUID, oportunidad_id: uuid.UUID, db: DbSession):
+    """Redacta un borrador de carta de postulación cruzando la ficha del proyecto con la oportunidad."""
+    proyecto = obtener_proyecto(db, proyecto_id)
+    oportunidad = db.get(Oportunidad, oportunidad_id)
+    if oportunidad is None:
+        raise HTTPException(status_code=404, detail="Oportunidad no encontrada")
+    return await generar_pitch(proyecto, oportunidad)
 
 
 @router.get("/proyectos/{proyecto_id}/similares", response_model=RespuestaSugerencias)

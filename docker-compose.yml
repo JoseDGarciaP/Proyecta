@@ -1,4 +1,7 @@
-# Base de datos local para desarrollo. En producción se usa Supabase (también PostgreSQL + pgvector).
+# Entorno local de desarrollo:
+#   1) Solo base de datos (por defecto):   docker compose up -d
+#   2) Todo el stack con hot-reload:       docker compose --profile fullstack up --build
+# En producción se usa Supabase o docker-compose.prod.yml.
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -10,5 +13,57 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proyecta -d proyecta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      args:
+        CON_EMBEDDINGS: ${CON_EMBEDDINGS:-false}
+    profiles: ["fullstack"]
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://proyecta:proyecta@db:5432/proyecta
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-solo-para-desarrollo-local-cambiar}
+      CORS_ORIGINS: http://localhost:5173
+      FRONTEND_URL: http://localhost:5173
+      VERIFICAR_DNS_CORREO: "false"
+      IA_PROVEEDOR: ${IA_PROVEEDOR:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      EMBEDDINGS_ACTIVOS: ${EMBEDDINGS_ACTIVOS:-false}
+    volumes:
+      - ./backend:/app
+      - archivos_dev:/app/archivos
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m scripts.seed_demo &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  web:
+    image: node:22-alpine
+    profiles: ["fullstack"]
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8000
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+    depends_on:
+      - api
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+
 volumes:
   pgdata:
+  archivos_dev:
+  web_node_modules:

@@ -6,7 +6,7 @@ import { useOscuro } from '@/hooks/useOscuro'
 import { calcularMetricas } from '@/lib/api'
 import { formatCompactCOP, diasRestantes } from '@/lib/format'
 import { StatCard } from '@/components/StatCard'
-import { AreasChart, EstadosChart, TendenciaChart } from '@/components/Charts'
+import { AreasChart, EstadosChart, OdsChart, TendenciaChart } from '@/components/Charts'
 import { ProyectoCard } from '@/components/ProyectoCard'
 import { SectionTitle, Skeleton } from '@/components/ui'
 
@@ -27,6 +27,8 @@ export function Dashboard() {
   if (error) {
     return <p className="card p-6 text-sm text-rose-600 dark:text-rose-400">{error}</p>
   }
+
+  const odsActivos = m.porOds?.length ?? 0
 
   return (
     <div className="space-y-8">
@@ -104,6 +106,19 @@ export function Dashboard() {
           </ul>
         </section>
       </div>
+
+      <section className="card p-5">
+        <SectionTitle
+          extra={
+            <span className="text-xs text-slate-400">
+              {odsActivos} de 17 ODS con iniciativas activas
+            </span>
+          }
+        >
+          Aporte a los Objetivos de Desarrollo Sostenible (ODS)
+        </SectionTitle>
+        {cargando ? <Skeleton className="h-[220px]" /> : <OdsChart datos={m.porOds ?? []} oscuro={oscuro} />}
+      </section>
 
       <section>
         <SectionTitle extra={<Link to="/proyectos" className="text-xs text-brand-700 dark:text-brand-400">Ver todos</Link>}>

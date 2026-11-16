@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { LayoutGrid, Table2 } from 'lucide-react'
+import { Download, LayoutGrid, Loader2, Table2 } from 'lucide-react'
 import { useDatos } from '@/hooks/useDatos'
+import { exportarProyectosCsv } from '@/lib/api'
 import { ESTADOS, ESTADO_LABEL, type Estado } from '@/lib/types'
 import { useAreas } from '@/lib/parametros'
 import { ProyectoCard } from '@/components/ProyectoCard'
@@ -13,6 +14,7 @@ export function Proyectos() {
   const { proyectos, cargando } = useDatos()
   const [params, setParams] = useSearchParams()
   const [vista, setVista] = useState<'tarjetas' | 'tabla'>('tarjetas')
+  const [exportando, setExportando] = useState(false)
 
   const q = params.get('q') ?? ''
   const estado = params.get('estado') ?? ''
@@ -35,6 +37,15 @@ export function Proyectos() {
     })
   }, [proyectos, q, estado, area])
 
+  const descargarCsv = async () => {
+    setExportando(true)
+    try {
+      await exportarProyectosCsv({ q: q.trim(), area, estado }, filtrados)
+    } finally {
+      setExportando(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -44,21 +55,32 @@ export function Proyectos() {
             {cargando ? 'Cargando…' : `${filtrados.length} de ${proyectos.length} registros`}
           </p>
         </div>
-        <div className="flex gap-1 rounded-lg border border-slate-200 p-1 dark:border-slate-800">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            className={`btn px-2.5 py-1.5 ${vista === 'tarjetas' ? 'bg-slate-100 dark:bg-slate-800' : ''}`}
-            onClick={() => setVista('tarjetas')}
-            aria-label="Ver como tarjetas"
+            type="button"
+            className="btn-ghost text-sm"
+            onClick={descargarCsv}
+            disabled={cargando || filtrados.length === 0 || exportando}
           >
-            <LayoutGrid size={15} />
+            {exportando ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Download size={15} aria-hidden />}
+            Exportar CSV
           </button>
-          <button
-            className={`btn px-2.5 py-1.5 ${vista === 'tabla' ? 'bg-slate-100 dark:bg-slate-800' : ''}`}
-            onClick={() => setVista('tabla')}
-            aria-label="Ver como tabla"
-          >
-            <Table2 size={15} />
-          </button>
+          <div className="flex gap-1 rounded-lg border border-slate-200 p-1 dark:border-slate-800">
+            <button
+              className={`btn px-2.5 py-1.5 ${vista === 'tarjetas' ? 'bg-slate-100 dark:bg-slate-800' : ''}`}
+              onClick={() => setVista('tarjetas')}
+              aria-label="Ver como tarjetas"
+            >
+              <LayoutGrid size={15} />
+            </button>
+            <button
+              className={`btn px-2.5 py-1.5 ${vista === 'tabla' ? 'bg-slate-100 dark:bg-slate-800' : ''}`}
+              onClick={() => setVista('tabla')}
+              aria-label="Ver como tabla"
+            >
+              <Table2 size={15} />
+            </button>
+          </div>
         </div>
       </header>
 

@@ -17,6 +17,7 @@ export const proyectosMock: Proyecto[] = [
     fecha_inicio: '2026-02-10',
     fecha_fin: '2026-11-30',
     actores: ['a-001', 'a-003'],
+    ods: [2, 6, 9],
     creado_en: '2026-04-03',
   },
   {
@@ -35,6 +36,7 @@ export const proyectosMock: Proyecto[] = [
     fecha_inicio: '2026-01-20',
     fecha_fin: '2027-01-20',
     actores: ['a-002', 'a-004'],
+    ods: [3, 11, 13],
     creado_en: '2026-05-12',
   },
   {
@@ -53,6 +55,7 @@ export const proyectosMock: Proyecto[] = [
     fecha_inicio: '2026-04-05',
     fecha_fin: null,
     actores: ['a-003'],
+    ods: [1, 8, 10],
     creado_en: '2026-06-22',
   },
   {
@@ -71,6 +74,7 @@ export const proyectosMock: Proyecto[] = [
     fecha_inicio: '2026-06-01',
     fecha_fin: null,
     actores: [],
+    ods: [4, 10],
     creado_en: '2026-07-18',
   },
   {
@@ -89,6 +93,7 @@ export const proyectosMock: Proyecto[] = [
     fecha_inicio: '2025-03-01',
     fecha_fin: '2026-06-28',
     actores: ['a-001', 'a-005'],
+    ods: [4, 7, 13],
     creado_en: '2025-02-14',
   },
   {
@@ -107,6 +112,7 @@ export const proyectosMock: Proyecto[] = [
     fecha_inicio: '2025-09-15',
     fecha_fin: null,
     actores: ['a-004'],
+    ods: [3, 9, 10],
     creado_en: '2026-09-02',
   },
   {
@@ -125,6 +131,7 @@ export const proyectosMock: Proyecto[] = [
     fecha_inicio: '2025-11-03',
     fecha_fin: '2026-12-15',
     actores: ['a-001', 'a-002'],
+    ods: [7, 9, 11],
     creado_en: '2025-10-20',
   },
   {
@@ -143,6 +150,7 @@ export const proyectosMock: Proyecto[] = [
     fecha_inicio: '2026-03-10',
     fecha_fin: null,
     actores: ['a-005'],
+    ods: [9, 12, 13],
     creado_en: '2026-08-27',
   },
   {
@@ -161,6 +169,7 @@ export const proyectosMock: Proyecto[] = [
     fecha_inicio: '2025-10-01',
     fecha_fin: '2026-08-20',
     actores: ['a-002'],
+    ods: [16, 17],
     creado_en: '2025-09-20',
   },
 ]

@@ -3,11 +3,13 @@
 Todo exige rol de administrador (se aplica a todo el router en main.py).
 """
 
+import csv
+import io
 import secrets
 import uuid
 from datetime import date, timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -87,6 +89,58 @@ def estadisticas(db: DbSession):
         correos_30_dias=contar(select(func.count(Notificacion.id)).where(
             Notificacion.correo_enviado.is_(True), Notificacion.creada_en >= hace_30)),
         notificaciones_sin_leer=contar(select(func.count(Notificacion.id)).where(Notificacion.leida.is_(False))),
+    )
+
+
+@r_resumen.get("/reporte.csv")
+def exportar_reporte_institucional(admin: Admin, db: DbSession):
+    """Exporta en CSV consolidado institucional de proyectos con responsable, métricas de equipo y ODS."""
+    proyectos = list(db.scalars(select(Proyecto).order_by(Proyecto.creado_en.desc(), Proyecto.titulo)).unique())
+    miembros_por_proy = dict(db.execute(select(Miembro.proyecto_id, func.count()).group_by(Miembro.proyecto_id)).all())
+    pendientes_por_proy = dict(
+        db.execute(
+            select(Solicitud.proyecto_id, func.count())
+            .where(Solicitud.estado == EstadoSolicitud.PENDIENTE)
+            .group_by(Solicitud.proyecto_id)
+        ).all()
+    )
+    duenos_ids = {p.creado_por_id for p in proyectos if p.creado_por_id}
+    duenos = {u.id: u for u in db.scalars(select(Usuario).where(Usuario.id.in_(duenos_ids)))} if duenos_ids else {}
+
+    buf = io.StringIO()
+    buf.write("\ufeff")
+    writer = csv.writer(buf)
+    writer.writerow([
+        "ID", "Título", "Área", "Estado", "Avance (%)", "Presupuesto (COP)",
+        "Líder", "Responsable registro", "Correo responsable", "Miembros activos",
+        "Solicitudes pendientes", "ODS", "Actores vinculados", "Fecha inicio", "Fecha cierre", "Registrado en",
+    ])
+    for p in proyectos:
+        dueno = duenos.get(p.creado_por_id) if p.creado_por_id else None
+        writer.writerow([
+            str(p.id),
+            p.titulo,
+            p.area.nombre,
+            p.estado.value,
+            p.avance,
+            p.presupuesto,
+            p.lider,
+            dueno.nombre if dueno else "",
+            dueno.email if dueno else "",
+            miembros_por_proy.get(p.id, 0),
+            pendientes_por_proy.get(p.id, 0),
+            ", ".join(f"ODS {o.id}" for o in sorted(p.ods, key=lambda x: x.id)),
+            ", ".join(a.nombre for a in p.actores),
+            p.fecha_inicio.isoformat(),
+            p.fecha_fin.isoformat() if p.fecha_fin else "",
+            p.creado_en.isoformat(),
+        ])
+    registrar(db, admin, "reporte.exportar", "Reporte institucional de proyectos", f"{len(proyectos)} proyectos")
+    db.commit()
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="reporte-institucional-proyecta.csv"'},
     )
 
 
@@ -433,16 +487,30 @@ def listar_proyectos(db: DbSession, q: str | None = None, limite: int = Query(de
         patron = f"%{q.strip()}%"
         stmt = stmt.outerjoin(Usuario, Usuario.id == Proyecto.creado_por_id).where(
             or_(Proyecto.titulo.ilike(patron), Proyecto.lider.ilike(patron), Usuario.nombre.ilike(patron), Usuario.email.ilike(patron)))
+    proyectos = list(db.scalars(stmt.order_by(Proyecto.creado_en.desc(), Proyecto.titulo).limit(limite)).unique())
+    pids = [p.id for p in proyectos]
+    miembros_por_proy = dict(
+        db.execute(select(Miembro.proyecto_id, func.count()).where(Miembro.proyecto_id.in_(pids)).group_by(Miembro.proyecto_id)).all()
+    ) if pids else {}
+    pendientes_por_proy = dict(
+        db.execute(
+            select(Solicitud.proyecto_id, func.count())
+            .where(Solicitud.proyecto_id.in_(pids), Solicitud.estado == EstadoSolicitud.PENDIENTE)
+            .group_by(Solicitud.proyecto_id)
+        ).all()
+    ) if pids else {}
+    duenos_ids = {p.creado_por_id for p in proyectos if p.creado_por_id}
+    duenos = {u.id: u for u in db.scalars(select(Usuario).where(Usuario.id.in_(duenos_ids)))} if duenos_ids else {}
+
     salida = []
-    for p in db.scalars(stmt.order_by(Proyecto.creado_en.desc(), Proyecto.titulo).limit(limite)).unique():
-        dueno = db.get(Usuario, p.creado_por_id) if p.creado_por_id else None
+    for p in proyectos:
+        dueno = duenos.get(p.creado_por_id) if p.creado_por_id else None
         salida.append(ProyectoAdmin(
             id=p.id, titulo=p.titulo, area=p.area.nombre, estado=p.estado.value,
             responsable_id=dueno.id if dueno else None, responsable_nombre=dueno.nombre if dueno else None,
             responsable_email=dueno.email if dueno else None,
-            miembros=db.scalar(select(func.count()).where(Miembro.proyecto_id == p.id)) or 0,
-            solicitudes_pendientes=db.scalar(select(func.count()).where(
-                Solicitud.proyecto_id == p.id, Solicitud.estado == EstadoSolicitud.PENDIENTE)) or 0,
+            miembros=miembros_por_proy.get(p.id, 0),
+            solicitudes_pendientes=pendientes_por_proy.get(p.id, 0),
             creado_en=p.creado_en,
         ))
     return salida

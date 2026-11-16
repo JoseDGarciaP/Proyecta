@@ -107,6 +107,16 @@ def test_estadisticas(client, admin, estudiante):
     assert e["correos_30_dias"] >= 4
 
 
+def test_exportar_reporte_institucional_csv(client, admin, estudiante):
+    _proyecto(client, estudiante)
+    res = client.get("/api/admin/reporte.csv", headers=admin)
+    assert res.status_code == 200
+    assert "text/csv" in res.headers["content-type"]
+    assert "ana@ufpso.edu.co" in res.text
+    registro = client.get("/api/admin/registro", params={"accion": "reporte.exportar"}, headers=admin).json()
+    assert len(registro) == 1
+
+
 def test_crear_usuario_exige_correo_institucional_salvo_aliados(client, admin):
     url = "/api/admin/usuarios"
     for rol in ("estudiante", "docente", "administrativo", "admin"):

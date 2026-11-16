@@ -12,7 +12,7 @@ export function NuevoProyecto() {
       descripcion="La información alimenta el panel de métricas y el motor de recomendaciones."
       textoBoton="Guardar proyecto"
       alGuardar={async (form) => {
-        const creado = await crearProyecto({ ...datosDe(form), actores: [] })
+        const creado = await crearProyecto(datosDe(form))
         navegar(`/proyectos/${creado.id}`)
       }}
       acciones={(reiniciar) => <button type="button" className="btn-ghost" onClick={reiniciar}>Limpiar</button>}
