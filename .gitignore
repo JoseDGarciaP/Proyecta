@@ -19,3 +19,12 @@ __pycache__/
 *.tsbuildinfo
 # Certificados y evidencias subidos en desarrollo
 backend/archivos/
+
+# Datos reales: respaldos y exportaciones nunca van al repo
+respaldos/
+*.sql
+*.sql.gz
+*.dump
+*.backup
+*.csv
+*.xlsx
