@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowRight, ExternalLink, Loader2, Send, Sparkles, X } from 'lucide-react'
-import { useDatos } from '@/hooks/useDatos'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowRight, ExternalLink, Loader2, RotateCcw, Send, Sparkles, X } from 'lucide-react'
+import { listarOportunidades } from '@/lib/api'
+import { useAreas, useOds } from '@/lib/parametros'
 import { buscarSemantico, obtenerPerfil } from '@/lib/colaboracion'
 import { misPostulaciones } from '@/lib/experiencia'
 import { usePuede } from '@/lib/permisos'
 import { apiHabilitada } from '@/lib/http'
-import type { Oportunidad, Postulacion, RespuestaSugerencias } from '@/lib/types'
+import { TIPOS_OPORTUNIDAD, TIPO_OPORTUNIDAD_LABEL, type Oportunidad, type Postulacion, type RespuestaSugerencias, type TipoOportunidad } from '@/lib/types'
 import { EstadoPostulacionBadge, ListaPostulaciones, ModalPostular } from '@/components/Postulaciones'
 import { NotaMetodo } from '@/components/Sugerencias'
 import { DiasCierre, diasParaCierre } from '@/components/DiasCierre'
 import { Badge, EmptyState, Skeleton } from '@/components/ui'
 import { formatCompactCOP, formatDate } from '@/lib/format'
 
-const TIPO_CLASS: Record<string, string> = {
+const TIPO_CLASS: Record<TipoOportunidad, string> = {
   convocatoria: 'bg-brand-100 text-brand-800 dark:bg-brand-500/15 dark:text-brand-300',
   financiacion: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
   mentoria: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
@@ -21,7 +22,19 @@ const TIPO_CLASS: Record<string, string> = {
 }
 
 export function Oportunidades() {
-  const { oportunidades, cargando } = useDatos()
+  const areas = useAreas()
+  const listaOds = useOds()
+  // Filtros en la URL (se pueden compartir y sobreviven a recargar). Por defecto solo las vigentes.
+  const [params, setParams] = useSearchParams()
+  const tipo = (params.get('tipo') ?? '') as TipoOportunidad | ''
+  const area = params.get('area') ?? ''
+  const ods = Number(params.get('ods')) || 0
+  const soloAbiertas = params.get('todas') !== '1'
+  const hayFiltros = Boolean(tipo || area || ods || !soloAbiertas)
+
+  const [oportunidades, setOportunidades] = useState<Oportunidad[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [errorLista, setErrorLista] = useState('')
   const [consulta, setConsulta] = useState('')
   const [busqueda, setBusqueda] = useState<RespuestaSugerencias | null>(null)
   const [buscando, setBuscando] = useState(false)
@@ -32,8 +45,25 @@ export function Oportunidades() {
   const [postulaciones, setPostulaciones] = useState<Postulacion[]>([])
   const [postulando, setPostulando] = useState<Oportunidad | null>(null)
   const [aviso, setAviso] = useState('')
-  /** HU-04: por defecto solo las convocatorias abiertas. */
-  const [soloAbiertas, setSoloAbiertas] = useState(true)
+
+  useEffect(() => {
+    let vigente = true
+    setCargando(true)
+    setErrorLista('')
+    listarOportunidades({ tipo: tipo || undefined, area: area || undefined, ods: ods || undefined, abiertas: soloAbiertas })
+      .then((lista) => vigente && setOportunidades(lista))
+      .catch((e) => vigente && setErrorLista((e as Error).message))
+      .finally(() => vigente && setCargando(false))
+    return () => { vigente = false }
+  }, [tipo, area, ods, soloAbiertas])
+
+  const actualizar = (clave: string, valor: string) => {
+    const siguiente = new URLSearchParams(params)
+    if (valor) siguiente.set(clave, valor)
+    else siguiente.delete(clave)
+    setParams(siguiente, { replace: true })
+  }
+  const restablecer = () => setParams(new URLSearchParams(), { replace: true })
 
   const cargarPostulaciones = useCallback(() => {
     misPostulaciones().then(setPostulaciones).catch(() => {})
@@ -65,9 +95,6 @@ export function Oportunidades() {
   const visibles = busqueda
     ? oportunidades.filter((o) => relevancia.has(o.id)).sort((a, b) => relevancia.get(b.id)! - relevancia.get(a.id)!)
     : oportunidades
-        .filter((o) => !soloAbiertas || diasParaCierre(o) >= 0)
-        .sort((a, b) => a.cierra_en.localeCompare(b.cierra_en))
-  const cerradas = oportunidades.filter((o) => diasParaCierre(o) < 0).length
 
   return (
     <div className="space-y-6">
@@ -137,23 +164,64 @@ export function Oportunidades() {
         </form>
       )}
 
-      {!busqueda && (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <p className="text-slate-500 dark:text-slate-400">
-            {cargando ? 'Cargando…' : `${visibles.length} ${soloAbiertas ? 'abiertas' : 'en total'}, ordenadas por fecha de cierre`}
-          </p>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-slate-600 dark:text-slate-300">
-            <input type="checkbox" checked={soloAbiertas} onChange={(e) => setSoloAbiertas(e.target.checked)} />
-            Solo abiertas{cerradas > 0 && ` (ocultas ${cerradas} cerradas)`}
-          </label>
+      <div className="card flex flex-wrap items-end gap-3 p-4">
+        <div className="w-48">
+          <label className="label" htmlFor="f-tipo">Tipo</label>
+          <select id="f-tipo" className="input" value={tipo} onChange={(e) => actualizar('tipo', e.target.value)}>
+            <option value="">Todos</option>
+            {TIPOS_OPORTUNIDAD.map((t) => <option key={t} value={t}>{TIPO_OPORTUNIDAD_LABEL[t]}</option>)}
+          </select>
         </div>
-      )}
+        <div className="w-48">
+          <label className="label" htmlFor="f-area">Área</label>
+          <select id="f-area" className="input" value={area} onChange={(e) => actualizar('area', e.target.value)}>
+            <option value="">Todas</option>
+            {areas.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        <div className="min-w-56 flex-1">
+          <label className="label" htmlFor="f-ods">ODS</label>
+          <select id="f-ods" className="input" value={ods || ''} onChange={(e) => actualizar('ods', e.target.value)}>
+            <option value="">Todos</option>
+            {listaOds.map((o) => <option key={o.id} value={o.id}>{o.id}. {o.nombre}</option>)}
+          </select>
+        </div>
+        <label className="flex h-10 cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-brand-600"
+            checked={soloAbiertas}
+            onChange={(e) => actualizar('todas', e.target.checked ? '' : '1')}
+          />
+          Solo abiertas
+        </label>
+        {hayFiltros && (
+          <button type="button" className="btn-ghost h-10 text-sm" onClick={restablecer}>
+            <RotateCcw size={14} aria-hidden /> Restablecer
+          </button>
+        )}
+        <p className="basis-full text-xs text-slate-500 dark:text-slate-400" role="status">
+          {cargando ? 'Cargando…' : `${visibles.length} ${visibles.length === 1 ? 'oportunidad' : 'oportunidades'}${soloAbiertas ? ' vigentes' : ''}`}
+        </p>
+      </div>
 
-      {!cargando && visibles.length === 0 && (
-        <EmptyState
-          titulo="No hay convocatorias abiertas"
-          detalle="Desmarca «Solo abiertas» para ver también las que ya cerraron."
-        />
+      {errorLista && <p className="text-sm text-rose-600">{errorLista}</p>}
+
+      {!cargando && !errorLista && visibles.length === 0 && (
+        hayFiltros || busqueda ? (
+          <EmptyState
+            titulo="Ninguna oportunidad coincide"
+            detalle={soloAbiertas
+              ? 'No hay convocatorias vigentes con esos filtros. Prueba con otros o incluye las que ya cerraron.'
+              : 'Prueba con otro tipo, área u ODS.'}
+            accion={<button className="btn-primary mt-2" onClick={() => { restablecer(); setBusqueda(null); setConsulta('') }}>Restablecer filtros</button>}
+          />
+        ) : (
+          <EmptyState
+            titulo="Aún no hay oportunidades abiertas"
+            detalle="Cuando se publiquen convocatorias, fondos, mentorías o espacios de infraestructura, aparecerán aquí."
+          />
+        )
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -173,7 +241,7 @@ export function Oportunidades() {
                           {Math.round(relevancia.get(o.id)! * 100)}% relevante
                         </Badge>
                       )}
-                      <Badge className={TIPO_CLASS[o.tipo]}>{o.tipo}</Badge>
+                      <Badge className={TIPO_CLASS[o.tipo]}>{TIPO_OPORTUNIDAD_LABEL[o.tipo] ?? o.tipo}</Badge>
                     </div>
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400">{o.entidad}</p>

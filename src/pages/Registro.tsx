@@ -192,6 +192,10 @@ export function Registro() {
           {enviando ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <UserPlus size={15} aria-hidden />}
           Crear cuenta
         </button>
+        <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+          Al crear tu cuenta, o al continuar con Google, aceptas la{' '}
+          <Link to="/privacidad" className="underline">política de privacidad y tratamiento de datos</Link>.
+        </p>
       </section>
     </form>
   )

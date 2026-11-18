@@ -24,7 +24,8 @@ export function LayoutPublico() {
         <Outlet />
       </main>
       <footer className="border-t border-slate-200 px-4 py-5 text-center text-xs text-slate-400 dark:border-slate-800">
-        Proyecta, plataforma para articular proyectos, actores y oportunidades de apoyo.
+        Proyecta, plataforma para articular proyectos, actores y oportunidades de apoyo.{' '}
+        <Link to="/privacidad" className="underline hover:text-slate-600 dark:hover:text-slate-300">Política de privacidad</Link>
       </footer>
     </div>
   )

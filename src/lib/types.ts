@@ -52,11 +52,21 @@ export interface Actor {
   proyectos: number
 }
 
+/** Tipos de oportunidad que maneja la API (enum TipoOportunidad del backend). */
+export const TIPOS_OPORTUNIDAD = ['convocatoria', 'financiacion', 'mentoria', 'infraestructura'] as const
+export type TipoOportunidad = (typeof TIPOS_OPORTUNIDAD)[number]
+export const TIPO_OPORTUNIDAD_LABEL: Record<TipoOportunidad, string> = {
+  convocatoria: 'Convocatoria',
+  financiacion: 'Financiación',
+  mentoria: 'Mentoría',
+  infraestructura: 'Infraestructura',
+}
+
 export interface Oportunidad {
   id: string
   titulo: string
   entidad: string
-  tipo: 'convocatoria' | 'financiacion' | 'mentoria' | 'infraestructura'
+  tipo: TipoOportunidad
   monto: number | null
   cierra_en: string
   areas: Area[]

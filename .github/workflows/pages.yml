@@ -22,6 +22,8 @@ concurrency:
 
 jobs:
   construir:
+    # Cuando Proyecta vive en la VM de Oracle (variable ORACLE_HOST definida), Pages ya no se usa.
+    if: ${{ vars.ORACLE_HOST == '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

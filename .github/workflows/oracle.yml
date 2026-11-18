@@ -1,0 +1,59 @@
+# Despliega Proyecta (interfaz, API y base) en la VM de Oracle cada vez que se sube algo a main.
+#
+# Entra por SSH a la VM y ejecuta deploy/actualizar.sh, que baja main, reconstruye y aplica migraciones.
+# Configuración en GitHub (Settings → Secrets and variables → Actions):
+#   Variables:  ORACLE_HOST     IP pública o dominio de la VM (p. ej. proyecta-ufpso.duckdns.org)
+#               ORACLE_USUARIO  usuario SSH (en Ubuntu de Oracle: ubuntu)
+#               ORACLE_DOMINIO  dominio público para la verificación final (p. ej. proyecta-ufpso.duckdns.org)
+#   Secreto:    ORACLE_SSH_KEY  contenido completo de la llave privada (.key) de la VM
+# Sin ORACLE_HOST el flujo no corre. Guía: docs/despliegue-oracle.md
+name: Desplegar en Oracle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un despliegue a la vez; si llegan dos seguidos, el segundo espera (no se corta uno a medias).
+concurrency:
+  group: oracle
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    if: ${{ vars.ORACLE_HOST != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Preparar la llave SSH
+        env:
+          LLAVE: ${{ secrets.ORACLE_SSH_KEY }}
+          HOST: ${{ vars.ORACLE_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$LLAVE" > ~/.ssh/oracle
+          chmod 600 ~/.ssh/oracle
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Actualizar en la VM
+        env:
+          HOST: ${{ vars.ORACLE_HOST }}
+          USUARIO: ${{ vars.ORACLE_USUARIO || 'ubuntu' }}
+        run: |
+          ssh -i ~/.ssh/oracle -o ServerAliveInterval=30 "$USUARIO@$HOST" \
+            'cd ~/Proyecta && sh deploy/actualizar.sh'
+
+      - name: Verificar que la API responde
+        if: ${{ vars.ORACLE_DOMINIO != '' }}
+        env:
+          DOMINIO: ${{ vars.ORACLE_DOMINIO }}
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "https://$DOMINIO/api/salud"; then echo; echo "API en línea"; exit 0; fi
+            sleep 10
+          done
+          echo "La API no respondió en 5 minutos. Revisa en la VM:  docker compose -f docker-compose.prod.yml --env-file deploy/.env.produccion logs api"
+          exit 1

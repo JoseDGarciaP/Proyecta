@@ -1,6 +1,6 @@
 import { apiHabilitada, descargarArchivo, ErrorApi, pedir } from './http'
 import { actoresMock, oportunidadesMock, proyectosMock } from '@/data/mock'
-import type { Actor, Metricas, NuevoProyecto, Oportunidad, Proyecto } from './types'
+import type { Actor, Metricas, NuevoProyecto, Oportunidad, Proyecto, TipoOportunidad } from './types'
 import { ESTADOS, ODS } from './types'
 import { slug } from './format'
 
@@ -127,10 +127,48 @@ export async function listarActores(): Promise<Actor[]> {
   return actoresMock
 }
 
-export async function listarOportunidades(): Promise<Oportunidad[]> {
-  if (apiHabilitada) return sinPermisoVacio(pedir<Oportunidad[]>('/oportunidades'))
+/** Filtros de la cartelera de oportunidades. Sin filtros se listan todas (abiertas y cerradas). */
+export interface FiltrosOportunidades {
+  q?: string
+  area?: string
+  ods?: number
+  tipo?: TipoOportunidad
+  /** Solo las vigentes: las que cierran hoy o después. */
+  abiertas?: boolean
+}
+
+const hoyIso = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Misma regla que la API, para el modo demostración. */
+function filtrarOportunidades(lista: Oportunidad[], f: FiltrosOportunidades): Oportunidad[] {
+  const texto = f.q?.trim().toLowerCase() ?? ''
+  const hoy = hoyIso()
+  return lista
+    .filter((o) =>
+      (!texto || [o.titulo, o.entidad, o.descripcion ?? ''].some((v) => v.toLowerCase().includes(texto))) &&
+      (!f.area || o.areas.includes(f.area)) &&
+      (!f.ods || (o.ods ?? []).includes(f.ods)) &&
+      (!f.tipo || o.tipo === f.tipo) &&
+      (!f.abiertas || o.cierra_en.slice(0, 10) >= hoy))
+    .sort((a, b) => a.cierra_en.localeCompare(b.cierra_en))
+}
+
+export async function listarOportunidades(filtros: FiltrosOportunidades = {}): Promise<Oportunidad[]> {
+  if (apiHabilitada) {
+    const params = new URLSearchParams()
+    if (filtros.q?.trim()) params.set('q', filtros.q.trim())
+    if (filtros.area) params.set('area', filtros.area)
+    if (filtros.ods) params.set('ods', String(filtros.ods))
+    if (filtros.tipo) params.set('tipo', filtros.tipo)
+    if (filtros.abiertas) params.set('abiertas', 'true')
+    const consulta = params.toString()
+    return sinPermisoVacio(pedir<Oportunidad[]>(`/oportunidades${consulta ? `?${consulta}` : ''}`))
+  }
   await espera(150)
-  return oportunidadesMock
+  return filtrarOportunidades(oportunidadesMock, filtros)
 }
 
 export async function obtenerOportunidad(id: string): Promise<Oportunidad | null> {
