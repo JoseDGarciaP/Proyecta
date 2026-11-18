@@ -28,6 +28,14 @@ def test_filtro_abiertas(client, admin):
     assert [o["titulo"] for o in abiertas] == [OPORTUNIDAD["titulo"]]
 
 
+def test_dias_restantes_y_detalle(client, admin):
+    """HU-04: cada convocatoria dice cuántos días faltan para el cierre y tiene su detalle."""
+    creada = client.post("/api/oportunidades", json=OPORTUNIDAD, headers=admin).json()
+    assert creada["dias_restantes"] == 30
+    detalle = client.get(f"/api/oportunidades/{creada['id']}", headers=admin).json()
+    assert detalle["dias_restantes"] == 30 and detalle["titulo"] == OPORTUNIDAD["titulo"]
+
+
 def test_catalogo(client):
     assert len(client.get("/api/catalogo/ods").json()) == 17
     assert "Tecnología" in {a["nombre"] for a in client.get("/api/catalogo/areas").json()}

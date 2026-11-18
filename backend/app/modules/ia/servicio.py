@@ -30,7 +30,7 @@ SOLO_SEMANTICA = 0.5
 def puntuar(
     proyecto: Proyecto,
     oportunidades: list[Oportunidad],
-    limite: int = 3,
+    limite: int = 5,  # HU-05: hasta 5 convocatorias recomendadas
     semantica: dict[uuid.UUID, float] | None = None,
 ) -> list[Recomendacion]:
     """Afinidad: área (0.5) + ODS en común (0.2) + etiquetas (0.15) + vigencia (0.15). Solo oportunidades abiertas.

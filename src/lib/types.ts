@@ -36,10 +36,12 @@ export interface Proyecto {
   necesidades?: string
   ods?: number[]
   creado_por?: string | null
+  /** Programa académico de quien registró el proyecto. */
+  programa?: string | null
 }
 
 /** Lo que se envía al registrar un proyecto; `lider` vacío = nombre de quien registra. */
-export type NuevoProyecto = Omit<Proyecto, 'id' | 'creado_en' | 'creado_por'>
+export type NuevoProyecto = Omit<Proyecto, 'id' | 'creado_en' | 'creado_por' | 'programa'>
 
 export interface Actor {
   id: string
@@ -71,6 +73,8 @@ export interface Oportunidad {
   url: string
   descripcion?: string
   ods?: number[]
+  /** Días que faltan para el cierre (lo calcula la API; negativo si ya cerró). */
+  dias_restantes?: number
 }
 
 /** Clave del rol: uno del sistema (estudiante, docente, administrativo, aliado, admin) o uno creado por el admin. */
@@ -232,6 +236,10 @@ export interface Sugerencia {
   detalle: string
   similitud: number
   razon: string
+  /** En colaboradores sugeridos a un proyecto: registro guardado con fecha y estado (HU-05). */
+  recomendacion_id?: string | null
+  estado?: 'pendiente' | 'aceptada' | 'anulada' | null
+  fecha?: string | null
 }
 
 /** semantico = embeddings con sentence-transformers; lexico = palabras en común (sin modelo). */

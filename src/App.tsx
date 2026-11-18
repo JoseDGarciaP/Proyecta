@@ -8,6 +8,7 @@ import { NuevoProyecto } from '@/pages/NuevoProyecto'
 import { EditarProyecto } from '@/pages/EditarProyecto'
 import { Actores } from '@/pages/Actores'
 import { Oportunidades } from '@/pages/Oportunidades'
+import { OportunidadDetalle } from '@/pages/OportunidadDetalle'
 import { NoEncontrado } from '@/pages/NoEncontrado'
 import { Ingresar } from '@/pages/Ingresar'
 import { Registro } from '@/pages/Registro'
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="proyectos/:id/editar" element={<EditarProyecto />} />
         <Route path="actores" element={<ConPermiso permiso="actores.ver"><Actores /></ConPermiso>} />
         <Route path="oportunidades" element={<ConPermiso permiso="oportunidades.ver"><Oportunidades /></ConPermiso>} />
+        <Route path="oportunidades/:id" element={<ConPermiso permiso="oportunidades.ver"><OportunidadDetalle /></ConPermiso>} />
         <Route path="logros" element={<Logros />} />
         <Route path="personas/:id" element={<ConPermiso permiso="usuarios.ver"><PerfilPersona /></ConPermiso>} />
         <Route path="perfil" element={<Perfil />} />

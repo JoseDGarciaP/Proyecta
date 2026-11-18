@@ -115,6 +115,10 @@ export function FormularioProyecto({
       setError('La fecha de cierre no puede ser anterior a la de inicio.')
       return
     }
+    if (form.ods.length === 0) {
+      setError('Selecciona al menos un Objetivo de Desarrollo Sostenible (ODS).')
+      return
+    }
     setGuardando(true)
     setError(null)
     try {
@@ -193,7 +197,10 @@ export function FormularioProyecto({
         </div>
 
         <fieldset>
-          <legend className="label">Objetivos de Desarrollo Sostenible</legend>
+          <legend className="label">
+            Objetivos de Desarrollo Sostenible <span className="text-rose-600 dark:text-rose-400">*</span>
+            <span className="ml-1 font-normal text-slate-500 dark:text-slate-400">(elige al menos uno)</span>
+          </legend>
           <div className="flex flex-wrap gap-1.5">
             {ods.map((o) => {
               const activo = form.ods.includes(o.id)

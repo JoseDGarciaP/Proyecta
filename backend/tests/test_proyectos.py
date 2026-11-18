@@ -47,6 +47,26 @@ def test_filtros(client, estudiante):
     assert len(client.get("/api/proyectos", params={"q": "lectura"}, headers=estudiante).json()) == 1
 
 
+def test_ods_obligatorio(client, estudiante):
+    """HU-02: al menos un ODS al registrar, y no se puede dejar vacío al editar."""
+    sin_ods = {k: v for k, v in PROYECTO.items() if k != "ods"}
+    assert client.post("/api/proyectos", json=sin_ods, headers=estudiante).status_code == 422
+    assert client.post("/api/proyectos", json={**PROYECTO, "ods": []}, headers=estudiante).status_code == 422
+    pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
+    assert client.patch(f"/api/proyectos/{pid}", json={"ods": []}, headers=estudiante).status_code == 422
+
+
+def test_busca_en_necesidades_y_filtra_por_programa(client, estudiante):
+    """HU-03: la búsqueda incluye las necesidades y se puede filtrar por el programa de quien registra."""
+    client.post("/api/proyectos", json={**PROYECTO, "necesidades": "Buscamos un electrónico"}, headers=estudiante)
+    otro = registrar(client, "mario@ufpso.edu.co", nombre="Mario Ruiz", programa="Ingeniería Civil")
+    client.post("/api/proyectos", json={**PROYECTO, "titulo": "Puentes peatonales"}, headers=otro)
+    assert [p["titulo"] for p in client.get("/api/proyectos", params={"q": "electrónico"}, headers=estudiante).json()] == [PROYECTO["titulo"]]
+    civil = client.get("/api/proyectos", params={"programa": "Ingeniería Civil"}, headers=estudiante).json()
+    assert [p["titulo"] for p in civil] == ["Puentes peatonales"]
+    assert civil[0]["programa"] == "Ingeniería Civil"
+
+
 def test_exportar_proyectos_csv(client, estudiante):
     client.post("/api/proyectos", json=PROYECTO, headers=estudiante)
     client.post("/api/proyectos", json={**PROYECTO, "titulo": "Tutorías entre pares", "area": "Educación"}, headers=estudiante)

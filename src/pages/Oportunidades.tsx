@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { ExternalLink, Loader2, RotateCcw, Send, Sparkles, X } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowRight, ExternalLink, Loader2, RotateCcw, Send, Sparkles, X } from 'lucide-react'
 import { listarOportunidades } from '@/lib/api'
 import { useAreas, useOds } from '@/lib/parametros'
 import { buscarSemantico, obtenerPerfil } from '@/lib/colaboracion'
@@ -10,8 +10,9 @@ import { apiHabilitada } from '@/lib/http'
 import { TIPOS_OPORTUNIDAD, TIPO_OPORTUNIDAD_LABEL, type Oportunidad, type Postulacion, type RespuestaSugerencias, type TipoOportunidad } from '@/lib/types'
 import { EstadoPostulacionBadge, ListaPostulaciones, ModalPostular } from '@/components/Postulaciones'
 import { NotaMetodo } from '@/components/Sugerencias'
+import { DiasCierre, diasParaCierre } from '@/components/DiasCierre'
 import { Badge, EmptyState, Skeleton } from '@/components/ui'
-import { diasRestantes, formatCompactCOP, formatDate } from '@/lib/format'
+import { formatCompactCOP, formatDate } from '@/lib/format'
 
 const TIPO_CLASS: Record<TipoOportunidad, string> = {
   convocatoria: 'bg-brand-100 text-brand-800 dark:bg-brand-500/15 dark:text-brand-300',
@@ -227,11 +228,13 @@ export function Oportunidades() {
         {cargando
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-44" />)
           : visibles.map((o) => {
-              const dias = diasRestantes(o.cierra_en)
+              const dias = diasParaCierre(o)
               return (
                 <article key={o.id} className="card flex flex-col gap-3 p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <h2 className="font-semibold text-slate-900 dark:text-white">{o.titulo}</h2>
+                    <h2 className="font-semibold text-slate-900 dark:text-white">
+                      <Link to={`/oportunidades/${o.id}`} className="hover:text-brand-700 dark:hover:text-brand-300">{o.titulo}</Link>
+                    </h2>
                     <div className="flex shrink-0 gap-1.5">
                       {relevancia.has(o.id) && (
                         <Badge className="bg-accent-100 text-accent-800 dark:bg-accent-500/15 dark:text-accent-300">
@@ -260,8 +263,11 @@ export function Oportunidades() {
                     </div>
                     <div>
                       <dt className="label">Cierre</dt>
-                      <dd className={dias <= 30 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}>
-                        {formatDate(o.cierra_en)}{dias < 0 && ' · cerrada'}
+                      <dd className="space-y-1">
+                        <span className={`block ${dias <= 30 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                          {formatDate(o.cierra_en)}
+                        </span>
+                        <DiasCierre dias={dias} />
                       </dd>
                     </div>
                   </dl>
@@ -278,16 +284,24 @@ export function Oportunidades() {
                   )}
 
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    {o.url ? (
-                      <a
-                        href={o.url}
-                        target="_blank"
-                        rel="noreferrer"
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Link
+                        to={`/oportunidades/${o.id}`}
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline dark:text-brand-400"
                       >
-                        Ver detalles <ExternalLink size={14} aria-hidden />
-                      </a>
-                    ) : <span />}
+                        Ver detalle <ArrowRight size={14} aria-hidden />
+                      </Link>
+                      {o.url && (
+                        <a
+                          href={o.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:underline dark:text-slate-400"
+                        >
+                          Sitio oficial <ExternalLink size={14} aria-hidden />
+                        </a>
+                      )}
+                    </div>
                     {puedePostular && dias >= 0 && (!misProyectos?.length || misProyectos.some((m) => !postuladosEn(o.id).some((p) => p.proyecto_id === m.id))) && (
                       <button className="btn-primary px-3 py-1.5 text-sm" disabled={!misProyectos} onClick={() => { setAviso(''); setPostulando(o) }}>
                         <Send size={14} aria-hidden /> Postular mi proyecto

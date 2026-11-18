@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base, Timestamps, UuidPk
 from app.modules.actores.models import Actor, proyecto_actores
 from app.modules.catalogo.models import Area, Ods, proyecto_ods
-from app.modules.usuarios.models import enum_col
+from app.modules.usuarios.models import Usuario, enum_col
 
 
 class Estado(str, enum.Enum):
@@ -45,3 +45,5 @@ class Proyecto(UuidPk, Timestamps, Base):
     area: Mapped[Area] = relationship(lazy="joined")
     ods: Mapped[list[Ods]] = relationship(secondary=proyecto_ods, lazy="selectin")
     actores: Mapped[list[Actor]] = relationship(secondary=proyecto_actores, lazy="selectin")
+    # Quien registró el proyecto: de aquí sale el programa académico para filtrar (HU-03)
+    creado_por: Mapped[Usuario | None] = relationship(foreign_keys=[creado_por_id], lazy="joined")

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from typing import Literal
 
@@ -10,6 +11,10 @@ class Recomendacion(BaseModel):
     titulo: str
     puntaje: float
     razon: str
+    # Registro guardado de la recomendación (HU-05): se llenan al guardarla.
+    recomendacion_id: uuid.UUID | None = None
+    estado: Literal["pendiente", "aceptada", "anulada"] = "pendiente"
+    fecha: datetime | None = None
 
 
 class RespuestaAnalisis(BaseModel):
@@ -37,11 +42,29 @@ class Sugerencia(BaseModel):
     detalle: str
     similitud: float
     razon: str
+    # Solo en colaboradores sugeridos a un proyecto: registro guardado (HU-05).
+    recomendacion_id: uuid.UUID | None = None
+    estado: Literal["pendiente", "aceptada", "anulada"] | None = None
+    fecha: datetime | None = None
 
 
 class RespuestaSugerencias(BaseModel):
     metodo: Literal["semantico", "lexico"]  # léxico = sin modelo de embeddings disponible
     resultados: list[Sugerencia]
+
+
+class RecomendacionSalida(BaseModel):
+    """Recomendación guardada de un proyecto, con su fecha y estado (HU-05)."""
+
+    id: uuid.UUID
+    proyecto_id: uuid.UUID
+    tipo: Literal["oportunidad", "colaborador"]
+    objetivo_id: uuid.UUID
+    titulo: str
+    puntaje: float
+    razon: str
+    estado: Literal["pendiente", "aceptada", "anulada"]
+    creado_en: datetime
 
 
 class SugerenciasParaMi(BaseModel):

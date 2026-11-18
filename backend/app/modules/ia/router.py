@@ -8,7 +8,10 @@ from sqlalchemy import or_, select
 from app.core.config import get_settings
 from app.core.deps import DbSession, UsuarioActual
 from app.modules.alianzas.models import Miembro
+from app.modules.ia import historial
+from app.modules.ia.models import EstadoRecomendacion, RecomendacionGuardada, TipoRecomendacion
 from app.modules.ia.schemas import (
+    RecomendacionSalida,
     RespuestaAnalisis,
     RespuestaPitch,
     RespuestaSugerencias,
@@ -63,7 +66,38 @@ async def analizar_proyecto(proyecto_id: uuid.UUID, db: DbSession):
     proyecto = obtener_proyecto(db, proyecto_id)
     oportunidades = _abiertas(db)
     semantica = _semantica(db, proyecto, oportunidades)
-    return await analizar(proyecto, oportunidades, semantica)
+    respuesta = await analizar(proyecto, oportunidades, semantica)
+    # HU-05: las recomendaciones quedan guardadas con fecha y estado «pendiente».
+    guardadas = historial.guardar(db, proyecto.id, TipoRecomendacion.OPORTUNIDAD, [
+        historial.Item(r.oportunidad_id, r.titulo, r.puntaje, r.razon) for r in respuesta.recomendaciones
+    ])
+    for r in respuesta.recomendaciones:
+        g = guardadas[r.oportunidad_id]
+        r.recomendacion_id, r.estado, r.fecha = g.id, g.estado.value, g.creado_en
+    return respuesta
+
+
+@router.get("/proyectos/{proyecto_id}/recomendaciones", response_model=list[RecomendacionSalida])
+def recomendaciones_guardadas(
+    proyecto_id: uuid.UUID,
+    db: DbSession,
+    tipo: TipoRecomendacion | None = None,
+    estado: EstadoRecomendacion | None = None,
+):
+    """Historial de recomendaciones del proyecto (convocatorias y colaboradores), de la más reciente a la más antigua."""
+    obtener_proyecto(db, proyecto_id)
+    stmt = select(RecomendacionGuardada).where(RecomendacionGuardada.proyecto_id == proyecto_id)
+    if tipo:
+        stmt = stmt.where(RecomendacionGuardada.tipo == tipo)
+    if estado:
+        stmt = stmt.where(RecomendacionGuardada.estado == estado)
+    return [
+        RecomendacionSalida(
+            id=r.id, proyecto_id=r.proyecto_id, tipo=r.tipo.value, objetivo_id=r.objetivo_id, titulo=r.titulo,
+            puntaje=r.puntaje, razon=r.razon, estado=r.estado.value, creado_en=r.creado_en,
+        )
+        for r in db.scalars(stmt.order_by(RecomendacionGuardada.creado_en.desc()))
+    ]
 
 
 @router.post("/proyectos/{proyecto_id}/pitch/{oportunidad_id}", response_model=RespuestaPitch)
@@ -145,6 +179,13 @@ def colaboradores_sugeridos(proyecto_id: uuid.UUID, db: DbSession, _: UsuarioAct
         salida.append(Sugerencia(
             id=u.id, tipo="usuario", titulo=u.nombre, detalle=u.programa or u.rol_nombre, similitud=puntaje, razon=razon,
         ))
+    # HU-05: los colaboradores sugeridos también quedan guardados con fecha y estado «pendiente».
+    guardadas = historial.guardar(db, proyecto.id, TipoRecomendacion.COLABORADOR, [
+        historial.Item(s.id, s.titulo, s.similitud, s.razon) for s in salida
+    ])
+    for s in salida:
+        g = guardadas[s.id]
+        s.recomendacion_id, s.estado, s.fecha = g.id, g.estado.value, g.creado_en
     return RespuestaSugerencias(metodo=metodo, resultados=salida)
 
 
