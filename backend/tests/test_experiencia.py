@@ -1,5 +1,8 @@
 """Experiencia (XP), niveles, postulaciones a oportunidades y evidencias."""
 
+import io
+import zipfile
+
 from app.core import correo
 from tests.conftest import APRUEBA, RECO, registrar
 from tests.test_alianzas import _proyecto, _yo
@@ -7,6 +10,14 @@ from tests.test_roles_insignias import _cambiar_permisos, _id
 
 PDF = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+
+
+def _docx_bytes() -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("[Content_Types].xml", "<Types></Types>")
+        zf.writestr("word/document.xml", "<w:document></w:document>")
+    return buf.getvalue()
 
 
 def _mia(client, h):
@@ -18,7 +29,8 @@ def _acciones(mia):
 
 
 def _oportunidad(client, admin, cierra="2030-12-31"):
-    res = client.post("/api/oportunidades", json={"titulo": "Convocatoria de innovación", "tipo": "convocatoria", "cierra_en": cierra},
+    res = client.post("/api/oportunidades", json={"titulo": "Convocatoria de innovación", "tipo": "convocatoria",
+                                                  "abre_en": "2019-01-01", "cierra_en": cierra},
                       headers=admin)
     assert res.status_code == 201, res.text
     return res.json()["id"]
@@ -187,6 +199,18 @@ def test_evidencias_subir_revisar_y_xp(client, admin, estudiante):
     assert client.delete(f"/api/evidencias/{ev['id']}", headers=estudiante).status_code == 409
     otra = next(e for e in client.get("/api/evidencias/mias", headers=estudiante).json() if e["tipo"] == "foto")
     assert client.delete(f"/api/evidencias/{otra['id']}", headers=estudiante).status_code == 204
+
+    # Ep4-Hu22: acepta archivos .docx válidos y rechaza archivos .zip que no sean documentos Word
+    docx = _docx_bytes()
+    mime_docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    res_docx = _subir(client, estudiante, docx, "informe.docx", mime_docx, proyecto_id=pid, tipo="informe")
+    assert res_docx.status_code == 201, res_docx.text
+    assert client.get(f"/api/evidencias/{res_docx.json()['id']}/archivo", headers=estudiante).content == docx
+
+    zip_falso = io.BytesIO()
+    with zipfile.ZipFile(zip_falso, "w") as zf:
+        zf.writestr("otro.txt", "no es docx")
+    assert _subir(client, estudiante, zip_falso.getvalue(), "falso.docx", mime_docx, proyecto_id=pid).status_code == 415
 
 
 def test_permisos_de_postular_y_subir(client, admin, estudiante):

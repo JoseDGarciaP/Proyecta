@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Award, ChevronLeft, ChevronRight, KeyRound, Pencil, Search, TrendingUp, UserPlus } from 'lucide-react'
-import { crearUsuario, editarUsuario, enviarEnlaceContrasena, listarUsuarios, type FiltroUsuarios } from '@/lib/admin'
+import { crearUsuario, editarUsuario, enviarEnlaceContrasena, listarUsuarios, type CambiosUsuario, type FiltroUsuarios } from '@/lib/admin'
+import { PROGRAMAS } from '@/lib/programas'
 import { useSesion } from '@/lib/sesion'
 import type { Rol, RolBreve, UsuarioAdmin } from '@/lib/types'
 import { formatDate } from '@/lib/format'
@@ -20,10 +21,11 @@ const POR_PAGINA = 20
 
 export function Usuarios() {
   const { usuario: yo } = useSesion()
-  const [filtro, setFiltro] = useState<FiltroUsuarios>({ q: '', rol: '', estado: '', offset: 0 })
+  const [filtro, setFiltro] = useState<FiltroUsuarios>({ q: '', rol: '', programa: '', estado: '', offset: 0 })
   const [busqueda, setBusqueda] = useState('')
   const { datos, error, recargar, setDatos } = useCarga(() => listarUsuarios({ ...filtro, limite: POR_PAGINA }), [filtro])
   const [editando, setEditando] = useState<UsuarioAdmin | null>(null)
+  const [desactivando, setDesactivando] = useState<UsuarioAdmin | null>(null)
   const [creando, setCreando] = useState(false)
   const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
   const { confirmar, ventana } = useConfirmar()
@@ -32,6 +34,11 @@ export function Usuarios() {
   const puede = usePuede()
   const [premiando, setPremiando] = useState<UsuarioAdmin | null>(null)
   const soyAdmin = yo?.rol === 'admin'
+
+  const programas = useMemo(
+    () => [...new Set([...PROGRAMAS, ...(datos?.items.map((u) => u.programa).filter((x): x is string => Boolean(x)) ?? [])])].sort(),
+    [datos],
+  )
 
   // Buscar al dejar de escribir.
   useEffect(() => {
@@ -46,7 +53,7 @@ export function Usuarios() {
 
   const reemplazar = (u: UsuarioAdmin) => setDatos((d) => d && { ...d, items: d.items.map((x) => (x.id === u.id ? u : x)) })
 
-  const cambiar = async (u: UsuarioAdmin, cambios: Partial<UsuarioAdmin>, pregunta?: Parameters<typeof confirmar>[0]) => {
+  const cambiar = async (u: UsuarioAdmin, cambios: CambiosUsuario, pregunta?: Parameters<typeof confirmar>[0]) => {
     if (pregunta && !(await confirmar(pregunta))) return
     setMensaje(null)
     try {
@@ -80,6 +87,10 @@ export function Usuarios() {
         <select className="input w-auto" value={filtro.rol} onChange={(e) => setFiltro({ ...filtro, rol: e.target.value as Rol, offset: 0 })} aria-label="Rol">
           <option value="">Todos los roles</option>
           {roles.map((r) => <option key={r.clave} value={r.clave}>{r.nombre}</option>)}
+        </select>
+        <select className="input w-auto" value={filtro.programa ?? ''} onChange={(e) => setFiltro({ ...filtro, programa: e.target.value, offset: 0 })} aria-label="Programa">
+          <option value="">Todos los programas</option>
+          {programas.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <select className="input w-auto" value={filtro.estado} onChange={(e) => setFiltro({ ...filtro, estado: e.target.value as FiltroUsuarios['estado'], offset: 0 })} aria-label="Estado">
           <option value="">Todos los estados</option>
@@ -158,11 +169,7 @@ export function Usuarios() {
                     </td>
                     <td className="px-4 py-3">
                       <Interruptor activo={u.activo} disabled={soyYo || protegido} etiqueta={`Cuenta de ${u.nombre} activa`}
-                        alCambiar={(activo) => cambiar(u, { activo }, activo ? undefined : {
-                          titulo: `¿Desactivar la cuenta de ${u.nombre}?`,
-                          detalle: 'No podrá ingresar hasta que la reactives. Sus proyectos y mensajes se conservan. Le avisaremos por correo.',
-                          aceptar: 'Desactivar', peligro: true,
-                        })} />
+                        alCambiar={(activo) => (activo ? cambiar(u, { activo: true }) : setDesactivando(u))} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
@@ -204,6 +211,8 @@ export function Usuarios() {
 
       {premiando && <OtorgarInsignia persona={{ id: premiando.id, nombre: premiando.nombre }} alCerrar={() => setPremiando(null)}
         alOtorgar={(texto) => { setPremiando(null); setMensaje({ tipo: 'ok', texto }) }} />}
+      {desactivando && <DesactivarUsuario u={desactivando} alCerrar={() => setDesactivando(null)}
+        alDesactivar={(u) => { reemplazar(u); setDesactivando(null) }} />}
       {editando && <EditarDatos u={editando} alCerrar={() => setEditando(null)} alGuardar={(u) => { reemplazar(u); setEditando(null) }} />}
       {creando && <CrearUsuario roles={roles} bloqueo={(r) => bloqueo(r, '')} alCerrar={() => setCreando(false)} alCrear={(u) => {
         setCreando(false)
@@ -211,6 +220,52 @@ export function Usuarios() {
         void recargar()
       }} />}
     </div>
+  )
+}
+
+function DesactivarUsuario({ u, alCerrar, alDesactivar }: { u: UsuarioAdmin; alCerrar: () => void; alDesactivar: (u: UsuarioAdmin) => void }) {
+  const [motivo, setMotivo] = useState('')
+  const [ocupado, setOcupado] = useState(false)
+  const [error, setError] = useState('')
+  const confirmar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setOcupado(true)
+    setError('')
+    try {
+      alDesactivar(await editarUsuario(u.id, { activo: false, motivo: motivo.trim() }))
+    } catch (err) {
+      setError((err as Error).message)
+      setOcupado(false)
+    }
+  }
+  return (
+    <Modal
+      titulo={`¿Desactivar la cuenta de ${u.nombre}?`}
+      descripcion="No podrá ingresar hasta que la reactives. Sus proyectos y mensajes se conservan. Le avisaremos por correo."
+      alCerrar={alCerrar}
+    >
+      <form onSubmit={confirmar} className="space-y-3">
+        <label className="block">
+          <span className="label">Motivo de desactivación <span className="font-normal text-slate-400">(se incluye en el aviso)</span></span>
+          <textarea
+            className="input min-h-24"
+            required
+            minLength={5}
+            maxLength={500}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Ej.: Solicitud del usuario o inactividad prolongada."
+          />
+        </label>
+        <Aviso>{error}</Aviso>
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn-ghost" onClick={alCerrar}>Cancelar</button>
+          <button className="btn bg-rose-600 text-white hover:bg-rose-700" disabled={ocupado || motivo.trim().length < 5}>
+            Desactivar cuenta
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 

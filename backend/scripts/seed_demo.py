@@ -36,6 +36,7 @@ def main() -> None:
 
         for o in DATOS["oportunidades"]:
             op = Oportunidad(titulo=o["titulo"], entidad=o["entidad"], tipo=o["tipo"], monto=o["monto"],
+                             abre_en=date.fromisoformat(o.get("abre_en") or "2026-01-01"),
                              cierra_en=date.fromisoformat(o["cierra_en"]), url=o["url"])
             op.areas = areas_por_nombre(db, o["areas"])
             op.ods = ods_por_id(db, sorted({n for a in o["areas"] for n in ODS_POR_AREA.get(a, [])}))

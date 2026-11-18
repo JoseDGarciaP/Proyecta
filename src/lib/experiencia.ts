@@ -72,7 +72,7 @@ export const ESTADO_EVIDENCIA: Record<EstadoEvidencia, [string, string]> = {
   aprobada: ['Aprobada', 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300'],
   rechazada: ['Rechazada', 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300'],
 }
-export const TIPOS_ARCHIVO = 'application/pdf,image/png,image/jpeg,image/webp'
+export const TIPOS_ARCHIVO = 'application/pdf,image/png,image/jpeg,image/webp,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 // ---- Nivel junto a los nombres: se pide en lote y se guarda por persona durante la sesión ----
 const cache = new Map<string, ExperienciaBreve>()

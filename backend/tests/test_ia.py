@@ -12,7 +12,8 @@ def _oportunidad(admin, client, **cambios):
 def test_recomienda_con_explicacion(client, estudiante, admin):
     afin = _oportunidad(admin, client)
     _oportunidad(admin, client, titulo="Fondo de salud", areas=["Salud"], ods=[3])
-    _oportunidad(admin, client, titulo="Fondo agro vencido", cierra_en=str(date.today() - timedelta(days=1)))
+    _oportunidad(admin, client, titulo="Fondo agro vencido", abre_en=str(date.today() - timedelta(days=30)),
+                 cierra_en=str(date.today() - timedelta(days=1)))
     pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
 
     res = client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante)

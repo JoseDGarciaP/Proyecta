@@ -31,6 +31,7 @@ class CambiosUsuario(BaseModel):
     rol: str | None = Field(default=None, max_length=40)
     activo: bool | None = None
     verificado: bool | None = None
+    motivo: str | None = Field(default=None, max_length=500, description="Motivo al desactivar un usuario")
 
 
 class NuevoUsuario(BaseModel):

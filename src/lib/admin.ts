@@ -13,6 +13,7 @@ export const exportarReporteInstitucional = () =>
 export interface FiltroUsuarios {
   q?: string
   rol?: Rol
+  programa?: string
   estado?: '' | 'activo' | 'inactivo' | 'sin_verificar'
   limite?: number
   offset?: number
@@ -25,7 +26,7 @@ export function listarUsuarios(f: FiltroUsuarios) {
   return pedir<PaginaUsuarios>(`/admin/usuarios?${params}`)
 }
 
-export type CambiosUsuario = Partial<Pick<UsuarioAdmin, 'nombre' | 'programa' | 'rol' | 'activo' | 'verificado'>>
+export type CambiosUsuario = Partial<Pick<UsuarioAdmin, 'nombre' | 'programa' | 'rol' | 'activo' | 'verificado'>> & { motivo?: string }
 export const editarUsuario = (id: string, cambios: CambiosUsuario) =>
   pedir<UsuarioAdmin>(`/admin/usuarios/${id}`, { method: 'PATCH', json: cambios })
 
@@ -66,7 +67,7 @@ export const listarProyectosAdmin = (q = '') => pedir<ProyectoAdmin[]>(`/admin/p
 export const eliminarProyectoAdmin = (id: string, motivo: string) =>
   pedir<void>(`/admin/proyectos/${id}`, { method: 'DELETE', json: { motivo } })
 
-export type OportunidadEntrada = Omit<Oportunidad, 'id'> & { descripcion: string; ods: number[] }
+export type OportunidadEntrada = Omit<Oportunidad, 'id' | 'dias_restantes'> & { abre_en: string; descripcion: string; ods: number[] }
 export const crearOportunidad = (o: OportunidadEntrada) => pedir<Oportunidad>('/oportunidades', { method: 'POST', json: o })
 export const editarOportunidad = (id: string, o: OportunidadEntrada) => pedir<Oportunidad>(`/oportunidades/${id}`, { method: 'PUT', json: o })
 export const eliminarOportunidad = (id: string) => pedir<void>(`/oportunidades/${id}`, { method: 'DELETE' })

@@ -183,8 +183,8 @@ export const actoresMock: Actor[] = [
 ]
 
 export const oportunidadesMock: Oportunidad[] = [
-  { id: 'o-001', titulo: 'Convocatoria de ciencia aplicada 2026', entidad: 'Ministerio de Ciencia', tipo: 'convocatoria', monto: 300_000_000, cierra_en: '2026-10-15', areas: ['Tecnología', 'Ambiente', 'Energía'], url: 'https://ejemplo.gov.co/convocatoria' },
-  { id: 'o-002', titulo: 'Fondo de innovación agroindustrial', entidad: 'Cámara de Comercio', tipo: 'financiacion', monto: 120_000_000, cierra_en: '2026-09-30', areas: ['Agroindustria'], url: 'https://ejemplo.org/fondo' },
-  { id: 'o-003', titulo: 'Mentoría en transferencia tecnológica', entidad: 'Red de Oficinas TT', tipo: 'mentoria', monto: null, cierra_en: '2026-11-20', areas: ['Tecnología', 'Salud'], url: 'https://ejemplo.org/mentoria' },
-  { id: 'o-004', titulo: 'Acceso a laboratorio de materiales', entidad: 'Parque Tecnológico', tipo: 'infraestructura', monto: null, cierra_en: '2026-12-05', areas: ['Energía', 'Ambiente'], url: 'https://ejemplo.org/laboratorio' },
+  { id: 'o-001', titulo: 'Convocatoria de ciencia aplicada 2026', entidad: 'Ministerio de Ciencia', tipo: 'convocatoria', monto: 300_000_000, abre_en: '2026-08-01', cierra_en: '2026-10-15', areas: ['Tecnología', 'Ambiente', 'Energía'], url: 'https://ejemplo.gov.co/convocatoria' },
+  { id: 'o-002', titulo: 'Fondo de innovación agroindustrial', entidad: 'Cámara de Comercio', tipo: 'financiacion', monto: 120_000_000, abre_en: '2026-07-15', cierra_en: '2026-09-30', areas: ['Agroindustria'], url: 'https://ejemplo.org/fondo' },
+  { id: 'o-003', titulo: 'Mentoría en transferencia tecnológica', entidad: 'Red de Oficinas TT', tipo: 'mentoria', monto: null, abre_en: '2026-09-01', cierra_en: '2026-11-20', areas: ['Tecnología', 'Salud'], url: 'https://ejemplo.org/mentoria' },
+  { id: 'o-004', titulo: 'Acceso a laboratorio de materiales', entidad: 'Parque Tecnológico', tipo: 'infraestructura', monto: null, abre_en: '2026-10-01', cierra_en: '2026-12-05', areas: ['Energía', 'Ambiente'], url: 'https://ejemplo.org/laboratorio' },
 ]

@@ -167,6 +167,7 @@ def listar_usuarios(
     db: DbSession,
     q: str | None = Query(default=None, description="Busca en nombre, correo y programa"),
     rol: str | None = None,
+    programa: str | None = Query(default=None, description="Filtra por programa académico o dependencia"),
     estado: str | None = Query(default=None, pattern="^(activo|inactivo|sin_verificar)$"),
     limite: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
@@ -177,6 +178,8 @@ def listar_usuarios(
         stmt = stmt.where(or_(Usuario.nombre.ilike(patron), Usuario.email.ilike(patron), Usuario.programa.ilike(patron)))
     if rol:
         stmt = stmt.where(Usuario.rol == rol)
+    if programa:
+        stmt = stmt.where(Usuario.programa == programa.strip())
     if estado == "activo":
         stmt = stmt.where(Usuario.activo.is_(True), Usuario.verificado.is_(True))
     elif estado == "inactivo":
@@ -228,6 +231,7 @@ def _admins_activos(db: Session) -> int:
 def actualizar_usuario(usuario_id: uuid.UUID, datos: CambiosUsuario, admin: Admin, db: DbSession, tareas: BackgroundTasks):
     usuario = _obtener_usuario(db, usuario_id)
     cambios = datos.model_dump(exclude_unset=True)
+    motivo = (cambios.pop("motivo", None) or "").strip()
     if usuario.id == admin.id and (("rol" in cambios and cambios["rol"] != usuario.rol) or cambios.get("activo") is False):
         raise HTTPException(status_code=409, detail="No puedes cambiar tu propio rol ni desactivar tu propia cuenta")
     if usuario.rol == Rol.ADMIN and admin.rol != Rol.ADMIN and cambios:
@@ -255,9 +259,16 @@ def actualizar_usuario(usuario_id: uuid.UUID, datos: CambiosUsuario, admin: Admi
             detalle.append(f"rol: {roles_srv.nombre_rol(db, anterior)} → {nuevo}")
             avisos.append(f"Tu rol ahora es {nuevo}.")
         elif campo == "activo":
-            detalle.append("cuenta activada" if valor else "cuenta desactivada")
-            avisos.append("Tu cuenta fue reactivada: ya puedes ingresar." if valor
-                          else "Tu cuenta fue desactivada. Si crees que es un error, escribe al equipo de Proyecta.")
+            if valor:
+                detalle.append("cuenta activada")
+                avisos.append("Tu cuenta fue reactivada: ya puedes ingresar.")
+            else:
+                detalle.append(f"cuenta desactivada (motivo: {motivo})" if motivo else "cuenta desactivada")
+                texto_desactivacion = "Tu cuenta fue desactivada."
+                if motivo:
+                    texto_desactivacion += f" Motivo: {motivo}."
+                texto_desactivacion += " Si crees que es un error, escribe al equipo de Proyecta."
+                avisos.append(texto_desactivacion)
         elif campo == "verificado":
             detalle.append("correo marcado como verificado" if valor else "correo marcado sin verificar")
         else:

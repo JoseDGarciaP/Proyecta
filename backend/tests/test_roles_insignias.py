@@ -66,7 +66,8 @@ def test_rol_personalizado_con_parte_del_panel(client, admin, estudiante):
     assert client.get("/api/admin/proyectos", headers=estudiante).status_code == 200
     assert client.get("/api/admin/usuarios", headers=estudiante).status_code == 403
     assert client.get("/api/oportunidades", headers=estudiante).status_code == 403  # no tiene «ver oportunidades»
-    assert client.post("/api/oportunidades", json={"titulo": "Convocatoria X", "tipo": "convocatoria", "cierra_en": "2030-01-01"},
+    assert client.post("/api/oportunidades", json={"titulo": "Convocatoria X", "tipo": "convocatoria",
+                                                   "abre_en": "2026-01-01", "cierra_en": "2030-01-01"},
                        headers=estudiante).status_code == 201
 
 

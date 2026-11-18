@@ -19,11 +19,22 @@ def test_listar_filtrar_y_editar_usuarios(client, admin, estudiante):
     aviso = client.get("/api/notificaciones", headers=estudiante).json()[0]
     assert aviso["tipo"] == "cuenta" and "Docente" in aviso["cuerpo"]
 
-    client.patch(f"/api/admin/usuarios/{ana['id']}", json={"activo": False}, headers=admin)
+    client.patch(f"/api/admin/usuarios/{ana['id']}", json={"activo": False, "motivo": "Fin del semestre académico"}, headers=admin)
     assert client.get("/api/usuarios/yo", headers=estudiante).status_code == 401
     assert client.get("/api/admin/usuarios?estado=inactivo", headers=admin).json()["total"] == 1
     registro = client.get("/api/admin/registro", headers=admin).json()
-    assert registro[0]["accion"] == "usuario.editar" and "desactivada" in registro[0]["detalle"]
+    assert registro[0]["accion"] == "usuario.editar" and "desactivada" in registro[0]["detalle"] and "Fin del semestre académico" in registro[0]["detalle"]
+
+
+def test_filtrar_usuarios_por_programa(client, admin):
+    """Ep4-Hu24: permite filtrar el listado de usuarios por programa específico."""
+    client.post("/api/admin/usuarios", json={"email": "sistemas@ufpso.edu.co", "nombre": "Estudiante Sistemas",
+                                             "rol": "estudiante", "programa": "Ingeniería de Sistemas"}, headers=admin)
+    client.post("/api/admin/usuarios", json={"email": "civil@ufpso.edu.co", "nombre": "Estudiante Civil",
+                                             "rol": "estudiante", "programa": "Ingeniería Civil"}, headers=admin)
+    filtrados = client.get("/api/admin/usuarios", params={"programa": "Ingeniería de Sistemas"}, headers=admin).json()
+    assert filtrados["total"] == 1
+    assert filtrados["items"][0]["email"] == "sistemas@ufpso.edu.co"
 
 
 def test_no_quedarse_sin_admin(client, admin):

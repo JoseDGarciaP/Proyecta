@@ -1,6 +1,8 @@
+import io
 import mimetypes
 import secrets
 import uuid
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
@@ -27,12 +29,23 @@ router = APIRouter(tags=["evidencias"])
 admin = APIRouter(prefix="/api/admin/evidencias", tags=["administración"], dependencies=[Depends(requiere("admin.evidencias"))])
 
 # Tipo de archivo aceptado → (extensión, firma de los primeros bytes)
+MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PERMITIDOS = {
     "application/pdf": (".pdf", [b"%PDF"]),
     "image/png": (".png", [b"\x89PNG\r\n\x1a\n"]),
     "image/jpeg": (".jpg", [b"\xff\xd8\xff"]),
     "image/webp": (".webp", [b"RIFF"]),
+    MIME_DOCX: (".docx", [b"PK\x03\x04"]),
 }
+
+
+def _es_docx_valido(contenido: bytes) -> bool:
+    try:
+        with zipfile.ZipFile(io.BytesIO(contenido)) as zf:
+            nombres = set(zf.namelist())
+            return "[Content_Types].xml" in nombres and "word/document.xml" in nombres
+    except zipfile.BadZipFile:
+        return False
 
 
 class EvidenciaSalida(BaseModel):
@@ -105,12 +118,19 @@ async def subir(usuario: UsuarioActual, db: DbSession, tareas: BackgroundTasks,
         raise HTTPException(status_code=413, detail=f"El archivo supera {get_settings().archivo_max_mb} MB")
     if not contenido:
         raise HTTPException(status_code=422, detail="El archivo está vacío")
-    tipo_mime = (archivo.content_type or mimetypes.guess_type(archivo.filename or "")[0] or "").lower()
+    nombre_orig = (archivo.filename or "").lower()
+    tipo_mime = (archivo.content_type or mimetypes.guess_type(nombre_orig)[0] or "").lower()
+    if (not tipo_mime or tipo_mime in ("application/octet-stream", "application/zip")) and nombre_orig.endswith(".docx"):
+        tipo_mime = MIME_DOCX
     if tipo_mime not in PERMITIDOS:
-        raise HTTPException(status_code=415, detail="Sube un PDF o una imagen (PNG, JPG o WEBP)")
+        raise HTTPException(status_code=415, detail="Sube un PDF, DOCX o una imagen (PNG, JPG o WEBP)")
     extension, firmas = PERMITIDOS[tipo_mime]
-    if not any(contenido.startswith(f) for f in firmas) or (tipo_mime == "image/webp" and contenido[8:12] != b"WEBP"):
-        raise HTTPException(status_code=415, detail="El contenido del archivo no corresponde a un PDF o una imagen")
+    if (
+        not any(contenido.startswith(f) for f in firmas)
+        or (tipo_mime == "image/webp" and contenido[8:12] != b"WEBP")
+        or (tipo_mime == MIME_DOCX and not _es_docx_valido(contenido))
+    ):
+        raise HTTPException(status_code=415, detail="El contenido del archivo no corresponde a un PDF, DOCX o una imagen")
     nombre_disco = f"{secrets.token_hex(16)}{extension}"
     (carpeta() / nombre_disco).write_bytes(contenido)
     evidencia = Evidencia(usuario_id=usuario.id, proyecto_id=proyecto.id if proyecto else None, titulo=titulo.strip(),

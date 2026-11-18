@@ -108,7 +108,13 @@ export function OportunidadDetalle() {
           </div>
         </div>
 
-        <dl className="grid gap-4 border-t border-slate-200 pt-4 text-sm sm:grid-cols-3 dark:border-slate-800">
+        <dl className="grid gap-4 border-t border-slate-200 pt-4 text-sm sm:grid-cols-2 lg:grid-cols-4 dark:border-slate-800">
+          {oportunidad.abre_en && (
+            <div>
+              <dt className="label flex items-center gap-1.5"><CalendarDays size={13} aria-hidden /> Fecha de apertura</dt>
+              <dd className="text-slate-700 dark:text-slate-300">{formatDate(oportunidad.abre_en)}</dd>
+            </div>
+          )}
           <div>
             <dt className="label flex items-center gap-1.5"><CalendarDays size={13} aria-hidden /> Fecha de cierre</dt>
             <dd className="text-slate-700 dark:text-slate-300">{formatDate(oportunidad.cierra_en)}</dd>
