@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ExternalLink, Loader2, Send, Sparkles, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ArrowRight, ExternalLink, Loader2, Send, Sparkles, X } from 'lucide-react'
 import { useDatos } from '@/hooks/useDatos'
 import { buscarSemantico, obtenerPerfil } from '@/lib/colaboracion'
 import { misPostulaciones } from '@/lib/experiencia'
@@ -8,8 +9,9 @@ import { apiHabilitada } from '@/lib/http'
 import type { Oportunidad, Postulacion, RespuestaSugerencias } from '@/lib/types'
 import { EstadoPostulacionBadge, ListaPostulaciones, ModalPostular } from '@/components/Postulaciones'
 import { NotaMetodo } from '@/components/Sugerencias'
-import { Badge, Skeleton } from '@/components/ui'
-import { diasRestantes, formatCompactCOP, formatDate } from '@/lib/format'
+import { DiasCierre, diasParaCierre } from '@/components/DiasCierre'
+import { Badge, EmptyState, Skeleton } from '@/components/ui'
+import { formatCompactCOP, formatDate } from '@/lib/format'
 
 const TIPO_CLASS: Record<string, string> = {
   convocatoria: 'bg-brand-100 text-brand-800 dark:bg-brand-500/15 dark:text-brand-300',
@@ -30,6 +32,8 @@ export function Oportunidades() {
   const [postulaciones, setPostulaciones] = useState<Postulacion[]>([])
   const [postulando, setPostulando] = useState<Oportunidad | null>(null)
   const [aviso, setAviso] = useState('')
+  /** HU-04: por defecto solo las convocatorias abiertas. */
+  const [soloAbiertas, setSoloAbiertas] = useState(true)
 
   const cargarPostulaciones = useCallback(() => {
     misPostulaciones().then(setPostulaciones).catch(() => {})
@@ -61,6 +65,9 @@ export function Oportunidades() {
   const visibles = busqueda
     ? oportunidades.filter((o) => relevancia.has(o.id)).sort((a, b) => relevancia.get(b.id)! - relevancia.get(a.id)!)
     : oportunidades
+        .filter((o) => !soloAbiertas || diasParaCierre(o) >= 0)
+        .sort((a, b) => a.cierra_en.localeCompare(b.cierra_en))
+  const cerradas = oportunidades.filter((o) => diasParaCierre(o) < 0).length
 
   return (
     <div className="space-y-6">
@@ -130,15 +137,36 @@ export function Oportunidades() {
         </form>
       )}
 
+      {!busqueda && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <p className="text-slate-500 dark:text-slate-400">
+            {cargando ? 'Cargando…' : `${visibles.length} ${soloAbiertas ? 'abiertas' : 'en total'}, ordenadas por fecha de cierre`}
+          </p>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-slate-600 dark:text-slate-300">
+            <input type="checkbox" checked={soloAbiertas} onChange={(e) => setSoloAbiertas(e.target.checked)} />
+            Solo abiertas{cerradas > 0 && ` (ocultas ${cerradas} cerradas)`}
+          </label>
+        </div>
+      )}
+
+      {!cargando && visibles.length === 0 && (
+        <EmptyState
+          titulo="No hay convocatorias abiertas"
+          detalle="Desmarca «Solo abiertas» para ver también las que ya cerraron."
+        />
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         {cargando
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-44" />)
           : visibles.map((o) => {
-              const dias = diasRestantes(o.cierra_en)
+              const dias = diasParaCierre(o)
               return (
                 <article key={o.id} className="card flex flex-col gap-3 p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <h2 className="font-semibold text-slate-900 dark:text-white">{o.titulo}</h2>
+                    <h2 className="font-semibold text-slate-900 dark:text-white">
+                      <Link to={`/oportunidades/${o.id}`} className="hover:text-brand-700 dark:hover:text-brand-300">{o.titulo}</Link>
+                    </h2>
                     <div className="flex shrink-0 gap-1.5">
                       {relevancia.has(o.id) && (
                         <Badge className="bg-accent-100 text-accent-800 dark:bg-accent-500/15 dark:text-accent-300">
@@ -167,8 +195,11 @@ export function Oportunidades() {
                     </div>
                     <div>
                       <dt className="label">Cierre</dt>
-                      <dd className={dias <= 30 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}>
-                        {formatDate(o.cierra_en)}
+                      <dd className="space-y-1">
+                        <span className={`block ${dias <= 30 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                          {formatDate(o.cierra_en)}
+                        </span>
+                        <DiasCierre dias={dias} />
                       </dd>
                     </div>
                   </dl>
@@ -185,16 +216,24 @@ export function Oportunidades() {
                   )}
 
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    {o.url ? (
-                      <a
-                        href={o.url}
-                        target="_blank"
-                        rel="noreferrer"
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Link
+                        to={`/oportunidades/${o.id}`}
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline dark:text-brand-400"
                       >
-                        Ver detalles <ExternalLink size={14} aria-hidden />
-                      </a>
-                    ) : <span />}
+                        Ver detalle <ArrowRight size={14} aria-hidden />
+                      </Link>
+                      {o.url && (
+                        <a
+                          href={o.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:underline dark:text-slate-400"
+                        >
+                          Sitio oficial <ExternalLink size={14} aria-hidden />
+                        </a>
+                      )}
+                    </div>
                     {puedePostular && dias >= 0 && (!misProyectos?.length || misProyectos.some((m) => !postuladosEn(o.id).some((p) => p.proyecto_id === m.id))) && (
                       <button className="btn-primary px-3 py-1.5 text-sm" disabled={!misProyectos} onClick={() => { setAviso(''); setPostulando(o) }}>
                         <Send size={14} aria-hidden /> Postular mi proyecto

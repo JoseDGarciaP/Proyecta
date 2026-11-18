@@ -58,6 +58,8 @@ export interface FiltrosExportarProyectos {
   q?: string
   area?: string
   estado?: string
+  ods?: string
+  programa?: string
 }
 
 function escaparCsv(valor: string | number): string {
@@ -129,6 +131,18 @@ export async function listarOportunidades(): Promise<Oportunidad[]> {
   if (apiHabilitada) return sinPermisoVacio(pedir<Oportunidad[]>('/oportunidades'))
   await espera(150)
   return oportunidadesMock
+}
+
+export async function obtenerOportunidad(id: string): Promise<Oportunidad | null> {
+  if (apiHabilitada) {
+    try {
+      return await pedir<Oportunidad>(`/oportunidades/${id}`)
+    } catch {
+      return null
+    }
+  }
+  await espera(120)
+  return oportunidadesMock.find((o) => o.id === id) ?? null
 }
 
 export function calcularMetricas(proyectos: Proyecto[], actores: Actor[]): Metricas {

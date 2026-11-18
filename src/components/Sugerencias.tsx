@@ -4,10 +4,11 @@ import type { ReactNode } from 'react'
 import { InsigniasDe, NivelDe } from '@/components/Insignia'
 import { useSesion } from '@/lib/sesion'
 import { tienePanel } from '@/lib/permisos'
+import { formatDate } from '@/lib/format'
 
 const RUTA: Record<Sugerencia['tipo'], (id: string) => string | null> = {
   proyecto: (id) => `/proyectos/${id}`,
-  oportunidad: () => '/oportunidades',
+  oportunidad: (id) => `/oportunidades/${id}`,
   usuario: (id) => `/personas/${id}`,
 }
 
@@ -43,6 +44,11 @@ export function ListaSugerencias({
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">{s.detalle}</p>
             <p className="mt-1 text-slate-600 dark:text-slate-400">{s.razon}</p>
+            {s.estado && (
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Recomendación {s.estado}{s.fecha && ` · ${formatDate(s.fecha)}`}
+              </p>
+            )}
             {accion && <div className="mt-2">{accion(s)}</div>}
           </li>
         )

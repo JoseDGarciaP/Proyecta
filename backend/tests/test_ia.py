@@ -27,6 +27,22 @@ def test_recomienda_con_explicacion(client, estudiante, admin):
     assert len(cuerpo["pasos_sugeridos"]) >= 1
 
 
+def test_recomienda_hasta_5_y_las_guarda(client, estudiante, admin):
+    """HU-05: hasta 5 convocatorias, guardadas con fecha y estado «pendiente» y sin duplicarse."""
+    for i in range(7):
+        _oportunidad(admin, client, titulo=f"Fondo agroindustrial {i}")
+    pid = client.post("/api/proyectos", json=PROYECTO, headers=estudiante).json()["id"]
+
+    recs = client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante).json()["recomendaciones"]
+    assert len(recs) == 5
+    assert all(r["estado"] == "pendiente" and r["fecha"] and r["recomendacion_id"] for r in recs)
+
+    client.post(f"/api/ia/proyectos/{pid}/analisis", headers=estudiante)  # regenerar no duplica
+    guardadas = client.get(f"/api/ia/proyectos/{pid}/recomendaciones", params={"tipo": "oportunidad"}, headers=estudiante).json()
+    assert len(guardadas) == 5
+    assert {g["estado"] for g in guardadas} == {"pendiente"}
+
+
 def test_proyecto_inexistente(client, estudiante):
     assert client.post("/api/ia/proyectos/00000000-0000-0000-0000-000000000000/analisis", headers=estudiante).status_code == 404
 

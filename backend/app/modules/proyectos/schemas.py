@@ -20,7 +20,7 @@ class ProyectoEntrada(BaseModel):
     etiquetas: list[str] = []
     fecha_inicio: date = Field(default_factory=date.today)
     fecha_fin: date | None = None
-    ods: list[int] = []
+    ods: list[int] = Field(min_length=1, description="Al menos un ODS (HU-02)")
     actores: list[uuid.UUID] = []
 
     @model_validator(mode="after")
@@ -44,7 +44,7 @@ class ProyectoActualizar(BaseModel):
     etiquetas: list[str] | None = None
     fecha_inicio: date | None = None
     fecha_fin: date | None = None
-    ods: list[int] | None = None
+    ods: list[int] | None = Field(default=None, min_length=1)  # si se envía, no puede quedar vacío
     actores: list[uuid.UUID] | None = None
 
 
@@ -68,6 +68,7 @@ class ProyectoSalida(BaseModel):
     actores: list[uuid.UUID]
     ods: list[int]
     creado_por: uuid.UUID | None
+    programa: str | None = None  # programa académico de quien registró el proyecto
     creado_en: date
 
     @classmethod
@@ -77,5 +78,6 @@ class ProyectoSalida(BaseModel):
             area=p.area.nombre, estado=p.estado, avance=p.avance, presupuesto=p.presupuesto, lider=p.lider,
             equipo=p.equipo, etiquetas=p.etiquetas, fecha_inicio=p.fecha_inicio, fecha_fin=p.fecha_fin,
             actores=[a.id for a in p.actores], ods=sorted(o.id for o in p.ods),
-            creado_por=p.creado_por_id, creado_en=p.creado_en,
+            creado_por=p.creado_por_id, programa=p.creado_por.programa if p.creado_por else None,
+            creado_en=p.creado_en,
         )

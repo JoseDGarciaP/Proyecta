@@ -62,14 +62,17 @@ def _consulta_proyectos(
     area: str | None = None,
     estado: Estado | None = None,
     ods: int | None = None,
+    programa: str | None = None,
 ):
     stmt = select(Proyecto)
     if q:
         patron = f"%{q}%"
         stmt = stmt.where(or_(
-            Proyecto.titulo.ilike(patron), Proyecto.resumen.ilike(patron),
+            Proyecto.titulo.ilike(patron), Proyecto.resumen.ilike(patron), Proyecto.necesidades.ilike(patron),
             Proyecto.lider.ilike(patron), cast(Proyecto.etiquetas, String).ilike(patron),
         ))
+    if programa:
+        stmt = stmt.where(Proyecto.creado_por_id.in_(select(Usuario.id).where(Usuario.programa == programa)))
     if area:
         stmt = stmt.join(Proyecto.area).where(Area.nombre == area)
     if estado:
@@ -82,27 +85,29 @@ def _consulta_proyectos(
 @router.get("", response_model=list[ProyectoSalida])
 def listar_proyectos(
     db: DbSession,
-    q: str | None = Query(default=None, description="Busca en título, resumen, líder y etiquetas"),
+    q: str | None = Query(default=None, description="Busca en título, resumen, necesidades, líder y etiquetas"),
     area: str | None = None,
     estado: Estado | None = None,
     ods: int | None = None,
+    programa: str | None = Query(default=None, description="Programa académico de quien registró el proyecto"),
     limit: int = Query(default=200, le=500),
     offset: int = 0,
 ):
-    orden = _consulta_proyectos(q=q, area=area, estado=estado, ods=ods).limit(limit).offset(offset)
+    orden = _consulta_proyectos(q=q, area=area, estado=estado, ods=ods, programa=programa).limit(limit).offset(offset)
     return [ProyectoSalida.de(p) for p in db.scalars(orden).unique()]
 
 
 @router.get("/exportar.csv")
 def exportar_proyectos_csv(
     db: DbSession,
-    q: str | None = Query(default=None, description="Filtra por título, resumen, líder y etiquetas"),
+    q: str | None = Query(default=None, description="Filtra por título, resumen, necesidades, líder y etiquetas"),
     area: str | None = None,
     estado: Estado | None = None,
     ods: int | None = None,
+    programa: str | None = None,
 ):
     """Descarga el listado de proyectos filtrado en formato CSV (con BOM UTF-8 compatible con Excel)."""
-    proyectos = list(db.scalars(_consulta_proyectos(q=q, area=area, estado=estado, ods=ods).limit(500)).unique())
+    proyectos = list(db.scalars(_consulta_proyectos(q=q, area=area, estado=estado, ods=ods, programa=programa).limit(500)).unique())
     buf = io.StringIO()
     buf.write("\ufeff")  # BOM UTF-8 para que Microsoft Excel reconozca tildes y eñes automáticamente
     writer = csv.writer(buf)

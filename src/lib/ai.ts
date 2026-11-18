@@ -6,6 +6,10 @@ export interface Recomendacion {
   titulo: string
   puntaje: number
   razon: string
+  /** Registro guardado (HU-05): solo con la API. */
+  recomendacion_id?: string | null
+  estado?: 'pendiente' | 'aceptada' | 'anulada'
+  fecha?: string | null
 }
 
 export interface RespuestaIA {
@@ -122,7 +126,7 @@ function heuristicaLocal(proyecto: Proyecto, oportunidades: Oportunidad[]): Resp
     })
     .filter((r) => r.puntaje > 0)
     .sort((a, b) => b.puntaje - a.puntaje)
-    .slice(0, 3)
+    .slice(0, 5)
 
   const { fortalezas, pasos_sugeridos } = diagnosticarLocal(proyecto)
 

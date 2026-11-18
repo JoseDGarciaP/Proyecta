@@ -22,10 +22,12 @@ class OportunidadSalida(OportunidadEntrada):
     """Mismo formato que la interfaz `Oportunidad` de src/lib/types.ts."""
 
     id: uuid.UUID
+    dias_restantes: int = 0  # días que faltan para el cierre (negativo si ya cerró) (HU-04)
 
     @classmethod
     def de(cls, o: Oportunidad) -> "OportunidadSalida":
         return cls(
             id=o.id, titulo=o.titulo, entidad=o.entidad, tipo=o.tipo, descripcion=o.descripcion, monto=o.monto,
             cierra_en=o.cierra_en, url=o.url, areas=[a.nombre for a in o.areas], ods=sorted(x.id for x in o.ods),
+            dias_restantes=(o.cierra_en - date.today()).days,
         )

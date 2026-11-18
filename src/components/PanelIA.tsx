@@ -4,6 +4,14 @@ import { analizarProyecto, redactarPitch, type RespuestaIA, type RespuestaPitch 
 import type { Oportunidad, Proyecto } from '@/lib/types'
 import { useSesion } from '@/lib/sesion'
 import { tienePanel } from '@/lib/permisos'
+import { formatDate } from '@/lib/format'
+
+/** Colores del estado de una recomendación guardada (HU-05). */
+const ESTADO_REC_CLASS: Record<'pendiente' | 'aceptada' | 'anulada', string> = {
+  pendiente: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+  aceptada: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+  anulada: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+}
 
 export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oportunidades: Oportunidad[] }) {
   const [respuesta, setRespuesta] = useState<RespuestaIA | null>(null)
@@ -146,6 +154,12 @@ export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oport
                         </div>
                       </div>
                       <p className="mt-1 text-slate-600 dark:text-slate-400">{r.razon}</p>
+                      {r.estado && (
+                        <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                          <span className={`rounded-full px-2 py-0.5 font-medium ${ESTADO_REC_CLASS[r.estado]}`}>{r.estado}</span>
+                          {r.fecha && <span>Recomendada el {formatDate(r.fecha)}</span>}
+                        </p>
+                      )}
 
                       {pitch && (
                         <div className="mt-3 rounded-md border border-brand-200/70 bg-brand-50/40 p-3 dark:border-brand-500/20 dark:bg-brand-500/5">
