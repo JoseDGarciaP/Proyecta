@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.deps import get_current_user, requiere, requiere_panel
 from app.modules.actores.router import router as actores
 from app.modules.admin.router import routers as admin
+from app.modules.admin.lote import router as lote
 from app.modules.alianzas.router import router as alianzas
 from app.modules.alianzas import invitaciones
 from app.modules.auth.router import router as auth
@@ -75,7 +76,7 @@ for r in (usuarios, perfil, proyectos, alianzas, invitaciones.router, chat, acto
 app.include_router(ia, dependencies=[Depends(requiere("ia.usar"))])
 
 # Panel de administración: cada sección exige su permiso (ver app.modules.roles.permisos).
-for r in (*admin, roles.admin, insignias.admin, experiencia.admin, evidencias.admin):
+for r in (*admin, lote, roles.admin, insignias.admin, experiencia.admin, evidencias.admin):
     app.include_router(r, dependencies=[Depends(requiere_panel)])
 # Las postulaciones las gestiona quien administra oportunidades (no necesita otra sección del panel).
 app.include_router(postulaciones.admin, dependencies=[Depends(get_current_user)])

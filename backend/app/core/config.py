@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     # Dirección de la interfaz, para armar el enlace del correo de verificación.
     frontend_url: str = "http://localhost:5173"
     verificacion_horas: int = 48
+    # Días que dura el enlace para elegir contraseña de las cuentas creadas en una carga de proyectos por lote.
+    lote_enlace_dias: int = 7
     # Vigencia del enlace para restablecer la contraseña (se invalida apenas se usa).
     restablecer_minutos: int = 60
     # Días que dura el enlace de una invitación a un proyecto enviada a alguien sin cuenta.

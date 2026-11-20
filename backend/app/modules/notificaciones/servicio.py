@@ -1,5 +1,7 @@
 """Crear avisos: una fila en la campana y, si la persona y el admin lo permiten, un correo."""
 
+import contextlib
+import contextvars
 import logging
 from datetime import datetime, timedelta
 
@@ -15,6 +17,20 @@ from app.modules.parametros import ajustes as ajustes_srv
 from app.modules.usuarios.models import Usuario
 
 log = logging.getLogger("proyecta.notificaciones")
+
+
+# Con `silencio()` activo, `notificar` no crea avisos ni correos (p. ej. en la carga de proyectos por lote,
+# donde cada persona recibe un único correo con todo).
+_silencio: contextvars.ContextVar[bool] = contextvars.ContextVar("silencio_avisos", default=False)
+
+
+@contextlib.contextmanager
+def silencio():
+    marca = _silencio.set(True)
+    try:
+        yield
+    finally:
+        _silencio.reset(marca)
 
 
 def url(ruta: str) -> str:
@@ -34,11 +50,14 @@ def notificar(
     parrafos: list[str] | None = None,
     detalles: list[tuple[str, str]] | None = None,
     boton: str = "Abrir en Proyecta",
-) -> Notificacion:
+) -> Notificacion | None:
     """Agrega el aviso a la sesión (quien llama hace commit) y programa el correo si corresponde.
 
     Con `tareas` el correo sale después de responder; sin ellas se envía en el momento.
+    Dentro de `silencio()` no hace nada y devuelve None.
     """
+    if _silencio.get():
+        return None
     categoria = CATEGORIA[tipo]
     aviso = Notificacion(usuario_id=usuario.id, tipo=tipo, titulo=titulo, cuerpo=cuerpo, enlace=enlace)
     db.add(aviso)

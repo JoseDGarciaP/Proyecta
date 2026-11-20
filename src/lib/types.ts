@@ -9,6 +9,8 @@ export const AREAS = [
   'Agroindustria',
   'Social',
   'Energía',
+  'Seguridad',
+  'Seguridad vial',
 ] as const
 /** Las áreas las administra el admin: estas son las iniciales (y las del modo demostración). */
 export type Area = (typeof AREAS)[number] | (string & {})
@@ -719,4 +721,36 @@ export interface Evidencia {
   revisada_por: string | null
   revisada_en: string | null
   creado_en: string
+}
+
+/** Fila de la carga de proyectos por lote (Nuevo proyecto → Carga por lote). */
+export interface FilaLote {
+  fila: number
+  incluir: boolean
+  correo: string
+  nombre_cuenta: string
+  titulo: string
+  resumen: string
+  descripcion: string
+  necesidades: string
+  area: string
+  estado: Estado
+  avance: number
+  presupuesto: number
+  lider: string
+  equipo: string[]
+  etiquetas: string[]
+  fecha_inicio: string | null
+  fecha_fin: string | null
+  ods: number[]
+  cuenta: 'nueva' | 'existente' | ''
+  errores: string[]
+  avisos: string[]
+}
+
+export interface ResultadoLote {
+  proyectos: number
+  cuentas_nuevas: number
+  cuentas_existentes: number
+  correos: number
 }
