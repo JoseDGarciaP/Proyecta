@@ -1,7 +1,7 @@
 """fecha de apertura en oportunidades (Ep6-Hu1)
 
 Revision ID: 0015
-Revises: 0015
+Revises: 0014
 """
 from typing import Sequence, Union
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision: str = '0015'
-down_revision: Union[str, None] = '0015'
+down_revision: Union[str, None] = '0014'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
