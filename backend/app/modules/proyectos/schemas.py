@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -11,7 +11,10 @@ class ProyectoEntrada(BaseModel):
     resumen: str = Field(min_length=10, max_length=300)
     descripcion: str = ""
     necesidades: str = ""
+    problema: str = ""
+    objetivos: str = ""
     area: str
+    areas_extra: list[str] = []  # áreas adicionales, además de la principal
     estado: Estado = Estado.IDEA
     avance: int = Field(default=0, ge=0, le=100)
     presupuesto: int = Field(default=0, ge=0)
@@ -35,7 +38,10 @@ class ProyectoActualizar(BaseModel):
     resumen: str | None = Field(default=None, min_length=10, max_length=300)
     descripcion: str | None = None
     necesidades: str | None = None
+    problema: str | None = None
+    objetivos: str | None = None
     area: str | None = None
+    areas_extra: list[str] | None = None
     estado: Estado | None = None
     avance: int | None = Field(default=None, ge=0, le=100)
     presupuesto: int | None = Field(default=None, ge=0)
@@ -56,7 +62,11 @@ class ProyectoSalida(BaseModel):
     resumen: str
     descripcion: str
     necesidades: str
+    problema: str = ""
+    objetivos: str = ""
     area: str
+    areas: list[str] = []  # principal + adicionales
+    archivado: bool = False
     estado: Estado
     avance: int
     presupuesto: int
@@ -75,9 +85,31 @@ class ProyectoSalida(BaseModel):
     def de(cls, p: Proyecto) -> "ProyectoSalida":
         return cls(
             id=p.id, titulo=p.titulo, resumen=p.resumen, descripcion=p.descripcion, necesidades=p.necesidades,
+            problema=p.problema or "", objetivos=p.objetivos or "", archivado=bool(p.archivado),
+            areas=[p.area.nombre, *(a.nombre for a in p.areas_extra if a.id != p.area_id)],
             area=p.area.nombre, estado=p.estado, avance=p.avance, presupuesto=p.presupuesto, lider=p.lider,
             equipo=p.equipo, etiquetas=p.etiquetas, fecha_inicio=p.fecha_inicio, fecha_fin=p.fecha_fin,
             actores=[a.id for a in p.actores], ods=sorted(o.id for o in p.ods),
             creado_por=p.creado_por_id, programa=p.creado_por.programa if p.creado_por else None,
             creado_en=p.creado_en,
         )
+
+
+class Eliminar(BaseModel):
+    motivo: str = Field(default="", max_length=1000)
+
+
+class CambioSalida(BaseModel):
+    id: uuid.UUID
+    autor: str
+    cambios: list[dict]
+    creado_en: datetime
+
+
+class AdjuntoSalida(BaseModel):
+    id: uuid.UUID
+    nombre: str
+    tipo: str
+    tamano: int
+    subido_por: str
+    creado_en: datetime

@@ -1,5 +1,6 @@
 import secrets
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core import correo, validacion_correo
 from app.core.config import get_settings
-from app.core.deps import DbSession
+from app.core.deps import DbSession, UsuarioActual
 from app.core.security import (
     create_access_token,
     create_token,
@@ -20,6 +21,8 @@ from app.core.security import (
     verify_password,
 )
 from app.modules.alianzas import invitaciones
+from app.modules.aliados import servicio as aliados
+from app.modules.aliados.models import EstadoAliado, PerfilAliado
 from app.modules.auth import google
 from app.modules.parametros import ajustes
 from app.modules.auth.schemas import (
@@ -76,12 +79,26 @@ def registrar(datos: Registro, db: DbSession, tareas: BackgroundTasks):
     rol = db.get(RolUsuario, datos.rol)
     if rol is None or not rol.registro_publico or rol.clave == Rol.ADMIN:
         raise HTTPException(status_code=400, detail="Ese rol no se puede elegir al registrarse")
+    if not datos.acepta_datos:
+        raise HTTPException(status_code=400, detail="Debes aceptar la política de tratamiento de datos personales")
     email = validar_correo(datos.email)
     if not _dominio_permitido(db, email, datos.rol):
         raise HTTPException(status_code=400, detail=ajustes.mensaje_dominio(db))
     usuario = _buscar(db, email)
     if usuario is not None and usuario.verificado:
         raise HTTPException(status_code=409, detail="Ya existe una cuenta con ese correo")
+    documento = datos.aliado.documento.strip() if datos.aliado and rol.clave == Rol.ALIADO else None
+    if documento:
+        otro = db.scalar(select(PerfilAliado).where(PerfilAliado.documento == documento))
+        if otro is not None and otro.usuario_id != (usuario.id if usuario else None):
+            raise HTTPException(status_code=409, detail="Ya existe un aliado con ese NIT o cédula")
+    codigo = (datos.codigo or "").strip() or None
+    cedula = (datos.cedula or "").strip() or None
+    for campo, valor, texto in (("codigo", codigo, "ese código"), ("cedula", cedula, "esa cédula")):
+        if valor:
+            otro = db.scalar(select(Usuario).where(getattr(Usuario, campo) == valor))
+            if otro is not None and otro.id != (usuario.id if usuario else None):
+                raise HTTPException(status_code=409, detail=f"Ya existe una cuenta con {texto}")
     if usuario is None:
         usuario = Usuario(email=email, habilidades=[], intereses=[])
         db.add(usuario)
@@ -91,7 +108,20 @@ def registrar(datos: Registro, db: DbSession, tareas: BackgroundTasks):
     usuario.nombre = datos.nombre
     usuario.rol = rol.clave
     usuario.programa = datos.programa
+    usuario.codigo, usuario.cedula = codigo, cedula
+    usuario.sexo = (datos.sexo or "").strip() or None
+    usuario.acepto_datos_en = datetime.now(timezone.utc)
     usuario.verificado = _invitacion_a(db, datos.invitacion, email)
+    db.flush()
+    if rol.clave == Rol.ALIADO:
+        # Queda pendiente de verificación hasta que un administrador la apruebe (Ep4-Hu12, Hu15).
+        perfil = db.get(PerfilAliado, usuario.id) or PerfilAliado(usuario_id=usuario.id)
+        d = datos.aliado
+        perfil.razon_social = (d.razon_social.strip() if d else "") or usuario.nombre
+        perfil.tipo = d.tipo if d else "Otro"
+        perfil.documento, perfil.telefono, perfil.sector = documento, d.telefono.strip() if d else "", d.sector.strip() if d else ""
+        perfil.estado = EstadoAliado.PENDIENTE
+        db.add(perfil)
     db.commit()
     db.refresh(usuario)
     if usuario.verificado:
@@ -103,12 +133,29 @@ def registrar(datos: Registro, db: DbSession, tareas: BackgroundTasks):
 
 @router.post("/login", response_model=Token)
 def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
+    settings = get_settings()
     usuario = _buscar(db, form.username.strip().lower())
+    ahora = datetime.now(timezone.utc)
+    if usuario is not None and usuario.bloqueado_hasta is not None and _aware(usuario.bloqueado_hasta) > ahora:
+        minutos = max(1, int((_aware(usuario.bloqueado_hasta) - ahora).total_seconds() // 60) + 1)
+        raise HTTPException(status_code=429, detail=(
+            f"Cuenta bloqueada por {settings.intentos_maximos} intentos fallidos. Intenta de nuevo en {minutos} minutos "
+            "o restablece tu contraseña."))
     if usuario is None or not usuario.activo or not verify_password(form.password, usuario.hashed_password):
+        if usuario is not None and usuario.activo:
+            usuario.intentos_fallidos = (usuario.intentos_fallidos or 0) + 1
+            if usuario.intentos_fallidos >= settings.intentos_maximos:
+                usuario.bloqueado_hasta = ahora + timedelta(minutes=settings.bloqueo_minutos)
+                usuario.intentos_fallidos = 0
+            db.commit()
         raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos")
     if not usuario.verificado:
         raise HTTPException(status_code=403, detail=NO_VERIFICADO)
-    return Token(access_token=create_access_token(str(usuario.id)))
+    if (mensaje := aliados.bloqueo(db, usuario)) is not None:
+        raise HTTPException(status_code=403, detail=mensaje)
+    usuario.intentos_fallidos, usuario.bloqueado_hasta = 0, None
+    db.commit()
+    return Token(access_token=create_access_token(str(usuario.id), usuario.sesion_version))
 
 
 @router.post("/verificar", response_model=Token)
@@ -121,8 +168,10 @@ def verificar(datos: Verificacion, db: DbSession, tareas: BackgroundTasks):
         raise HTTPException(status_code=400, detail="El enlace no es válido o ya venció. Pide uno nuevo.")
     usuario.verificado = True
     db.commit()
+    if (mensaje := aliados.bloqueo(db, usuario)) is not None:
+        raise HTTPException(status_code=403, detail=f"Correo confirmado. {mensaje}")
     invitaciones.reclamar(db, usuario, tareas)
-    return Token(access_token=create_access_token(str(usuario.id)))
+    return Token(access_token=create_access_token(str(usuario.id), usuario.sesion_version))
 
 
 @router.post("/reenviar-verificacion", status_code=status.HTTP_202_ACCEPTED)
@@ -154,9 +203,18 @@ def restablecer(datos: Restablecer, db: DbSession, tareas: BackgroundTasks):
         raise HTTPException(status_code=400, detail="El enlace no es válido, ya se usó o venció. Pide uno nuevo.")
     usuario.hashed_password = hash_password(datos.password)
     usuario.verificado = True  # abrió el enlace desde su buzón: el correo es suyo
+    usuario.intentos_fallidos, usuario.bloqueado_hasta = 0, None
+    usuario.sesion_version = (usuario.sesion_version or 0) + 1  # cierra las sesiones abiertas con la clave vieja
     db.commit()
     invitaciones.reclamar(db, usuario, tareas)
-    return Token(access_token=create_access_token(str(usuario.id)))
+    return Token(access_token=create_access_token(str(usuario.id), usuario.sesion_version))
+
+
+@router.post("/salir", status_code=status.HTTP_204_NO_CONTENT)
+def salir(usuario: UsuarioActual, db: DbSession):
+    """Cierra la sesión: el token actual (y cualquier otro emitido antes) deja de servir."""
+    usuario.sesion_version = (usuario.sesion_version or 0) + 1
+    db.commit()
 
 
 @router.post("/google", response_model=Token)
@@ -192,7 +250,12 @@ def ingresar_con_google(datos: IngresoGoogle, db: DbSession, tareas: BackgroundT
     usuario.verificado = True  # Google ya verificó el correo
     db.commit()
     invitaciones.reclamar(db, usuario, tareas)
-    return Token(access_token=create_access_token(str(usuario.id)))
+    return Token(access_token=create_access_token(str(usuario.id), usuario.sesion_version))
+
+
+def _aware(fecha: datetime) -> datetime:
+    """SQLite devuelve fechas sin zona; se asumen en UTC."""
+    return fecha if fecha.tzinfo else fecha.replace(tzinfo=timezone.utc)
 
 
 def validar_correo(email: str) -> str:

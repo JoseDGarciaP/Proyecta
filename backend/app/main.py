@@ -11,6 +11,7 @@ from app.core.deps import get_current_user, requiere, requiere_panel
 from app.modules.actores.router import router as actores
 from app.modules.admin.router import routers as admin
 from app.modules.admin.lote import router as lote
+from app.modules.aliados import router as aliados_router
 from app.modules.alianzas.router import router as alianzas
 from app.modules.alianzas import invitaciones
 from app.modules.auth.router import router as auth
@@ -29,6 +30,9 @@ from app.modules.parametros.router import router as parametros
 from app.modules.perfil.router import router as perfil
 from app.modules.publico.router import router as publico
 from app.modules.proyectos.router import router as proyectos
+from app.modules.proyectos.adjuntos import router as adjuntos
+from app.modules.observaciones import router as observaciones
+from app.modules.aportes.router import router as aportes
 from app.modules.roles import router as roles
 from app.modules.usuarios.router import router as usuarios
 
@@ -70,13 +74,13 @@ for r in (auth, catalogo, publico, roles.publico, invitaciones.publico):
     app.include_router(r)
 
 # Todo lo demás exige una sesión de un usuario con el correo verificado.
-for r in (usuarios, perfil, proyectos, alianzas, invitaciones.router, chat, actores, oportunidades, notificaciones, parametros,
-          roles.lectura, insignias.router, experiencia.router, postulaciones.router, evidencias.router):
+for r in (usuarios, perfil, proyectos, adjuntos, observaciones.router, aportes, alianzas, invitaciones.router, chat, actores, oportunidades, notificaciones, parametros,
+          roles.lectura, aliados_router.router, insignias.router, experiencia.router, postulaciones.router, evidencias.router):
     app.include_router(r, dependencies=[Depends(get_current_user)])
 app.include_router(ia, dependencies=[Depends(requiere("ia.usar"))])
 
 # Panel de administración: cada sección exige su permiso (ver app.modules.roles.permisos).
-for r in (*admin, lote, roles.admin, insignias.admin, experiencia.admin, evidencias.admin):
+for r in (*admin, lote, aliados_router.admin, observaciones.admin, roles.admin, insignias.admin, experiencia.admin, evidencias.admin):
     app.include_router(r, dependencies=[Depends(requiere_panel)])
 # Las postulaciones las gestiona quien administra oportunidades (no necesita otra sección del panel).
 app.include_router(postulaciones.admin, dependencies=[Depends(get_current_user)])

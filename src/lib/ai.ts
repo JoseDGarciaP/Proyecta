@@ -1,5 +1,5 @@
 import { apiHabilitada, pedir } from './http'
-import type { Oportunidad, Proyecto } from './types'
+import type { Oportunidad, Proyecto, Sugerencia } from './types'
 
 export interface Recomendacion {
   oportunidad_id: string
@@ -18,7 +18,29 @@ export interface RespuestaIA {
   fortalezas?: string[]
   pasos_sugeridos?: string[]
   simulado: boolean
+  /** Proyectos parecidos en que se apoyan las mejoras (Ep5-Hu9). */
+  similares?: Sugerencia[]
 }
+
+export interface RecomendacionGuardada {
+  id: string
+  estado: 'pendiente' | 'aceptada' | 'anulada'
+  motivo: string
+}
+
+/** El equipo acepta o descarta una recomendación; la descartada no vuelve a salir (Ep5-Hu5, Ep5-Hu6). */
+export const aceptarRecomendacion = (id: string) => pedir<RecomendacionGuardada>(`/ia/recomendaciones/${id}/aceptar`, { method: 'POST' })
+export const anularRecomendacion = (id: string, motivo: string) =>
+  pedir<RecomendacionGuardada>(`/ia/recomendaciones/${id}/anular`, { method: 'POST', json: { motivo } })
+
+export interface Valoraciones {
+  utiles: number
+  no_utiles: number
+  mia: boolean | null
+}
+export const verValoraciones = (proyectoId: string) => pedir<Valoraciones>(`/ia/proyectos/${proyectoId}/diagnostico/valoracion`)
+export const valorarDiagnostico = (proyectoId: string, util: boolean) =>
+  pedir<Valoraciones>(`/ia/proyectos/${proyectoId}/diagnostico/valoracion`, { method: 'POST', json: { util } })
 
 export interface RespuestaPitch {
   pitch: string

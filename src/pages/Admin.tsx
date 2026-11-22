@@ -1,10 +1,11 @@
 import { NavLink, useParams } from 'react-router-dom'
-import { Award, BarChart3, FileBadge, FileClock, KeyRound, ListChecks, Settings, ShieldAlert, Tags, TrendingUp, Users } from 'lucide-react'
+import { Award, BarChart3, Building2, FileBadge, FileClock, KeyRound, ListChecks, Settings, ShieldAlert, Tags, TrendingUp, Users } from 'lucide-react'
 import { apiHabilitada } from '@/lib/http'
 import { usePuede } from '@/lib/permisos'
 import { EmptyState } from '@/components/ui'
 import { Resumen } from './admin/Resumen'
 import { Usuarios } from './admin/Usuarios'
+import { Aliados } from './admin/Aliados'
 import { Catalogos } from './admin/Catalogos'
 import { Colaboracion } from './admin/Colaboracion'
 import { AjustesGenerales } from './admin/Ajustes'
@@ -19,6 +20,7 @@ import { EvidenciasAdmin } from './admin/Evidencias'
 const PESTANAS = [
   { id: 'resumen', label: 'Resumen', icon: BarChart3, Componente: Resumen, permiso: 'admin.resumen' },
   { id: 'usuarios', label: 'Usuarios', icon: Users, Componente: Usuarios, permiso: 'admin.usuarios' },
+  { id: 'aliados', label: 'Aliados', icon: Building2, Componente: Aliados, permiso: 'admin.usuarios' },
   { id: 'roles', label: 'Roles y permisos', icon: KeyRound, Componente: Roles, permiso: 'admin.roles' },
   { id: 'insignias', label: 'Insignias', icon: Award, Componente: Insignias, permiso: 'admin.insignias' },
   { id: 'niveles', label: 'Niveles y XP', icon: TrendingUp, Componente: NivelesXP, permiso: 'admin.experiencia' },

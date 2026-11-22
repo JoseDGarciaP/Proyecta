@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { apiHabilitada, pedir, token } from './http'
 import type { Rol, Usuario } from './types'
+import type { DatosAliado } from './aliados'
 
 export interface DatosRegistro {
   nombre: string
@@ -10,7 +11,18 @@ export interface DatosRegistro {
   programa: string | null
   /** Código del enlace de una invitación a un proyecto (confirma el correo si coincide). */
   invitacion?: string
+  /** Datos institucionales (estudiantes, docentes y administrativos). */
+  codigo?: string
+  cedula?: string
+  sexo?: string
+  /** Autorización de tratamiento de datos personales (Ley 1581 de 2012). */
+  acepta_datos: boolean
+  /** Solo para aliados externos (Ep4-Hu12). */
+  aliado?: DatosAliado
 }
+
+/** Minutos sin actividad tras los que la sesión se cierra sola (Ep4-Hu2). */
+const INACTIVIDAD_MINUTOS = 30
 
 interface Sesion {
   usuario: Usuario | null
@@ -96,9 +108,32 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   }
 
   const salir = () => {
+    // Invalida el token en el servidor; si falla (sin red) igual se borra en este navegador.
+    if (apiHabilitada && token.leer()) pedir('/auth/salir', { method: 'POST' }).catch(() => undefined)
     token.borrar()
     setUsuario(null)
   }
+
+  const salirRef = useRef(salir)
+  useEffect(() => {
+    salirRef.current = salir
+  })
+
+  // Cierre por inactividad: cualquier clic, tecla o desplazamiento reinicia el contador.
+  useEffect(() => {
+    if (!usuario) return
+    let temporizador = window.setTimeout(() => salirRef.current(), INACTIVIDAD_MINUTOS * 60_000)
+    const reiniciar = () => {
+      window.clearTimeout(temporizador)
+      temporizador = window.setTimeout(() => salirRef.current(), INACTIVIDAD_MINUTOS * 60_000)
+    }
+    const eventos = ['mousedown', 'keydown', 'scroll', 'touchstart'] as const
+    eventos.forEach((e) => window.addEventListener(e, reiniciar, { passive: true }))
+    return () => {
+      window.clearTimeout(temporizador)
+      eventos.forEach((e) => window.removeEventListener(e, reiniciar))
+    }
+  }, [usuario])
 
   return (
     <SesionContext.Provider

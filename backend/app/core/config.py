@@ -11,12 +11,15 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://proyecta:proyecta@localhost:5432/proyecta"
     secret_key: str = "dev-secret-solo-para-desarrollo-local-cambiar"
     access_token_expire_minutes: int = 120
+    # Bloqueo de la cuenta tras varios intentos fallidos de ingreso (Ep4-Hu1).
+    intentos_maximos: int = 5
+    bloqueo_minutos: int = 15
     # Dominios de correo permitidos para registrarse. Vacío = cualquiera. Los aliados externos no se restringen.
     allowed_email_domains: str = "ufpso.edu.co"
     cors_origins: str = "http://localhost:5173"
     # Dirección de la interfaz, para armar el enlace del correo de verificación.
     frontend_url: str = "http://localhost:5173"
-    verificacion_horas: int = 48
+    verificacion_horas: int = 24
     # Días que dura el enlace para elegir contraseña de las cuentas creadas en una carga de proyectos por lote.
     lote_enlace_dias: int = 7
     # Vigencia del enlace para restablecer la contraseña (se invalida apenas se usa).

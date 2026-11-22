@@ -12,6 +12,7 @@ import { revisarCorreo } from '@/lib/correo'
 import { useDominiosPermitidos, useRolesRegistro } from '@/lib/parametros'
 import { PROGRAMAS } from '@/lib/programas'
 import { contrasenaValida } from '@/lib/contrasena'
+import { TIPOS_ALIADO, type DatosAliado } from '@/lib/aliados'
 
 // Mientras cargan los roles configurados por el admin (o en modo demostración).
 const ROLES_INICIALES = [
@@ -30,7 +31,9 @@ export function Registro() {
   const [invitacion, setInvitacion] = useState<InvitacionPublica | null>(null)
   const destinoPrevio = (useLocation().state as { desde?: string } | null)?.desde ?? '/'
   const destino = invitacion ? `/proyectos/${invitacion.proyecto_id}` : destinoPrevio
-  const [form, setForm] = useState<DatosRegistro>({ nombre: '', email: '', password: '', rol: 'estudiante', programa: '' })
+  const [form, setForm] = useState<DatosRegistro>({ nombre: '', email: '', password: '', rol: 'estudiante', programa: '', codigo: '', cedula: '', sexo: '', acepta_datos: false })
+  const [aliado, setAliado] = useState<DatosAliado>({ razon_social: '', tipo: 'Empresa', documento: '', telefono: '', sector: '' })
+  const setA = (clave: keyof DatosAliado, valor: string) => setAliado((a) => ({ ...a, [clave]: valor }))
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [registrado, setRegistrado] = useState(false)
@@ -75,12 +78,23 @@ export function Registro() {
       setError('Las contraseñas no coinciden.')
       return
     }
+    if (!form.acepta_datos) {
+      setError('Debes aceptar la política de tratamiento de datos personales.')
+      return
+    }
     setEnviando(true)
     setError(null)
     try {
       const delInvitado = Boolean(invitacion && codigoInvitacion && revision.normalizado === invitacion.email)
       const cuenta = await registrar({
         ...form, nombre: form.nombre.trim(), email: revision.normalizado, programa: form.programa?.trim() || null,
+        codigo: institucional ? form.codigo?.trim() : undefined,
+        cedula: institucional ? form.cedula?.trim() : undefined,
+        sexo: institucional ? form.sexo : undefined,
+        aliado: institucional ? undefined : {
+          ...aliado, razon_social: aliado.razon_social.trim(), documento: aliado.documento.trim(),
+          telefono: aliado.telefono.trim(), sector: aliado.sector.trim(),
+        },
         invitacion: delInvitado ? codigoInvitacion! : undefined,
       })
       if (cuenta.verificado) {
@@ -111,6 +125,11 @@ export function Registro() {
       <div className="mx-auto max-w-md space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Revisa tu correo</h1>
         <AvisoVerificacion email={form.email.trim().toLowerCase()} titulo="Tu cuenta está casi lista" />
+        {!institucional && (
+          <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+            Como aliado externo, además de confirmar el correo, un administrador debe aprobar tu registro. Te avisaremos por correo.
+          </p>
+        )}
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Después de confirmar podrás <Link to="/ingresar" className="font-medium text-brand-700 dark:text-brand-400">ingresar</Link>.
         </p>
@@ -187,13 +206,82 @@ export function Registro() {
             <input id="programa" className="input" value={form.programa ?? ''} onChange={(e) => set('programa', e.target.value)} />
           )}
         </div>
+        {institucional && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="codigo">Código estudiantil o docente</label>
+                <input id="codigo" required inputMode="numeric" maxLength={30} className="input" value={form.codigo ?? ''}
+                  onChange={(e) => set('codigo', e.target.value)} />
+              </div>
+              <div>
+                <label className="label" htmlFor="cedula">Cédula</label>
+                <input id="cedula" required inputMode="numeric" maxLength={30} className="input" value={form.cedula ?? ''}
+                  onChange={(e) => set('cedula', e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label className="label" htmlFor="sexo">Sexo</label>
+              <select id="sexo" required className="input" value={form.sexo ?? ''} onChange={(e) => set('sexo', e.target.value)}>
+                <option value="" disabled>Selecciona</option>
+                <option value="F">Femenino</option>
+                <option value="M">Masculino</option>
+                <option value="O">Otro</option>
+                <option value="N">Prefiero no decirlo</option>
+              </select>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Código, cédula y sexo no se muestran a otras personas.</p>
+            </div>
+          </>
+        )}
+        {!institucional && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="tipo-aliado">Tipo de aliado</label>
+                <select id="tipo-aliado" className="input" value={aliado.tipo} onChange={(e) => setA('tipo', e.target.value)}>
+                  {TIPOS_ALIADO.map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label" htmlFor="documento">NIT o cédula</label>
+                <input id="documento" required minLength={5} maxLength={30} className="input" value={aliado.documento}
+                  onChange={(e) => setA('documento', e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label className="label" htmlFor="razon-social">Razón social (si es una organización)</label>
+              <input id="razon-social" maxLength={200} className="input" value={aliado.razon_social}
+                onChange={(e) => setA('razon_social', e.target.value)} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="telefono">Teléfono</label>
+                <input id="telefono" required type="tel" minLength={7} maxLength={30} className="input" value={aliado.telefono}
+                  onChange={(e) => setA('telefono', e.target.value)} />
+              </div>
+              <div>
+                <label className="label" htmlFor="sector">Sector</label>
+                <input id="sector" required minLength={2} maxLength={120} placeholder="Agroindustria, salud, TIC…" className="input"
+                  value={aliado.sector} onChange={(e) => setA('sector', e.target.value)} />
+              </div>
+            </div>
+          </>
+        )}
+        <label className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+          <input type="checkbox" required className="mt-1" checked={form.acepta_datos}
+            onChange={(e) => set('acepta_datos', e.target.checked)} />
+          <span>
+            Autorizo el tratamiento de mis datos personales según la{' '}
+            <Link to="/privacidad" className="underline">política de privacidad</Link> (Ley 1581 de 2012).
+          </span>
+        </label>
         {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
         <button type="submit" className="btn-primary w-full justify-center" disabled={enviando}>
           {enviando ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <UserPlus size={15} aria-hidden />}
           Crear cuenta
         </button>
         <p className="text-center text-xs text-slate-500 dark:text-slate-400">
-          Al crear tu cuenta, o al continuar con Google, aceptas la{' '}
+          Al continuar con Google aceptas la{' '}
           <Link to="/privacidad" className="underline">política de privacidad y tratamiento de datos</Link>.
         </p>
       </section>

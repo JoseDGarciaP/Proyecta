@@ -11,7 +11,10 @@ export interface DatosFormularioProyecto {
   resumen: string
   descripcion: string
   necesidades: string
+  problema: string
+  objetivos: string
   area: Area
+  areas_extra: string[]
   estado: Estado
   avance: number
   presupuesto: number
@@ -29,7 +32,10 @@ export const formularioVacio = (): DatosFormularioProyecto => ({
   resumen: '',
   descripcion: '',
   necesidades: '',
+  problema: '',
+  objetivos: '',
   area: AREAS[0] as Area,
+  areas_extra: [],
   estado: 'idea',
   avance: 0,
   presupuesto: 0,
@@ -48,7 +54,10 @@ export const formularioDe = (p: Proyecto): DatosFormularioProyecto => ({
   resumen: p.resumen,
   descripcion: p.descripcion ?? '',
   necesidades: p.necesidades ?? '',
+  problema: p.problema ?? '',
+  objetivos: p.objetivos ?? '',
   area: p.area,
+  areas_extra: (p.areas ?? []).filter((a) => a !== p.area),
   estado: p.estado,
   avance: p.avance,
   presupuesto: p.presupuesto,
@@ -72,7 +81,10 @@ export const datosDe = (f: DatosFormularioProyecto): NuevoProyecto => ({
   resumen: f.resumen.trim(),
   descripcion: f.descripcion.trim(),
   necesidades: f.necesidades.trim(),
+  problema: f.problema.trim(),
+  objetivos: f.objetivos.trim(),
   area: f.area,
+  areas_extra: f.areas_extra.filter((a) => a !== f.area),
   estado: f.estado,
   avance: Number(f.avance),
   presupuesto: Number(f.presupuesto),
@@ -156,16 +168,39 @@ export function FormularioProyecto({
         </div>
 
         <div>
-          <label className="label" htmlFor="descripcion">Descripción</label>
+          <label className="label" htmlFor="problema">Problema que atiende</label>
+          <textarea id="problema" rows={3} className="input" value={form.problema} onChange={(e) => set('problema', e.target.value)} />
+        </div>
+        <div>
+          <label className="label" htmlFor="objetivos">Objetivos</label>
+          <textarea id="objetivos" rows={3} className="input" placeholder="Objetivo general y específicos" value={form.objetivos}
+            onChange={(e) => set('objetivos', e.target.value)} />
+        </div>
+        <div>
+          <label className="label" htmlFor="descripcion">Descripción y recursos disponibles</label>
           <textarea id="descripcion" rows={5} className="input" value={form.descripcion} onChange={(e) => set('descripcion', e.target.value)} />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="label" htmlFor="area">Área</label>
+            <label className="label" htmlFor="area">Área principal</label>
             <select id="area" className="input" value={form.area} onChange={(e) => set('area', e.target.value as Area)}>
               {(areas.includes(form.area) ? areas : [form.area, ...areas]).map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
+            <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Áreas adicionales">
+              {areas.filter((a) => a !== form.area).map((a) => {
+                const activa = form.areas_extra.includes(a)
+                return (
+                  <button key={a} type="button" aria-pressed={activa}
+                    onClick={() => set('areas_extra', activa ? form.areas_extra.filter((x) => x !== a) : [...form.areas_extra, a])}
+                    className={`rounded-full border px-2 py-0.5 text-xs ${activa
+                      ? 'border-brand-600 bg-brand-50 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200'
+                      : 'border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400'}`}>
+                    + {a}
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <div>
             <label className="label" htmlFor="estado">Estado</label>

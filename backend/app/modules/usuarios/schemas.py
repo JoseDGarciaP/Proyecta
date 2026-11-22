@@ -15,11 +15,16 @@ class UsuarioPublico(BaseModel):
     bio: str | None
     habilidades: list[str]
     intereses: list[str]
+    activo: bool = True
 
 
 class UsuarioPropio(UsuarioPublico):
     email: EmailStr
     verificado: bool
+    # Solo los ve su dueño (y el admin): nunca van en UsuarioPublico.
+    codigo: str | None = None
+    cedula: str | None = None
+    sexo: str | None = None
     permisos: list[str] = []  # lo que su rol le deja hacer (la interfaz oculta lo demás)
 
 

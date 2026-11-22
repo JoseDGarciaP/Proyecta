@@ -149,7 +149,7 @@ def test_aliado_con_correo_personal_no_puede_pasar_a_rol_institucional(client, a
 
 
 def test_registro_publico_exige_correo_institucional_salvo_aliados(client):
-    base = {"password": "Clave-Segura1", "nombre": "Persona Externa"}
+    base = {"password": "Clave-Segura1", "acepta_datos": True, "nombre": "Persona Externa"}
     for rol in ("estudiante", "docente", "administrativo"):
         res = client.post("/api/auth/registro", json={**base, "email": f"{rol}@gmail.com", "rol": rol})
         assert res.status_code == 400 and "@ufpso.edu.co" in res.json()["detail"]

@@ -1,10 +1,15 @@
 import { useState } from 'react'
-import { Check, CheckCircle2, Copy, Lightbulb, Loader2, Sparkles } from 'lucide-react'
-import { analizarProyecto, redactarPitch, type RespuestaIA, type RespuestaPitch } from '@/lib/ai'
+import { Check, CheckCircle2, Copy, Lightbulb, Loader2, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import {
+  aceptarRecomendacion, analizarProyecto, anularRecomendacion, redactarPitch, valorarDiagnostico, verValoraciones,
+  type Recomendacion, type RespuestaIA, type RespuestaPitch, type Valoraciones,
+} from '@/lib/ai'
 import type { Oportunidad, Proyecto } from '@/lib/types'
 import { useSesion } from '@/lib/sesion'
 import { tienePanel } from '@/lib/permisos'
 import { formatDate } from '@/lib/format'
+import { apiHabilitada } from '@/lib/http'
 
 /** Colores del estado de una recomendación guardada (HU-05). */
 const ESTADO_REC_CLASS: Record<'pendiente' | 'aceptada' | 'anulada', string> = {
@@ -13,8 +18,10 @@ const ESTADO_REC_CLASS: Record<'pendiente' | 'aceptada' | 'anulada', string> = {
   anulada: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
 }
 
-export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oportunidades: Oportunidad[] }) {
+export function PanelIA({ proyecto, oportunidades, esEquipo = false }: { proyecto: Proyecto; oportunidades: Oportunidad[]; esEquipo?: boolean }) {
   const [respuesta, setRespuesta] = useState<RespuestaIA | null>(null)
+  const [valoraciones, setValoraciones] = useState<Valoraciones | null>(null)
+  const [avisoRec, setAvisoRec] = useState('')
   const [cargando, setCargando] = useState(false)
   const [pitches, setPitches] = useState<Record<string, RespuestaPitch>>({})
   const [generandoPitch, setGenerandoPitch] = useState<string | null>(null)
@@ -25,6 +32,7 @@ export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oport
     setCargando(true)
     try {
       setRespuesta(await analizarProyecto(proyecto, oportunidades))
+      if (apiHabilitada) verValoraciones(proyecto.id).then(setValoraciones).catch(() => setValoraciones(null))
     } finally {
       setCargando(false)
     }
@@ -54,6 +62,36 @@ export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oport
       // ignorar si el navegador restringe el portapapeles
     }
   }
+
+  const cambiarEstado = (r: Recomendacion, estado: 'aceptada' | 'anulada') =>
+    setRespuesta((x) => x && ({
+      ...x,
+      recomendaciones: x.recomendaciones.map((y) => (y.oportunidad_id === r.oportunidad_id ? { ...y, estado } : y)),
+    }))
+
+  const decidir = async (r: Recomendacion, accion: 'aceptar' | 'anular') => {
+    if (!r.recomendacion_id) return
+    setAvisoRec('')
+    try {
+      if (accion === 'aceptar') {
+        await aceptarRecomendacion(r.recomendacion_id)
+        cambiarEstado(r, 'aceptada')
+      } else {
+        const motivo = window.prompt('¿Por qué descartas esta oportunidad? No se volverá a sugerir.')?.trim()
+        if (!motivo) return
+        if (motivo.length < 5) {
+          setAvisoRec('Escribe un motivo de al menos 5 caracteres.')
+          return
+        }
+        await anularRecomendacion(r.recomendacion_id, motivo)
+        cambiarEstado(r, 'anulada')
+      }
+    } catch (e) {
+      setAvisoRec(e instanceof Error ? e.message : 'No se pudo guardar')
+    }
+  }
+
+  const valorar = (util: boolean) => valorarDiagnostico(proyecto.id, util).then(setValoraciones).catch(() => {})
 
   const fortalezas = respuesta?.fortalezas ?? []
   const pasos = respuesta?.pasos_sugeridos ?? []
@@ -120,6 +158,35 @@ export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oport
             </div>
           )}
 
+          {(respuesta.similares?.length ?? 0) > 0 && (
+            <div>
+              <p className="label">Proyectos similares en que se basan las sugerencias</p>
+              <ul className="flex flex-wrap gap-2 text-xs">
+                {respuesta.similares!.map((s) => (
+                  <li key={s.id}>
+                    <Link to={`/proyectos/${s.id}`} className="rounded-full border border-slate-200 px-2.5 py-1 hover:border-brand-400 dark:border-slate-700">
+                      {s.titulo} · {Math.round(s.similitud * 100)} %
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {apiHabilitada && (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <span>¿Te sirvieron estas sugerencias?</span>
+              <button type="button" aria-pressed={valoraciones?.mia === true} onClick={() => valorar(true)}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${valoraciones?.mia === true ? 'border-emerald-500 text-emerald-700' : 'border-slate-300 dark:border-slate-700'}`}>
+                <ThumbsUp size={12} aria-hidden /> Útil {valoraciones ? `(${valoraciones.utiles})` : ''}
+              </button>
+              <button type="button" aria-pressed={valoraciones?.mia === false} onClick={() => valorar(false)}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${valoraciones?.mia === false ? 'border-rose-500 text-rose-700' : 'border-slate-300 dark:border-slate-700'}`}>
+                <ThumbsDown size={12} aria-hidden /> No útil {valoraciones ? `(${valoraciones.no_utiles})` : ''}
+              </button>
+            </div>
+          )}
+
           {respuesta.recomendaciones.length > 0 && (
             <div>
               <p className="label">Oportunidades sugeridas</p>
@@ -158,6 +225,16 @@ export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oport
                         <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                           <span className={`rounded-full px-2 py-0.5 font-medium ${ESTADO_REC_CLASS[r.estado]}`}>{r.estado}</span>
                           {r.fecha && <span>Recomendada el {formatDate(r.fecha)}</span>}
+                          {esEquipo && r.recomendacion_id && r.estado === 'pendiente' && (
+                            <>
+                              <button type="button" className="inline-flex items-center gap-1 text-emerald-700 hover:underline dark:text-emerald-400" onClick={() => decidir(r, 'aceptar')}>
+                                <Check size={12} aria-hidden /> Aceptar
+                              </button>
+                              <button type="button" className="inline-flex items-center gap-1 text-slate-600 hover:underline dark:text-slate-400" onClick={() => decidir(r, 'anular')}>
+                                <X size={12} aria-hidden /> Descartar
+                              </button>
+                            </>
+                          )}
                         </p>
                       )}
 
@@ -185,6 +262,8 @@ export function PanelIA({ proyecto, oportunidades }: { proyecto: Proyecto; oport
               </ul>
             </div>
           )}
+
+          {avisoRec && <p role="alert" className="text-xs text-red-600">{avisoRec}</p>}
 
           {respuesta.simulado && (
             <p className="text-xs text-slate-500 dark:text-slate-400">

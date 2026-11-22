@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, String, Text, Uuid
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base, UuidPk, utcnow
@@ -39,3 +39,19 @@ class RecomendacionGuardada(UuidPk, Base):
     )
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     actualizado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    # Ep5-Hu5/Hu6: quién la aceptó o anuló, cuándo y por qué. Una anulada no se vuelve a sugerir.
+    motivo: Mapped[str] = mapped_column(Text, default="")
+    decidido_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    decidido_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ValoracionDiagnostico(UuidPk, Base):
+    """«¿Te sirvió?» sobre el diagnóstico y las mejoras sugeridas a un proyecto (Ep5-Hu9)."""
+
+    __tablename__ = "valoraciones_diagnostico"
+
+    proyecto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("proyectos.id", ondelete="CASCADE"), index=True)
+    usuario_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    util: Mapped[bool] = mapped_column(Boolean)
+    comentario: Mapped[str] = mapped_column(Text, default="")
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

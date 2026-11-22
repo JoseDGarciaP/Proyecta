@@ -23,6 +23,8 @@ class TipoNotificacion(str, enum.Enum):
     EVIDENCIA = "evidencia"  # revisaron su certificado o evidencia
     POSTULACION = "postulacion"  # cambió el estado de una postulación de su proyecto
     REVISION = "revision"  # para quien administra: algo nuevo por revisar
+    PROYECTO = "proyecto"  # cambió un proyecto donde participa (estado, datos, miembros)
+    OBSERVACION = "observacion"  # nueva observación en un proyecto suyo
 
 
 # Categoría de correo de cada tipo (ver Ajustes y Usuario.correo_avisos).
@@ -40,6 +42,8 @@ CATEGORIA = {
     TipoNotificacion.EVIDENCIA: "respuestas",
     TipoNotificacion.POSTULACION: "respuestas",
     TipoNotificacion.REVISION: "solicitudes",
+    TipoNotificacion.PROYECTO: "respuestas",
+    TipoNotificacion.OBSERVACION: "mensajes",
 }
 
 
