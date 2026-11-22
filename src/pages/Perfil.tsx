@@ -1,3 +1,4 @@
+import { HistorialPersonal } from '@/components/HistorialPersonal'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Bell, Check, Handshake, Loader2, MessageCircle, MessageSquare, Pencil, RotateCcw, Send, Sparkles, UserRound, X } from 'lucide-react'
@@ -140,6 +141,7 @@ export function Perfil() {
           <MisLogros version={perfil} />
           <Alianzas alianzas={perfil.alianzas} alCambiar={cargar} noLeidos={porSolicitud} />
           <Evidencias puedeSubir={puede('evidencias.subir')} proyectos={perfil.proyectos.map(({ proyecto }) => proyecto)} />
+          <HistorialPersonal />
         </div>
 
         <div className="min-w-0 space-y-6">

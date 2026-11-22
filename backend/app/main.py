@@ -25,6 +25,7 @@ from app.modules.postulaciones import router as postulaciones
 from app.modules.notificaciones.router import router as notificaciones
 from app.modules.insignias.servicio import tarea_periodica as tarea_insignias
 from app.modules.notificaciones.servicio import tarea_resumenes
+from app.modules.oportunidades.avisos import tarea_diaria
 from app.modules.oportunidades.router import router as oportunidades
 from app.modules.parametros.router import router as parametros
 from app.modules.perfil.router import router as perfil
@@ -33,6 +34,8 @@ from app.modules.proyectos.router import router as proyectos
 from app.modules.proyectos.adjuntos import router as adjuntos
 from app.modules.observaciones import router as observaciones
 from app.modules.aportes.router import router as aportes
+from app.modules.admin.informes import router as informes
+from app.modules.usuarios.historial import router as historial
 from app.modules.roles import router as roles
 from app.modules.usuarios.router import router as usuarios
 
@@ -51,6 +54,7 @@ async def ciclo_de_vida(_: FastAPI):
     tareas = [
         asyncio.create_task(_ciclo(settings.resumen_intervalo_minutos, tarea_resumenes)),
         asyncio.create_task(_ciclo(settings.insignias_intervalo_minutos, tarea_insignias)),
+        asyncio.create_task(_ciclo(60, tarea_diaria)),  # cada hora; cada aviso sale una sola vez
     ] if settings.resumen_automatico else []
     yield
     for tarea in tareas:
@@ -74,13 +78,13 @@ for r in (auth, catalogo, publico, roles.publico, invitaciones.publico):
     app.include_router(r)
 
 # Todo lo demás exige una sesión de un usuario con el correo verificado.
-for r in (usuarios, perfil, proyectos, adjuntos, observaciones.router, aportes, alianzas, invitaciones.router, chat, actores, oportunidades, notificaciones, parametros,
+for r in (historial, usuarios, perfil, proyectos, adjuntos, observaciones.router, aportes, alianzas, invitaciones.router, chat, actores, oportunidades, notificaciones, parametros,
           roles.lectura, aliados_router.router, insignias.router, experiencia.router, postulaciones.router, evidencias.router):
     app.include_router(r, dependencies=[Depends(get_current_user)])
 app.include_router(ia, dependencies=[Depends(requiere("ia.usar"))])
 
 # Panel de administración: cada sección exige su permiso (ver app.modules.roles.permisos).
-for r in (*admin, lote, aliados_router.admin, observaciones.admin, roles.admin, insignias.admin, experiencia.admin, evidencias.admin):
+for r in (*admin, informes, lote, aliados_router.admin, observaciones.admin, roles.admin, insignias.admin, experiencia.admin, evidencias.admin):
     app.include_router(r, dependencies=[Depends(requiere_panel)])
 # Las postulaciones las gestiona quien administra oportunidades (no necesita otra sección del panel).
 app.include_router(postulaciones.admin, dependencies=[Depends(get_current_user)])

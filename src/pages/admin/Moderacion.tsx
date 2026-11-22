@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Check, ExternalLink, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { ArchiveRestore, Check, Download, ExternalLink, EyeOff, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { adminPostulaciones } from '@/lib/experiencia'
 import type { EstadoPostulacion, Postulacion } from '@/lib/types'
 import { EstadoPostulacionBadge } from '@/components/Postulaciones'
 import {
   crearActor, crearOportunidad, editarActor, editarOportunidad, eliminarActor, eliminarOportunidad, eliminarProyectoAdmin,
+  exportarPostulaciones, oportunidadesArchivadas, restaurarOportunidad, ocultarProyectoAdmin, restaurarProyectoAdmin,
   listarProyectosAdmin, type ActorEntrada, type OportunidadEntrada,
 } from '@/lib/admin'
 import { listarActores, listarOportunidades } from '@/lib/api'
@@ -72,6 +73,7 @@ function Proyectos() {
                   <td className="px-4 py-3">
                     <Link to={`/proyectos/${p.id}`} className="font-medium text-slate-900 hover:text-brand-700 dark:text-white dark:hover:text-brand-300">{p.titulo}</Link>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{p.area} · {formatDate(p.creado_en)}</p>
+                    {p.archivado && <p className="text-xs text-amber-700 dark:text-amber-400">Oculto o archivado · {p.archivado_motivo}</p>}
                   </td>
                   <td className="px-4 py-3 text-xs">
                     {p.responsable_nombre ? <><p className="text-slate-800 dark:text-slate-200">{p.responsable_nombre}</p><p className="text-slate-500">{p.responsable_email}</p></> : <span className="text-slate-400">Sin responsable</span>}
@@ -81,7 +83,12 @@ function Proyectos() {
                   </td>
                   <td className="px-4 py-3"><EstadoBadge estado={p.estado} /></td>
                   <td className="px-4 py-3 text-right">
-                    <button className="btn-ghost text-xs text-rose-700 dark:text-rose-400" onClick={() => setRetirando(p)}><Trash2 size={14} aria-hidden /> Retirar</button>
+                    {p.archivado ? (
+                      <button className="btn-ghost text-xs" onClick={() => restaurarProyectoAdmin(p.id).then(() => recargar())}><ArchiveRestore size={14} aria-hidden /> Restaurar</button>
+                    ) : (
+                      <button className="btn-ghost text-xs text-amber-700 dark:text-amber-400" onClick={() => setRetirando({ ...p, archivado: false })}><EyeOff size={14} aria-hidden /> Ocultar</button>
+                    )}
+                    <button className="btn-ghost text-xs text-rose-700 dark:text-rose-400" onClick={() => setRetirando({ ...p, archivado: true })}><Trash2 size={14} aria-hidden /> Eliminar</button>
                   </td>
                 </tr>
               ))}
@@ -94,17 +101,20 @@ function Proyectos() {
   )
 }
 
+/** `p.archivado` aquí indica la acción: true = eliminar definitivamente, false = ocultar (se puede restaurar). */
 function RetirarProyecto({ p, alCerrar, alRetirar }: { p: ProyectoAdmin; alCerrar: () => void; alRetirar: () => void }) {
   const [motivo, setMotivo] = useState('')
   const [ocupado, setOcupado] = useState(false)
   const [error, setError] = useState('')
+  const eliminar = Boolean(p.archivado)
   return (
-    <Modal titulo={`Retirar «${p.titulo}»`} descripcion="Se elimina con su chat, miembros y solicitudes. No se puede deshacer." alCerrar={alCerrar}>
+    <Modal titulo={`${eliminar ? 'Eliminar' : 'Ocultar'} «${p.titulo}»`}
+      descripcion={eliminar ? 'Se elimina con su chat, miembros y solicitudes. No se puede deshacer.' : 'Deja de verse en el listado; puedes restaurarlo después.'} alCerrar={alCerrar}>
       <form className="space-y-3" onSubmit={async (e) => {
         e.preventDefault()
         setOcupado(true)
         try {
-          await eliminarProyectoAdmin(p.id, motivo.trim())
+          await (eliminar ? eliminarProyectoAdmin(p.id, motivo.trim()) : ocultarProyectoAdmin(p.id, motivo.trim()))
           alRetirar()
         } catch (err) {
           setError((err as Error).message)
@@ -117,7 +127,7 @@ function RetirarProyecto({ p, alCerrar, alRetirar }: { p: ProyectoAdmin; alCerra
         <Aviso>{error}</Aviso>
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={alCerrar}>Cancelar</button>
-          <button className="btn bg-rose-600 text-white hover:bg-rose-700" disabled={ocupado || motivo.trim().length < 5}>Retirar proyecto</button>
+          <button className="btn bg-rose-600 text-white hover:bg-rose-700" disabled={ocupado || motivo.trim().length < 5}>{eliminar ? 'Eliminar proyecto' : 'Ocultar proyecto'}</button>
         </div>
       </form>
     </Modal>
@@ -129,14 +139,20 @@ const TIPOS_OPORTUNIDAD: Record<Oportunidad['tipo'], string> = {
 }
 
 function Oportunidades() {
-  const { datos, error, recargar } = useCarga(listarOportunidades)
+  const [verArchivadas, setVerArchivadas] = useState(false)
+  const { datos, error, recargar } = useCarga(() => (verArchivadas ? oportunidadesArchivadas() : listarOportunidades()), [verArchivadas])
   const [editando, setEditando] = useState<Oportunidad | 'nueva' | null>(null)
   const [fallo, setFallo] = useState('')
   const { confirmar, ventana } = useConfirmar()
   return (
     <div className="space-y-3">
       {ventana}
-      <button className="btn-primary" onClick={() => setEditando('nueva')}><Plus size={15} aria-hidden /> Nueva oportunidad</button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn-primary" onClick={() => setEditando('nueva')}><Plus size={15} aria-hidden /> Nueva oportunidad</button>
+        <label className="ml-auto inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <input type="checkbox" checked={verArchivadas} onChange={(e) => setVerArchivadas(e.target.checked)} /> Ver archivadas
+        </label>
+      </div>
       <Aviso>{error || fallo}</Aviso>
       {!datos ? <Skeleton className="h-80" /> : (
         <ul className="card divide-y divide-slate-200 dark:divide-slate-800">
@@ -151,10 +167,17 @@ function Oportunidades() {
               </div>
               {o.url && <a href={o.url} target="_blank" rel="noreferrer" className="rounded p-1 text-slate-500 hover:text-slate-800" aria-label="Abrir enlace"><ExternalLink size={14} /></a>}
               <button className="rounded p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-100" onClick={() => setEditando(o)} aria-label={`Editar ${o.titulo}`}><Pencil size={14} /></button>
-              <button className="rounded p-1 text-slate-500 hover:text-rose-600" aria-label={`Eliminar ${o.titulo}`} onClick={async () => {
-                if (!(await confirmar({ titulo: `¿Eliminar «${o.titulo}»?`, aceptar: 'Eliminar', peligro: true }))) return
-                try { await eliminarOportunidad(o.id); void recargar() } catch (e) { setFallo((e as Error).message) }
-              }}><Trash2 size={14} /></button>
+              {verArchivadas ? (
+                <button className="rounded p-1 text-slate-500 hover:text-brand-700" aria-label={`Restaurar ${o.titulo}`} onClick={async () => {
+                  try { await restaurarOportunidad(o.id); void recargar() } catch (e) { setFallo((e as Error).message) }
+                }}><ArchiveRestore size={14} /></button>
+              ) : (
+                <button className="rounded p-1 text-slate-500 hover:text-rose-600" aria-label={`Eliminar ${o.titulo}`} onClick={async () => {
+                  if (!(await confirmar({ titulo: `¿Eliminar «${o.titulo}»?`, detalle: 'Si ya tiene postulaciones se archivará y se avisará a esos equipos.', aceptar: 'Eliminar', peligro: true }))) return
+                  const motivo = window.prompt('Motivo (se envía a los equipos que postularon):') ?? ''
+                  try { await eliminarOportunidad(o.id, motivo); void recargar() } catch (e) { setFallo((e as Error).message) }
+                }}><Trash2 size={14} /></button>
+              )}
             </li>
           ))}
         </ul>
@@ -322,6 +345,9 @@ function Postulaciones() {
         <div>
           <h2 className="font-semibold text-slate-900 dark:text-white">Postulaciones</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">El equipo recibe la respuesta en la campana y por correo. Si queda seleccionado, todo el equipo gana experiencia.</p>
+          <button className="btn-ghost mt-2 text-xs" onClick={() => exportarPostulaciones(estado).catch(() => {})}>
+            <Download size={13} aria-hidden /> Exportar a Excel
+          </button>
         </div>
         <div role="tablist" className="inline-flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
           {FILTROS_POSTULACION.map(([v, texto]) => (

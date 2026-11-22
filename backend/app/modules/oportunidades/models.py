@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import date
 
-from sqlalchemy import BigInteger, Date, ForeignKey, String, Text
+from sqlalchemy import BigInteger, Boolean, Date, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, Timestamps, UuidPk
@@ -31,6 +31,11 @@ class Oportunidad(UuidPk, Timestamps, Base):
     cierra_en: Mapped[date] = mapped_column(Date, index=True)
     url: Mapped[str] = mapped_column(String(500), default="")
     creado_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))
+    # Se archiva en lugar de borrarse si ya tiene postulaciones (Ep6-Hu5).
+    archivada: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Avisos de cierre ya enviados, para no repetirlos (Ep6-Hu13).
+    aviso_7_dias: Mapped[bool] = mapped_column(Boolean, default=False)
+    aviso_1_dia: Mapped[bool] = mapped_column(Boolean, default=False)
 
     areas: Mapped[list[Area]] = relationship(secondary=oportunidad_areas, lazy="selectin")
     ods: Mapped[list[Ods]] = relationship(secondary=oportunidad_ods, lazy="selectin")

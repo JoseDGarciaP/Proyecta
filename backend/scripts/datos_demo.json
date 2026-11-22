@@ -93,6 +93,88 @@
     "Ambiente"
    ],
    "url": "https://ejemplo.org/laboratorio"
+  },
+  {
+   "id": "o-005",
+   "titulo": "Fondo de innovación agropecuaria 2027",
+   "entidad": "Agencia de Desarrollo Rural",
+   "tipo": "financiacion",
+   "monto": 150000000,
+   "abre_en": "2026-11-01",
+   "cierra_en": "2027-02-28",
+   "areas": [
+    "Agroindustria"
+   ],
+   "url": "https://ejemplo.gov.co/convocatoria"
+  },
+  {
+   "id": "o-006",
+   "titulo": "Mentoría para emprendimientos de base tecnológica",
+   "entidad": "Red de Ángeles Inversionistas",
+   "tipo": "mentoria",
+   "monto": null,
+   "abre_en": "2026-11-15",
+   "cierra_en": "2026-12-15",
+   "areas": [
+    "Tecnología",
+    "Social"
+   ],
+   "url": "https://ejemplo.gov.co/convocatoria"
+  },
+  {
+   "id": "o-007",
+   "titulo": "Convocatoria de apropiación social del conocimiento",
+   "entidad": "Ministerio de Ciencia",
+   "tipo": "convocatoria",
+   "monto": 80000000,
+   "abre_en": "2026-11-10",
+   "cierra_en": "2027-01-31",
+   "areas": [
+    "Educación",
+    "Social"
+   ],
+   "url": "https://ejemplo.gov.co/convocatoria"
+  },
+  {
+   "id": "o-008",
+   "titulo": "Laboratorio abierto de prototipado",
+   "entidad": "Parque Tecnológico Regional",
+   "tipo": "infraestructura",
+   "monto": null,
+   "abre_en": "2026-10-01",
+   "cierra_en": "2027-06-30",
+   "areas": [
+    "Tecnología",
+    "Energía"
+   ],
+   "url": "https://ejemplo.gov.co/convocatoria"
+  },
+  {
+   "id": "o-009",
+   "titulo": "Fondo de transición energética comunitaria",
+   "entidad": "Fondo de Energías No Convencionales",
+   "tipo": "financiacion",
+   "monto": 200000000,
+   "abre_en": "2026-11-20",
+   "cierra_en": "2027-03-15",
+   "areas": [
+    "Energía",
+    "Ambiente"
+   ],
+   "url": "https://ejemplo.gov.co/convocatoria"
+  },
+  {
+   "id": "o-010",
+   "titulo": "Becas de investigación en salud pública",
+   "entidad": "Instituto Departamental de Salud",
+   "tipo": "convocatoria",
+   "monto": 60000000,
+   "abre_en": "2026-11-05",
+   "cierra_en": "2026-11-29",
+   "areas": [
+    "Salud"
+   ],
+   "url": "https://ejemplo.gov.co/convocatoria"
   }
  ],
  "proyectos": [
@@ -329,6 +411,175 @@
     "a-002"
    ],
    "creado_en": "2025-09-20"
+  },
+  {
+   "id": "p-010",
+   "titulo": "Banco de semillas nativas del Catatumbo",
+   "resumen": "Conservación y multiplicación de semillas criollas con asociaciones campesinas.",
+   "descripcion": "Inventario participativo de variedades nativas de maíz, fríjol y yuca, con un banco comunitario y protocolos de almacenamiento.",
+   "problema": "Las variedades criollas se pierden y los productores dependen de semilla comprada.",
+   "objetivos": "Recuperar 20 variedades nativas y crear un banco comunitario con fichas técnicas.",
+   "area": "Agroindustria",
+   "estado": "formulacion",
+   "avance": 25,
+   "presupuesto": 18000000,
+   "lider": "Camila Rincón",
+   "equipo": [
+    "Camila Rincón",
+    "Jhon Vergel"
+   ],
+   "etiquetas": [
+    "semillas",
+    "agroecología",
+    "campesinos"
+   ],
+   "fecha_inicio": "2026-08-01",
+   "fecha_fin": null,
+   "actores": [
+    "a-003"
+   ],
+   "creado_en": "2026-07-20"
+  },
+  {
+   "id": "p-011",
+   "titulo": "Monitoreo de calidad del aire en Ocaña",
+   "resumen": "Estaciones de bajo costo que publican PM2.5 en tiempo real.",
+   "descripcion": "Red de 10 estaciones con sensores de material particulado y un tablero público con alertas para colegios.",
+   "problema": "No hay mediciones públicas de calidad del aire en el municipio.",
+   "objetivos": "Instalar 10 estaciones y publicar datos abiertos cada 10 minutos.",
+   "area": "Ambiente",
+   "estado": "ejecucion",
+   "avance": 48,
+   "presupuesto": 22000000,
+   "lider": "Sergio Ascanio",
+   "equipo": [
+    "Sergio Ascanio",
+    "Paola Durán",
+    "Kevin Lobo"
+   ],
+   "etiquetas": [
+    "aire",
+    "IoT",
+    "datos abiertos"
+   ],
+   "fecha_inicio": "2026-03-15",
+   "fecha_fin": null,
+   "actores": [
+    "a-001",
+    "a-002"
+   ],
+   "creado_en": "2026-03-01"
+  },
+  {
+   "id": "p-012",
+   "titulo": "Tutorías de matemáticas entre pares",
+   "resumen": "Programa de tutorías para reducir la deserción en primer semestre.",
+   "descripcion": "Estudiantes de semestres avanzados acompañan a los de primero con sesiones semanales y una plataforma de seguimiento.",
+   "problema": "La mayor deserción ocurre en primer semestre por bajo rendimiento en matemáticas.",
+   "objetivos": "Bajar 15 % la pérdida de Cálculo I en un año.",
+   "area": "Educación",
+   "estado": "ejecucion",
+   "avance": 70,
+   "presupuesto": 6000000,
+   "lider": "Valentina Ortiz",
+   "equipo": [
+    "Valentina Ortiz",
+    "Daniel Peñaranda"
+   ],
+   "etiquetas": [
+    "tutorías",
+    "deserción",
+    "matemáticas"
+   ],
+   "fecha_inicio": "2026-02-01",
+   "fecha_fin": null,
+   "actores": [
+    "a-004"
+   ],
+   "creado_en": "2026-01-25"
+  },
+  {
+   "id": "p-013",
+   "titulo": "Paneles solares para escuelas rurales",
+   "resumen": "Microrredes solares para escuelas sin servicio estable de energía.",
+   "descripcion": "Diseño e instalación de kits solares con baterías para tres escuelas rurales y formación a docentes en mantenimiento.",
+   "problema": "Las escuelas rurales pierden clases por cortes de energía.",
+   "objetivos": "Garantizar 8 horas de energía diaria en tres escuelas.",
+   "area": "Energía",
+   "estado": "idea",
+   "avance": 10,
+   "presupuesto": 45000000,
+   "lider": "Mauricio Quintero",
+   "equipo": [
+    "Mauricio Quintero"
+   ],
+   "etiquetas": [
+    "solar",
+    "escuelas",
+    "rural"
+   ],
+   "fecha_inicio": "2026-11-01",
+   "fecha_fin": null,
+   "actores": [
+    "a-005"
+   ],
+   "creado_en": "2026-10-28"
+  },
+  {
+   "id": "p-014",
+   "titulo": "App de primeros auxilios psicológicos",
+   "resumen": "Guía móvil y línea de orientación para estudiantes en crisis.",
+   "descripcion": "Aplicación con rutas de atención, ejercicios de regulación y contacto directo con Bienestar Universitario.",
+   "problema": "Los estudiantes no conocen las rutas de atención en salud mental.",
+   "objetivos": "Que el 60 % de los estudiantes de primer semestre conozca la ruta de atención.",
+   "area": "Salud",
+   "estado": "formulacion",
+   "avance": 35,
+   "presupuesto": 12000000,
+   "lider": "Laura Carrascal",
+   "equipo": [
+    "Laura Carrascal",
+    "Andrés Pérez"
+   ],
+   "etiquetas": [
+    "salud mental",
+    "app",
+    "bienestar"
+   ],
+   "fecha_inicio": "2026-06-01",
+   "fecha_fin": null,
+   "actores": [
+    "a-004"
+   ],
+   "creado_en": "2026-05-18"
+  },
+  {
+   "id": "p-015",
+   "titulo": "Señalización vial inteligente en la vía al mar",
+   "resumen": "Detección de neblina y alertas luminosas en tramos críticos.",
+   "descripcion": "Sensores de visibilidad conectados a paneles LED que avisan a conductores en tramos con neblina frecuente.",
+   "problema": "Los accidentes aumentan en los tramos con neblina de la vía Ocaña–Ábrego.",
+   "objetivos": "Reducir los incidentes en los tramos piloto con alertas automáticas.",
+   "area": "Seguridad vial",
+   "estado": "finalizado",
+   "avance": 100,
+   "presupuesto": 30000000,
+   "lider": "Felipe Arévalo",
+   "equipo": [
+    "Felipe Arévalo",
+    "Natalia Rojas"
+   ],
+   "etiquetas": [
+    "seguridad vial",
+    "sensores",
+    "neblina"
+   ],
+   "fecha_inicio": "2025-09-01",
+   "fecha_fin": "2026-08-30",
+   "actores": [
+    "a-002"
+   ],
+   "creado_en": "2025-08-20"
   }
  ]
 }

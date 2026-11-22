@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CheckCheck, Mail, Settings, Trash2 } from 'lucide-react'
-import { eliminarAviso, listarAvisos, marcarAviso, marcarTodos } from '@/lib/notificaciones'
+import { Archive, ArchiveRestore, CheckCheck, Mail, Settings, Trash2 } from 'lucide-react'
+import { archivarAviso, eliminarAviso, listarAvisos, marcarAviso, marcarTodos } from '@/lib/notificaciones'
 import { apiHabilitada } from '@/lib/http'
 import type { Notificacion } from '@/lib/types'
 import { EmptyState, Skeleton } from '@/components/ui'
@@ -11,20 +11,22 @@ const POR_PAGINA = 30
 
 export function Notificaciones() {
   const [avisos, setAvisos] = useState<Notificacion[] | null>(null)
-  const [soloNoLeidas, setSoloNoLeidas] = useState(false)
+  const [vista, setVista] = useState<'todas' | 'sin_leer' | 'archivadas'>('todas')
+  const soloNoLeidas = vista === 'sin_leer'
+  const archivadas = vista === 'archivadas'
   const [hayMas, setHayMas] = useState(false)
   const [error, setError] = useState('')
   const navegar = useNavigate()
 
   const cargar = useCallback(() => {
     setAvisos(null)
-    listarAvisos(soloNoLeidas, POR_PAGINA)
+    listarAvisos(soloNoLeidas, POR_PAGINA, 0, archivadas)
       .then((xs) => {
         setAvisos(xs)
         setHayMas(xs.length === POR_PAGINA)
       })
       .catch((e: Error) => setError(e.message))
-  }, [soloNoLeidas])
+  }, [soloNoLeidas, archivadas])
 
   useEffect(() => {
     if (apiHabilitada) cargar()
@@ -35,7 +37,7 @@ export function Notificaciones() {
   }
 
   const masAntiguas = async () => {
-    const xs = await listarAvisos(soloNoLeidas, POR_PAGINA, avisos?.length ?? 0)
+    const xs = await listarAvisos(soloNoLeidas, POR_PAGINA, avisos?.length ?? 0, archivadas)
     setAvisos((ys) => [...(ys ?? []), ...xs])
     setHayMas(xs.length === POR_PAGINA)
   }
@@ -59,10 +61,10 @@ export function Notificaciones() {
         </div>
         <div className="flex flex-wrap gap-2">
           <div className="inline-flex rounded-md border border-slate-200 p-0.5 text-sm dark:border-slate-700" role="group" aria-label="Filtro">
-            {[['Todas', false], ['Sin leer', true]].map(([etiqueta, valor]) => (
-              <button key={String(valor)} onClick={() => setSoloNoLeidas(valor as boolean)} aria-pressed={soloNoLeidas === valor}
-                className={`rounded px-3 py-1 ${soloNoLeidas === valor ? 'bg-brand-600 text-white dark:bg-brand-300 dark:text-brand-950' : 'text-slate-600 dark:text-slate-300'}`}>
-                {etiqueta as string}
+            {([['Todas', 'todas'], ['Sin leer', 'sin_leer'], ['Archivadas', 'archivadas']] as const).map(([etiqueta, valor]) => (
+              <button key={valor} onClick={() => setVista(valor)} aria-pressed={vista === valor}
+                className={`rounded px-3 py-1 ${vista === valor ? 'bg-brand-600 text-white dark:bg-brand-300 dark:text-brand-950' : 'text-slate-600 dark:text-slate-300'}`}>
+                {etiqueta}
               </button>
             ))}
           </div>
@@ -76,7 +78,8 @@ export function Notificaciones() {
       {avisos === null ? (
         <Skeleton className="h-64" />
       ) : avisos.length === 0 ? (
-        <EmptyState titulo={soloNoLeidas ? 'Estás al día' : 'Sin notificaciones'} detalle="Aquí aparecerán las solicitudes, respuestas y avisos de la plataforma." />
+        <EmptyState titulo={soloNoLeidas ? 'Estás al día' : archivadas ? 'Nada archivado' : 'Sin notificaciones'}
+          detalle={archivadas ? 'Las notificaciones de más de 90 días se archivan solas.' : 'Aquí aparecerán las solicitudes, respuestas y avisos de la plataforma.'} />
       ) : (
         <ul className="card divide-y divide-slate-200 dark:divide-slate-800">
           {avisos.map((a) => (
@@ -89,6 +92,11 @@ export function Notificaciones() {
                   {hace(a.creada_en)}
                   {a.correo_enviado && <><span aria-hidden>·</span><Mail size={12} aria-hidden /> enviado también por correo</>}
                 </span>
+              </button>
+              <button className="self-start rounded p-1 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:text-brand-700 focus:opacity-100"
+                onClick={() => archivarAviso(a.id, archivadas).then(() => setAvisos((xs) => xs?.filter((x) => x.id !== a.id) ?? null))}
+                aria-label={archivadas ? 'Sacar del archivo' : 'Archivar notificación'}>
+                {archivadas ? <ArchiveRestore size={15} aria-hidden /> : <Archive size={15} aria-hidden />}
               </button>
               <button className="self-start rounded p-1 text-slate-400 opacity-0 transition group-hover:opacity-100 hover:text-rose-600 focus:opacity-100"
                 onClick={() => eliminarAviso(a.id).then(() => setAvisos((xs) => xs?.filter((x) => x.id !== a.id) ?? null))}

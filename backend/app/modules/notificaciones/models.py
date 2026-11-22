@@ -25,6 +25,7 @@ class TipoNotificacion(str, enum.Enum):
     REVISION = "revision"  # para quien administra: algo nuevo por revisar
     PROYECTO = "proyecto"  # cambió un proyecto donde participa (estado, datos, miembros)
     OBSERVACION = "observacion"  # nueva observación en un proyecto suyo
+    CONVOCATORIA = "convocatoria"  # una convocatoria cambia de fechas, se archiva o está por cerrar
 
 
 # Categoría de correo de cada tipo (ver Ajustes y Usuario.correo_avisos).
@@ -44,6 +45,7 @@ CATEGORIA = {
     TipoNotificacion.REVISION: "solicitudes",
     TipoNotificacion.PROYECTO: "respuestas",
     TipoNotificacion.OBSERVACION: "mensajes",
+    TipoNotificacion.CONVOCATORIA: "respuestas",
 }
 
 
@@ -59,5 +61,7 @@ class Notificacion(UuidPk, Base):
     cuerpo: Mapped[str] = mapped_column(Text, default="")
     enlace: Mapped[str] = mapped_column(String(300), default="")  # ruta de la interfaz, p. ej. /perfil
     leida: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Las de más de 90 días se archivan solas; también se pueden archivar a mano (Ep6-Hu15).
+    archivada: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     correo_enviado: Mapped[bool] = mapped_column(Boolean, default=False)
     creada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -102,6 +102,8 @@ class ProyectoAdmin(BaseModel):
     miembros: int
     solicitudes_pendientes: int
     creado_en: date
+    archivado: bool = False
+    archivado_motivo: str = ""
 
 
 class Eliminacion(BaseModel):

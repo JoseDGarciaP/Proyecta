@@ -6,6 +6,7 @@ import { Aviso, fechaHora, useCarga } from './comun'
 const FILTROS = [
   ['', 'Todo'], ['usuario', 'Usuarios'], ['motivos', 'Motivos'], ['tipos-aporte', 'Tipos de aporte'], ['plantillas', 'Plantillas'],
   ['area', 'Áreas'], ['ods', 'ODS'], ['ajustes', 'Ajustes'], ['proyecto', 'Proyectos'], ['oportunidad', 'Oportunidades'], ['actor', 'Actores'],
+  ['alianza', 'Alianzas'], ['recomendacion', 'Recomendaciones'], ['aliado', 'Aliados'], ['reporte', 'Reportes'],
 ] as const
 
 const OBJETO: Record<string, string> = {
@@ -13,14 +14,36 @@ const OBJETO: Record<string, string> = {
   ods: 'el', ajustes: 'los', proyecto: 'el proyecto', oportunidad: 'la oportunidad', actor: 'el actor', resumenes: 'el',
 }
 
-const VERBO: Record<string, string> = { crear: 'creó', editar: 'editó', eliminar: 'eliminó', restablecer: 'envió enlace a', enviar: 'envió' }
+const VERBO: Record<string, string> = {
+  crear: 'creó', editar: 'editó', eliminar: 'eliminó', restablecer: 'envió enlace a', enviar: 'envió', archivar: 'archivó',
+  ocultar: 'ocultó', restaurar: 'restauró', anular: 'anuló', aceptar: 'aceptó', transferir: 'transfirió', exportar: 'exportó',
+  aprobar: 'aprobó', rechazar: 'rechazó',
+}
 
 /** Quién hizo qué en la administración, del más reciente al más antiguo. */
 export function Registro() {
   const [accion, setAccion] = useState('')
-  const { datos, error } = useCarga(() => bitacora(accion), [accion])
+  const [usuario, setUsuario] = useState('')
+  const [buscar, setBuscar] = useState('')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const { datos, error } = useCarga(() => bitacora(accion, buscar, desde, hasta), [accion, buscar, desde, hasta])
   return (
     <div className="space-y-4">
+      <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); setBuscar(usuario.trim()) }}>
+        <label className="text-xs text-slate-500">Persona
+          <input className="input mt-1" placeholder="Nombre o correo (Enter)" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
+        </label>
+        <label className="text-xs text-slate-500">Desde
+          <input type="date" className="input mt-1" value={desde} onChange={(e) => setDesde(e.target.value)} />
+        </label>
+        <label className="text-xs text-slate-500">Hasta
+          <input type="date" className="input mt-1" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+        </label>
+        {(buscar || desde || hasta) && (
+          <button type="button" className="btn-ghost text-xs" onClick={() => { setUsuario(''); setBuscar(''); setDesde(''); setHasta('') }}>Limpiar</button>
+        )}
+      </form>
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar">
         {FILTROS.map(([v, l]) => (
           <button key={v} onClick={() => setAccion(v)} aria-pressed={accion === v}
