@@ -1,7 +1,7 @@
 import {
   Anchor, Atom, Award, Brain, BadgeCheck, Bike, BookOpen, BookOpenCheck, Briefcase, Building2, Calculator, CalendarCheck, Camera,
   ChartColumn, Clock, Code, Compass, Cpu, Crown, Dna, Droplets, Dumbbell, Eye, Feather, Flag, FlaskConical, Flame,
-  Footprints, Gem, Gift, Glasses, Globe, Goal, GraduationCap, Hammer, HandHeart, Handshake, Heart, Hourglass, Infinity,
+  Footprints, Gem, Gift, Glasses, Globe, Goal, GraduationCap, Hammer, HandHeart, Handshake, Heart, Hourglass, Infinity as InfinityIcon,
   Key, Landmark, Laptop, Leaf, Lightbulb, Map, Medal, Megaphone, MessageSquare, Mic, Microscope, Mountain, Music,
   Palette, PenTool, Puzzle, Recycle, Ribbon, Rocket, Scale, School, Shield, ShieldCheck, Smile, Sparkles, Sprout, Star,
   Stethoscope, Sun, Target, Telescope, ThumbsUp, Tractor, TreePine, Trophy, Users, Wheat, Wind, Wrench, Zap,
@@ -23,7 +23,7 @@ export const ICONOS: Record<string, [LucideIcon, string]> = {
   mountain: [Mountain, 'montaña reto'], compass: [Compass, 'brújula exploración'], handshake: [Handshake, 'apretón alianza'],
   users: [Users, 'personas equipo'], heart: [Heart, 'corazón'], hand_heart: [HandHeart, 'voluntariado mano corazón'],
   smile: [Smile, 'sonrisa'], thumbs_up: [ThumbsUp, 'pulgar arriba'], megaphone: [Megaphone, 'megáfono divulgación'],
-  message: [MessageSquare, 'mensaje chat'], gift: [Gift, 'regalo'], infinity: [Infinity, 'infinito constancia'],
+  message: [MessageSquare, 'mensaje chat'], gift: [Gift, 'regalo'], infinity: [InfinityIcon, 'infinito constancia'],
   graduation: [GraduationCap, 'birrete grado'], school: [School, 'escuela colegio'], book: [BookOpen, 'libro'],
   book_check: [BookOpenCheck, 'libro aprobado'], brain: [Brain, 'cerebro'], microscope: [Microscope, 'microscopio ciencia'],
   flask: [FlaskConical, 'laboratorio química'], atom: [Atom, 'átomo física'], dna: [Dna, 'adn biología'],

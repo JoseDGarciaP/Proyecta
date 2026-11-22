@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -8,7 +8,8 @@ from app.core.database import utcnow
 from app.core.deps import DbSession, UsuarioActual, requiere
 from app.modules.alianzas.models import EstadoSolicitud, Miembro, Solicitud, TipoSolicitud
 from app.modules.alianzas.schemas import (
-    Decision, MiembroSalida, NuevaInvitacion, NuevaSolicitud, Recomendacion, SolicitudSalida, envia, responde,
+    CambioRol, Decision, MiembroSalida, NuevaInvitacion, NuevaSolicitud, Recomendacion, Retiro, SolicitudSalida, Transferencia,
+    envia, responde,
 )
 from app.modules.notificaciones.models import TipoNotificacion
 from app.modules.notificaciones.servicio import notificar
@@ -129,15 +130,91 @@ def listar_miembros(proyecto_id: uuid.UUID, db: DbSession):
 
 
 @router.delete("/api/proyectos/{proyecto_id}/miembros/{usuario_id}", status_code=status.HTTP_204_NO_CONTENT)
-def retirar_miembro(proyecto_id: uuid.UUID, usuario_id: uuid.UUID, usuario: UsuarioActual, db: DbSession):
-    """Quien registró el proyecto (o un admin) retira a alguien; un miembro puede retirarse a sí mismo."""
+def retirar_miembro(proyecto_id: uuid.UUID, usuario_id: uuid.UUID, usuario: UsuarioActual, db: DbSession,
+                    tareas: BackgroundTasks, datos: Retiro | None = Body(default=None)):
+    """Quien registró el proyecto (o un admin) retira a alguien; un miembro puede retirarse a sí mismo.
+
+    La alianza queda «anulada» en el historial con su motivo y se avisa a la otra parte (Ep6-Hu10).
+    """
+    from app.modules.admin.bitacora import registrar
+
     proyecto = obtener_proyecto(db, proyecto_id)
     if usuario.id not in (usuario_id, proyecto.creado_por_id) and not puede(db, usuario, "proyectos.moderar"):
         raise HTTPException(status_code=403, detail="No puedes retirar a este miembro")
     miembro = db.get(Miembro, (proyecto_id, usuario_id))
     if miembro is None:
         raise HTTPException(status_code=404, detail="No es miembro del proyecto")
+    motivo = (datos.motivo.strip() if datos else "") or "Sin motivo indicado"
+    sale_solo = usuario.id == usuario_id
+    persona = miembro.usuario
+    alianza = db.scalar(select(Solicitud).where(
+        Solicitud.proyecto_id == proyecto_id, Solicitud.usuario_id == usuario_id, Solicitud.estado == EstadoSolicitud.ACEPTADA,
+    ).order_by(Solicitud.actualizado_en.desc()))
+    if alianza is not None:
+        alianza.estado, alianza.respuesta, alianza.respondida_en = EstadoSolicitud.ANULADA, motivo, utcnow()
     db.delete(miembro)
+    if sale_solo and proyecto.creado_por is not None:
+        notificar(db, proyecto.creado_por, TipoNotificacion.PROYECTO, f"{persona.nombre} salió de «{proyecto.titulo}»",
+                  f"Motivo: {motivo}", f"/proyectos/{proyecto.id}", tareas, detalles=[("Motivo", motivo)])
+    elif not sale_solo:
+        notificar(db, persona, TipoNotificacion.PROYECTO, f"Ya no haces parte de «{proyecto.titulo}»",
+                  f"{usuario.nombre} anuló tu participación. Motivo: {motivo}", f"/proyectos/{proyecto.id}", tareas,
+                  detalles=[("Motivo", motivo)])
+    registrar(db, usuario, "alianza.anular", proyecto.titulo, f"{persona.nombre}. Motivo: {motivo}")
+    db.commit()
+
+
+@router.patch("/api/proyectos/{proyecto_id}/miembros/{usuario_id}", response_model=MiembroSalida)
+def cambiar_rol(proyecto_id: uuid.UUID, usuario_id: uuid.UUID, datos: CambioRol, usuario: UsuarioActual, db: DbSession,
+                tareas: BackgroundTasks):
+    """Quien registró el proyecto cambia el rol de un miembro; queda en el historial y se le avisa (Ep6-Hu9)."""
+    from app.modules.proyectos.models import CambioProyecto
+
+    proyecto = obtener_proyecto(db, proyecto_id)
+    if usuario.id != proyecto.creado_por_id and not puede(db, usuario, "proyectos.moderar"):
+        raise HTTPException(status_code=403, detail="Solo quien registró el proyecto puede cambiar roles")
+    miembro = db.get(Miembro, (proyecto_id, usuario_id))
+    if miembro is None:
+        raise HTTPException(status_code=404, detail="No es miembro del proyecto")
+    antes, nuevo = miembro.rol, datos.rol.strip()
+    if antes != nuevo:
+        miembro.rol = nuevo
+        db.add(CambioProyecto(proyecto_id=proyecto.id, autor_id=usuario.id,
+                              cambios=[{"campo": f"Rol de {miembro.usuario.nombre}", "antes": antes, "despues": nuevo}]))
+        notificar(db, miembro.usuario, TipoNotificacion.PROYECTO, f"Tu rol en «{proyecto.titulo}» cambió",
+                  f"{usuario.nombre} cambió tu rol de «{antes}» a «{nuevo}».", f"/proyectos/{proyecto.id}", tareas,
+                  detalles=[("Antes", antes), ("Ahora", nuevo)])
+        db.commit()
+    return MiembroSalida.de(miembro)
+
+
+@router.post("/api/proyectos/{proyecto_id}/transferir", status_code=status.HTTP_204_NO_CONTENT)
+def transferir(proyecto_id: uuid.UUID, datos: Transferencia, usuario: UsuarioActual, db: DbSession, tareas: BackgroundTasks):
+    """Quien registró el proyecto pasa la propiedad a un miembro antes de retirarse (Ep6-Hu10).
+
+    El nuevo dueño deja de figurar como miembro y el anterior queda como colaborador.
+    """
+    from app.modules.admin.bitacora import registrar
+    from app.modules.proyectos.models import CambioProyecto
+
+    proyecto = obtener_proyecto(db, proyecto_id)
+    if usuario.id != proyecto.creado_por_id and not puede(db, usuario, "proyectos.moderar"):
+        raise HTTPException(status_code=403, detail="Solo quien registró el proyecto puede transferirlo")
+    nuevo = db.get(Miembro, (proyecto_id, datos.usuario_id))
+    if nuevo is None:
+        raise HTTPException(status_code=422, detail="La propiedad solo se puede pasar a un miembro del proyecto")
+    dueno = nuevo.usuario
+    anterior = proyecto.creado_por
+    db.delete(nuevo)
+    if anterior is not None and db.get(Miembro, (proyecto_id, anterior.id)) is None:
+        db.add(Miembro(proyecto_id=proyecto_id, usuario_id=anterior.id, rol="colaborador"))
+    proyecto.creado_por_id = dueno.id
+    proyecto.lider = dueno.nombre
+    db.add(CambioProyecto(proyecto_id=proyecto.id, autor_id=usuario.id, cambios=[
+        {"campo": "Responsable", "antes": anterior.nombre if anterior else "", "despues": dueno.nombre}]))
+    notificar(db, dueno, TipoNotificacion.PROYECTO, f"Ahora eres responsable de «{proyecto.titulo}»",
+              f"{usuario.nombre} te transfirió el proyecto.", f"/proyectos/{proyecto.id}", tareas)
+    registrar(db, usuario, "proyecto.transferir", proyecto.titulo, f"Nuevo responsable: {dueno.nombre}")
     db.commit()
 
 

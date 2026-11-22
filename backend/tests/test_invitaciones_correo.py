@@ -23,7 +23,7 @@ def _miembros(client, headers, pid):
 
 
 def _registro(client, email, nombre, **extra):
-    return client.post("/api/auth/registro", json={"email": email, "password": "Clave-Segura1", "nombre": nombre, **extra})
+    return client.post("/api/auth/registro", json={"email": email, "password": "Clave-Segura1", "acepta_datos": True, "nombre": nombre, **extra})
 
 
 def test_acepta_desde_el_correo_y_al_registrarse_queda_en_el_equipo(client, estudiante):

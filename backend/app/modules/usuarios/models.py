@@ -47,6 +47,17 @@ class Usuario(UuidPk, Timestamps, Base):
     nivel_id: Mapped[int | None] = mapped_column(ForeignKey("niveles.id", ondelete="SET NULL"))
     # Hasta qué momento ya se le avisó por correo de mensajes sin leer (para no repetir el aviso).
     resumen_hasta: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Datos institucionales (Ep4-Hu6). Código y cédula no se cambian desde el perfil.
+    codigo: Mapped[str | None] = mapped_column(String(30), unique=True)
+    cedula: Mapped[str | None] = mapped_column(String(30), unique=True)
+    sexo: Mapped[str | None] = mapped_column(String(20))
+    # Cuándo aceptó la política de tratamiento de datos (Ley 1581 de 2012).
+    acepto_datos_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Bloqueo tras intentos fallidos de ingreso (Ep4-Hu1).
+    intentos_fallidos: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    bloqueado_hasta: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Sube al cerrar sesión o cambiar la contraseña: invalida los tokens emitidos antes (Ep4-Hu2).
+    sesion_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     @property
     def rol_nombre(self) -> str:

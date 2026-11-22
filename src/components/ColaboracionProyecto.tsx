@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Handshake, Mail, MessageCircle, UserPlus, Users, X } from 'lucide-react'
 import {
+  cambiarRolMiembro,
   cancelarInvitacionCorreo,
   colaboradoresSugeridos,
   invitar,
@@ -10,8 +11,11 @@ import {
   listarMiembros,
   misSolicitudes,
   proyectosSimilares,
+  retirarMiembro,
   solicitarUnion,
+  transferirProyecto,
 } from '@/lib/colaboracion'
+import { aceptarRecomendacion, anularRecomendacion } from '@/lib/ai'
 import { apiHabilitada } from '@/lib/http'
 import { useSesion } from '@/lib/sesion'
 import type { InvitacionCorreo, Miembro, Proyecto, Recomendacion, RespuestaSugerencias, Solicitud, Sugerencia } from '@/lib/types'
@@ -48,6 +52,29 @@ export function MiembrosProyecto({ proyecto }: { proyecto: Proyecto }) {
 
   const esResponsable = usuario?.id === proyecto.creado_por
   const esMiembro = esResponsable || miembros.some((m) => m.usuario_id === usuario?.id)
+  const gestiona = esResponsable || puede('proyectos.moderar')
+  const recargar = () => listarMiembros(proyecto.id).then(setMiembros).catch(() => {})
+  const fallo = (e: unknown) => window.alert(e instanceof Error ? e.message : 'No se pudo completar')
+
+  async function cambiarRol(m: Miembro) {
+    const rol = window.prompt(`Nuevo rol de ${m.nombre}:`, m.rol)?.trim()
+    if (!rol || rol === m.rol) return
+    await cambiarRolMiembro(proyecto.id, m.usuario_id, rol).then(recargar).catch(fallo)
+  }
+
+  async function retirar(m: Miembro) {
+    const yoMismo = m.usuario_id === usuario?.id
+    const motivo = window.prompt(yoMismo ? '¿Por qué sales del proyecto?' : `Motivo para retirar a ${m.nombre} (se le avisará):`)?.trim()
+    if (!motivo) return
+    await retirarMiembro(proyecto.id, m.usuario_id, motivo)
+      .then(() => (yoMismo ? window.location.reload() : recargar()))
+      .catch(fallo)
+  }
+
+  async function transferir(m: Miembro) {
+    if (!window.confirm(`¿Pasar la responsabilidad del proyecto a ${m.nombre}? Tú quedarás como colaborador/a.`)) return
+    await transferirProyecto(proyecto.id, m.usuario_id).then(() => window.location.reload()).catch(fallo)
+  }
 
   const enviar = async (reco: Recomendacion) => {
     setPendiente(await solicitarUnion(proyecto.id, reco))
@@ -69,6 +96,15 @@ export function MiembrosProyecto({ proyecto }: { proyecto: Proyecto }) {
             <li key={m.usuario_id} className="text-sm">
               <p className="font-medium text-slate-800 dark:text-slate-200"><NombrePersona id={m.usuario_id} nombre={m.nombre} /></p>
               <p className="text-xs text-slate-500 dark:text-slate-400">{m.rol}{m.programa && ` · ${m.programa}`}</p>
+              {(gestiona || m.usuario_id === usuario?.id) && (
+                <p className="mt-1 flex flex-wrap gap-3 text-xs">
+                  {gestiona && <button type="button" className="text-brand-700 hover:underline dark:text-brand-300" onClick={() => cambiarRol(m)}>Cambiar rol</button>}
+                  {esResponsable && <button type="button" className="text-brand-700 hover:underline dark:text-brand-300" onClick={() => transferir(m)}>Hacer responsable</button>}
+                  <button type="button" className="text-red-600 hover:underline" onClick={() => retirar(m)}>
+                    {m.usuario_id === usuario?.id ? 'Salir del proyecto' : 'Retirar'}
+                  </button>
+                </p>
+              )}
             </li>
           ))}
         </ul>
@@ -235,6 +271,7 @@ export function RedProyecto({ proyecto }: { proyecto: Proyecto }) {
   const [colaboradores, setColaboradores] = useState<RespuestaSugerencias | null>(null)
   const [invitados, setInvitados] = useState<Record<string, string>>({})
   const [invitando, setInvitando] = useState<Sugerencia | null>(null)
+  const [peso, setPeso] = useState(0.3)
   const puede = usePuede()
   const esResponsable = Boolean(usuario && usuario.id === proyecto.creado_por) && puede('colaboracion.invitar')
 
@@ -245,13 +282,27 @@ export function RedProyecto({ proyecto }: { proyecto: Proyecto }) {
 
   useEffect(() => {
     if (!apiHabilitada || !esResponsable) return
-    colaboradoresSugeridos(proyecto.id).then(setColaboradores).catch(() => setColaboradores(null))
-  }, [proyecto.id, esResponsable])
+    colaboradoresSugeridos(proyecto.id, peso).then(setColaboradores).catch(() => setColaboradores(null))
+  }, [proyecto.id, esResponsable, peso])
+
+  const marcar = (s: Sugerencia, estado: 'aceptada' | 'anulada') =>
+    setColaboradores((c) => c && ({
+      ...c,
+      resultados: estado === 'anulada' ? c.resultados.filter((x) => x.id !== s.id) : c.resultados.map((x) => (x.id === s.id ? { ...x, estado } : x)),
+    }))
+
+  async function descartar(s: Sugerencia) {
+    if (!s.recomendacion_id) return
+    const motivo = window.prompt(`¿Por qué descartas a ${s.titulo}? No se volverá a sugerir.`)?.trim()
+    if (!motivo || motivo.length < 5) return
+    await anularRecomendacion(s.recomendacion_id, motivo).then(() => marcar(s, 'anulada')).catch(() => {})
+  }
 
   if (!apiHabilitada) return null
 
   const invitarA = async (s: Sugerencia, reco: Recomendacion) => {
     await invitar(proyecto.id, s.id, reco)
+    if (s.recomendacion_id && s.estado === 'pendiente') await aceptarRecomendacion(s.recomendacion_id).catch(() => {})
     setInvitados((x) => ({ ...x, [s.id]: 'Invitación enviada' }))
     setInvitando(null)
   }
@@ -277,6 +328,10 @@ export function RedProyecto({ proyecto }: { proyecto: Proyecto }) {
           <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
             Personas cuyo perfil encaja con «Lo que necesita». Solo lo ves tú, como responsable.
           </p>
+          <label className="mb-3 block text-xs text-slate-600 dark:text-slate-400">
+            Peso de las habilidades pedidas frente al perfil completo: <b>{Math.round(peso * 100)} %</b>
+            <input type="range" min={0} max={1} step={0.1} value={peso} onChange={(e) => setPeso(Number(e.target.value))} className="mt-1 w-full" />
+          </label>
           {colaboradores ? (
             <ListaSugerencias
               items={colaboradores.resultados}
@@ -285,9 +340,16 @@ export function RedProyecto({ proyecto }: { proyecto: Proyecto }) {
                 invitados[s.id] ? (
                   <span className="text-xs text-slate-500">{invitados[s.id]}</span>
                 ) : (
-                  <button className="btn-ghost text-xs" onClick={() => setInvitando(s)}>
-                    <UserPlus size={14} aria-hidden /> Invitar
-                  </button>
+                  <span className="flex gap-1">
+                    <button className="btn-ghost text-xs" onClick={() => setInvitando(s)}>
+                      <UserPlus size={14} aria-hidden /> Invitar
+                    </button>
+                    {s.recomendacion_id && s.estado === 'pendiente' && (
+                      <button className="btn-ghost text-xs" title="No volver a sugerir" onClick={() => descartar(s)}>
+                        <X size={14} aria-hidden /> Descartar
+                      </button>
+                    )}
+                  </span>
                 )
               }
             />

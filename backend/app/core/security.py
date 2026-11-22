@@ -73,8 +73,9 @@ def huella_password(hashed: str) -> str:
     return hashlib.sha256(hashed.encode()).hexdigest()[:16]
 
 
-def create_access_token(subject: str) -> str:
-    return create_token(subject, "acceso", get_settings().access_token_expire_minutes)
+def create_access_token(subject: str, version: int = 0) -> str:
+    """`version` = sesion_version del usuario: al cerrar sesión sube y los tokens anteriores dejan de servir."""
+    return create_token(subject, "acceso", get_settings().access_token_expire_minutes, sv=str(version or 0))
 
 
 def decode_access_token(token: str) -> str | None:

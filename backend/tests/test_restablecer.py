@@ -15,7 +15,7 @@ def test_restablecer_cambia_la_contrasena_e_inicia_sesion(client, estudiante):
     assert client.get("/api/usuarios/yo", headers=nuevo).json()["email"] == "ana@ufpso.edu.co"
     # Entra con la nueva y ya no con la anterior.
     auth(client, "ana@ufpso.edu.co", "Otra-Clave-2")
-    viejo = client.post("/api/auth/login", data={"username": "ana@ufpso.edu.co", "password": "Clave-Segura1"})
+    viejo = client.post("/api/auth/login", data={"username": "ana@ufpso.edu.co", "password": "Clave-Segura1", "acepta_datos": True})
     assert viejo.status_code == 401
 
 
@@ -45,7 +45,7 @@ def test_contrasena_nueva_corta(client, estudiante):
 
 
 def test_restablecer_confirma_una_cuenta_sin_verificar(client):
-    client.post("/api/auth/registro", json={"email": "luis@ufpso.edu.co", "password": "Clave-Segura1", "nombre": "Luis Rojas"})
+    client.post("/api/auth/registro", json={"email": "luis@ufpso.edu.co", "password": "Clave-Segura1", "acepta_datos": True, "nombre": "Luis Rojas"})
     token = pedir_enlace(client, "luis@ufpso.edu.co")
     assert client.post("/api/auth/restablecer", json={"token": token, "password": "Clave-Nueva-1"}).status_code == 200
     auth(client, "luis@ufpso.edu.co", "Clave-Nueva-1")

@@ -95,3 +95,15 @@ def responde(s: Solicitud) -> uuid.UUID | None:
 def envia(s: Solicitud) -> uuid.UUID | None:
     """Quién la envió: el solicitante o el dueño del proyecto (en una invitación)."""
     return s.usuario_id if s.tipo == TipoSolicitud.SOLICITUD else s.proyecto.creado_por_id
+
+
+class CambioRol(BaseModel):
+    rol: str = Field(min_length=2, max_length=80)
+
+
+class Retiro(BaseModel):
+    motivo: str = Field(default="", max_length=1000)
+
+
+class Transferencia(BaseModel):
+    usuario_id: uuid.UUID

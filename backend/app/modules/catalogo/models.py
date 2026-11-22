@@ -33,5 +33,7 @@ def _enlace(nombre: str, izq: tuple[str, str], der: tuple[str, str]) -> Table:
 
 
 proyecto_ods = _enlace("proyecto_ods", ("proyectos", "proyecto_id"), ("ods", "ods_id"))
+# Áreas adicionales de un proyecto (la principal sigue en proyectos.area_id) (Ep4-Hu17).
+proyecto_areas = _enlace("proyecto_areas", ("proyectos", "proyecto_id"), ("areas", "area_id"))
 oportunidad_areas = _enlace("oportunidad_areas", ("oportunidades", "oportunidad_id"), ("areas", "area_id"))
 oportunidad_ods = _enlace("oportunidad_ods", ("oportunidades", "oportunidad_id"), ("ods", "ods_id"))

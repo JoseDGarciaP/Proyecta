@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import or_, select
+from sqlalchemy import String, cast, or_, select
 
 from app.core.deps import DbSession, UsuarioActual, requiere
 from app.modules.alianzas.models import Miembro
@@ -50,7 +50,7 @@ def actualizar_yo(datos: UsuarioActualizar, usuario: UsuarioActual, db: DbSessio
 def listar_usuarios(
     db: DbSession,
     rol: str | None = None,
-    q: str | None = Query(default=None, description="Busca en nombre y programa"),
+    q: str | None = Query(default=None, description="Busca en nombre, programa, habilidades e intereses (áreas y ODS)"),
     limit: int = Query(default=50, le=200),
     offset: int = 0,
 ):
@@ -59,7 +59,8 @@ def listar_usuarios(
         stmt = stmt.where(Usuario.rol == rol)
     if q:
         patron = f"%{q}%"
-        stmt = stmt.where(or_(Usuario.nombre.ilike(patron), Usuario.programa.ilike(patron)))
+        stmt = stmt.where(or_(Usuario.nombre.ilike(patron), Usuario.programa.ilike(patron),
+                              cast(Usuario.habilidades, String).ilike(patron), cast(Usuario.intereses, String).ilike(patron)))
     return db.scalars(stmt.order_by(Usuario.nombre).limit(limit).offset(offset)).unique().all()
 
 

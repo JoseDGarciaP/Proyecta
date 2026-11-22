@@ -20,6 +20,7 @@ class EstadoSolicitud(str, enum.Enum):
     ACEPTADA = "aceptada"
     RECHAZADA = "rechazada"
     CANCELADA = "cancelada"
+    ANULADA = "anulada"  # el miembro salió del proyecto o lo retiraron, con motivo (Ep6-Hu10)
 
 
 class Miembro(Base):

@@ -26,13 +26,17 @@ import { InsigniasDe, NivelDe, NombrePersona } from '@/components/Insignia'
 import { MiNivel } from '@/components/Nivel'
 import { Evidencias } from '@/components/Evidencias'
 import { usePuede } from '@/lib/permisos'
+import { useAreas } from '@/lib/parametros'
+import { guardarPerfilAliado, miPerfilAliado, type AliadoPropio } from '@/lib/aliados'
+import { ODS } from '@/lib/types'
 
 /** Estado de una alianza con el nombre de negocio (la API usa aceptada/cancelada). Orden = orden del filtro. */
 const ESTADO_ALIANZA: Record<EstadoSolicitud, { etiqueta: string; clase: string }> = {
   aceptada: { etiqueta: 'Activa', clase: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300' },
   pendiente: { etiqueta: 'Pendiente', clase: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300' },
   rechazada: { etiqueta: 'Rechazada', clase: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300' },
-  cancelada: { etiqueta: 'Anulada', clase: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400' },
+  cancelada: { etiqueta: 'Cancelada', clase: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400' },
+  anulada: { etiqueta: 'Anulada', clase: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400' },
 }
 
 export function Perfil() {
@@ -140,6 +144,7 @@ export function Perfil() {
 
         <div className="min-w-0 space-y-6">
           <EditarPerfil perfil={perfil} alGuardar={cargar} />
+          {perfil.usuario.rol === 'aliado' && <EditarAliado />}
           <PreferenciasNotificaciones />
           {puede('ia.usar') && <ParaMi version={usuario} />}
         </div>
@@ -380,7 +385,13 @@ function EditarPerfil({ perfil, alGuardar }: { perfil: DatosPerfil; alGuardar: (
   const [programa, setPrograma] = useState(u.programa ?? '')
   const [bio, setBio] = useState(u.bio ?? '')
   const [habilidades, setHabilidades] = useState(listaATexto(u.habilidades))
-  const [intereses, setIntereses] = useState(listaATexto(u.intereses))
+  const [intereses, setIntereses] = useState<string[]>(u.intereses)
+  const areas = useAreas()
+  const opcionesOds = ODS.map((o) => `ODS ${o.id}: ${o.nombre}`)
+  // Intereses guardados antes como texto libre: se conservan hasta que la persona los quite.
+  const otros = intereses.filter((i) => !areas.includes(i) && !opcionesOds.includes(i))
+  const alternar = (valor: string) =>
+    setIntereses((xs) => (xs.includes(valor) ? xs.filter((x) => x !== valor) : [...xs, valor]))
   const [estado, setEstado] = useState<'' | 'guardando' | 'guardado' | string>('')
 
   const guardar = async (e: React.FormEvent) => {
@@ -391,7 +402,7 @@ function EditarPerfil({ perfil, alGuardar }: { perfil: DatosPerfil; alGuardar: (
         programa: programa.trim() || null,
         bio: bio.trim() || null,
         habilidades: textoALista(habilidades),
-        intereses: textoALista(intereses),
+        intereses,
       })
       refrescar(nuevo)
       alGuardar()
@@ -417,14 +428,91 @@ function EditarPerfil({ perfil, alGuardar }: { perfil: DatosPerfil; alGuardar: (
         <span className="label">Habilidades (separadas por coma)</span>
         <input className="input" placeholder="Python, diseño de encuestas, SIG" value={habilidades} onChange={(e) => setHabilidades(e.target.value)} />
       </label>
-      <label className="block">
-        <span className="label">Intereses (separados por coma)</span>
-        <input className="input" placeholder="agua potable, agroindustria" value={intereses} onChange={(e) => setIntereses(e.target.value)} />
-      </label>
+      <fieldset>
+        <legend className="label">Áreas de interés</legend>
+        <div className="flex flex-wrap gap-1.5">
+          {[...areas, ...otros].map((a) => (
+            <button key={a} type="button" onClick={() => alternar(a)} aria-pressed={intereses.includes(a)}
+              className={`rounded-full border px-2.5 py-1 text-xs ${intereses.includes(a)
+                ? 'border-brand-600 bg-brand-50 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200'
+                : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'}`}>
+              {a}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend className="label">ODS de interés</legend>
+        <div className="flex flex-wrap gap-1.5">
+          {opcionesOds.map((o) => (
+            <button key={o} type="button" onClick={() => alternar(o)} aria-pressed={intereses.includes(o)}
+              className={`rounded-full border px-2.5 py-1 text-xs ${intereses.includes(o)
+                ? 'border-brand-600 bg-brand-50 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200'
+                : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300'}`}>
+              {o}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      {(u.codigo || u.cedula) && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Código {u.codigo ?? '—'} · Cédula {u.cedula ?? '—'}. Estos datos solo los puede cambiar un administrador.
+        </p>
+      )}
       <label className="block">
         <span className="label">Sobre mí</span>
         <textarea className="input min-h-20" value={bio} onChange={(e) => setBio(e.target.value)} />
       </label>
+      <div className="flex items-center gap-3">
+        <button className="btn-primary" disabled={estado === 'guardando'}>
+          {estado === 'guardando' && <Loader2 size={15} className="animate-spin" aria-hidden />} Guardar
+        </button>
+        {estado === 'guardado' && <span className="text-sm text-emerald-600">Guardado</span>}
+        {estado && !['guardando', 'guardado'].includes(estado) && <span className="text-sm text-rose-600">{estado}</span>}
+      </div>
+    </form>
+  )
+}
+
+/** Datos de la organización del aliado (Ep4-Hu13). El NIT o la cédula solo los cambia un administrador. */
+function EditarAliado() {
+  const [datos, setDatos] = useState<AliadoPropio | null>(null)
+  const [estado, setEstado] = useState('')
+  useEffect(() => {
+    miPerfilAliado().then(setDatos).catch(() => setDatos(null))
+  }, [])
+  if (!datos) return null
+  const set = (clave: 'telefono' | 'sector' | 'sitio_web' | 'descripcion' | 'razon_social', valor: string) =>
+    setDatos((d) => (d ? { ...d, [clave]: valor } : d))
+  const guardar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setEstado('guardando')
+    try {
+      const { telefono, sector, sitio_web, descripcion, razon_social } = datos
+      setDatos(await guardarPerfilAliado({ telefono, sector, sitio_web, descripcion, razon_social }))
+      setEstado('guardado')
+    } catch (err) {
+      setEstado((err as Error).message)
+    }
+  }
+  return (
+    <form onSubmit={guardar} className="card space-y-3 p-5">
+      <h2 className="font-semibold text-slate-900 dark:text-white">Mi organización</h2>
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        {datos.tipo} · NIT o cédula {datos.documento || '—'} (para cambiarlo, escribe a un administrador).
+      </p>
+      <label className="block"><span className="label">Razón social</span>
+        <input className="input" maxLength={200} value={datos.razon_social} onChange={(e) => set('razon_social', e.target.value)} /></label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block"><span className="label">Teléfono</span>
+          <input className="input" required minLength={7} maxLength={30} value={datos.telefono} onChange={(e) => set('telefono', e.target.value)} /></label>
+        <label className="block"><span className="label">Sector</span>
+          <input className="input" required minLength={2} maxLength={120} value={datos.sector} onChange={(e) => set('sector', e.target.value)} /></label>
+      </div>
+      <label className="block"><span className="label">Sitio web</span>
+        <input className="input" type="url" placeholder="https://" value={datos.sitio_web} onChange={(e) => set('sitio_web', e.target.value)} /></label>
+      <label className="block"><span className="label">Descripción</span>
+        <textarea className="input min-h-20" value={datos.descripcion} onChange={(e) => set('descripcion', e.target.value)} /></label>
       <div className="flex items-center gap-3">
         <button className="btn-primary" disabled={estado === 'guardando'}>
           {estado === 'guardando' && <Loader2 size={15} className="animate-spin" aria-hidden />} Guardar

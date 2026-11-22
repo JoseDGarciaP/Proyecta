@@ -58,7 +58,7 @@ def auth(client, email, password="Clave-Segura1"):
 
 def registrar(client, email, nombre="Ana Pérez", **extra):
     """Registra y confirma el correo con el enlace del mensaje, como lo haría la persona."""
-    res = client.post("/api/auth/registro", json={"email": email, "password": "Clave-Segura1", "nombre": nombre, **extra})
+    res = client.post("/api/auth/registro", json={"email": email, "password": "Clave-Segura1", "acepta_datos": True, "nombre": nombre, **extra})
     assert res.status_code == 201, res.text
     assert client.post("/api/auth/verificar", json={"token": token_del_correo(email)}).status_code == 200
     return auth(client, email)

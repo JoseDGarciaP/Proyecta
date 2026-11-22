@@ -15,6 +15,7 @@ import { listarMiembros } from '@/lib/colaboracion'
 import { useSesion } from '@/lib/sesion'
 import { Evidencias } from '@/components/Evidencias'
 import { PostulacionesProyecto } from '@/components/Postulaciones'
+import { AdjuntosProyecto, AportesProyecto, EliminarProyecto, HistorialProyecto, ObservacionesProyecto } from '@/components/SeguimientoProyecto'
 
 export function ProyectoDetalle() {
   const { id = '' } = useParams()
@@ -82,6 +83,7 @@ export function ProyectoDetalle() {
               <Pencil size={14} aria-hidden /> Editar proyecto
             </Link>
           )}
+          {puedeEditar && apiHabilitada && <EliminarProyecto proyectoId={proyecto.id} titulo={proyecto.titulo} />}
         </div>
       </div>
 
@@ -90,7 +92,10 @@ export function ProyectoDetalle() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <EstadoBadge estado={proyecto.estado} />
-              <span className="text-xs text-slate-500 dark:text-slate-400">{proyecto.area}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">{(proyecto.areas?.length ? proyecto.areas : [proyecto.area]).join(' · ')}</span>
+              {proyecto.archivado && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">Archivado</span>
+              )}
             </div>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{proyecto.titulo}</h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">{proyecto.resumen}</p>
@@ -124,6 +129,18 @@ export function ProyectoDetalle() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="card p-6 lg:col-span-2">
+          {proyecto.problema && (
+            <>
+              <h2 className="font-semibold text-slate-900 dark:text-white">Problema</h2>
+              <p className="mt-2 mb-6 whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-400">{proyecto.problema}</p>
+            </>
+          )}
+          {proyecto.objetivos && (
+            <>
+              <h2 className="font-semibold text-slate-900 dark:text-white">Objetivos</h2>
+              <p className="mt-2 mb-6 whitespace-pre-line text-sm leading-relaxed text-slate-600 dark:text-slate-400">{proyecto.objetivos}</p>
+            </>
+          )}
           <h2 className="font-semibold text-slate-900 dark:text-white">Descripción</h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{proyecto.descripcion}</p>
 
@@ -192,13 +209,17 @@ export function ProyectoDetalle() {
         <div className="no-print grid gap-4 lg:grid-cols-2">
           <PostulacionesProyecto proyectoId={proyecto.id} esEquipo={esEquipo} />
           <Evidencias proyectoId={proyecto.id} titulo="Evidencias del proyecto" puedeSubir={esEquipo && puede('evidencias.subir')} />
+          <AdjuntosProyecto proyectoId={proyecto.id} puedeSubir={esEquipo || puede('admin.moderacion')} />
+          <AportesProyecto proyectoId={proyecto.id} esEquipo={esEquipo} esResponsable={puedeEditar} />
+          <ObservacionesProyecto proyectoId={proyecto.id} />
+          {esEquipo && <HistorialProyecto proyectoId={proyecto.id} />}
         </div>
       )}
 
       <div className="no-print">
         <ChatProyecto proyecto={proyecto} />
       </div>
-      {puede('ia.usar') && <PanelIA proyecto={proyecto} oportunidades={oportunidades} />}
+      {puede('ia.usar') && <PanelIA proyecto={proyecto} oportunidades={oportunidades} esEquipo={esEquipo} />}
       {puede('ia.usar') && (
         <div className="no-print">
           <RedProyecto proyecto={proyecto} />

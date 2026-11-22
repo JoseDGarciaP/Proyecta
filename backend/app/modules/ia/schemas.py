@@ -3,7 +3,7 @@ from datetime import datetime
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Recomendacion(BaseModel):
@@ -23,6 +23,8 @@ class RespuestaAnalisis(BaseModel):
     fortalezas: list[str] = []
     pasos_sugeridos: list[str] = []
     simulado: bool  # True cuando el resumen sale de la heurística y no de un modelo
+    # Ep5-Hu9: proyectos parecidos en los que se apoyan las mejoras sugeridas.
+    similares: list["Sugerencia"] = []
 
 
 class RespuestaPitch(BaseModel):
@@ -65,6 +67,8 @@ class RecomendacionSalida(BaseModel):
     razon: str
     estado: Literal["pendiente", "aceptada", "anulada"]
     creado_en: datetime
+    motivo: str = ""
+    decidido_en: datetime | None = None
 
 
 class SugerenciasParaMi(BaseModel):
@@ -72,3 +76,21 @@ class SugerenciasParaMi(BaseModel):
     perfil_completo: bool  # False si faltan habilidades o intereses para comparar
     proyectos: list[Sugerencia]  # proyectos que buscan un perfil como el mío
     oportunidades: list[Sugerencia]  # oportunidades para los proyectos donde participo
+
+
+class Anular(BaseModel):
+    motivo: str = Field(min_length=5, max_length=1000)
+
+
+class Valoracion(BaseModel):
+    util: bool
+    comentario: str = Field(default="", max_length=1000)
+
+
+class ResumenValoraciones(BaseModel):
+    utiles: int
+    no_utiles: int
+    mia: bool | None  # lo que marcó quien consulta, si ya valoró
+
+
+RespuestaAnalisis.model_rebuild()

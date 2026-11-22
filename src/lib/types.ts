@@ -40,10 +40,19 @@ export interface Proyecto {
   creado_por?: string | null
   /** Programa académico de quien registró el proyecto. */
   programa?: string | null
+  problema?: string
+  objetivos?: string
+  /** Área principal + adicionales. */
+  areas?: string[]
+  /** Archivado en lugar de borrado porque tenía colaboradores (Ep4-Hu20). */
+  archivado?: boolean
 }
 
 /** Lo que se envía al registrar un proyecto; `lider` vacío = nombre de quien registra. */
-export type NuevoProyecto = Omit<Proyecto, 'id' | 'creado_en' | 'creado_por' | 'programa'>
+export type NuevoProyecto = Omit<Proyecto, 'id' | 'creado_en' | 'creado_por' | 'programa' | 'areas' | 'archivado'> & {
+  /** Áreas adicionales, además de la principal (Ep4-Hu17). */
+  areas_extra?: string[]
+}
 
 export interface Actor {
   id: string
@@ -96,6 +105,12 @@ export interface Usuario {
   habilidades: string[]
   intereses: string[]
   verificado?: boolean
+  /** Si la cuenta está activa (los perfiles inactivos se marcan así). */
+  activo?: boolean
+  /** Datos institucionales: solo llegan en el usuario propio. */
+  codigo?: string | null
+  cedula?: string | null
+  sexo?: string | null
 }
 
 /** Objetivos de Desarrollo Sostenible (el número es el id que usa la API). */
@@ -147,7 +162,7 @@ export const ESTADO_CLASS: Record<Estado, string> = {
   pausado: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
 }
 
-export type EstadoSolicitud = 'pendiente' | 'aceptada' | 'rechazada' | 'cancelada'
+export type EstadoSolicitud = 'pendiente' | 'aceptada' | 'rechazada' | 'cancelada' | 'anulada'
 
 /** Pedido de unión (lo responde quien registró el proyecto) o invitación (la responde el invitado). */
 export interface Solicitud {

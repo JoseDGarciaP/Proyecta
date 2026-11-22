@@ -57,8 +57,16 @@ export const cancelarSolicitud = (id: string) => pedir<Solicitud>(`/alianzas/${i
 export const proyectosSimilares = (proyectoId: string) =>
   pedir<RespuestaSugerencias>(`/ia/proyectos/${proyectoId}/similares`)
 
-export const colaboradoresSugeridos = (proyectoId: string) =>
-  pedir<RespuestaSugerencias>(`/ia/proyectos/${proyectoId}/colaboradores`)
+export const colaboradoresSugeridos = (proyectoId: string, pesoHabilidades = 0.3) =>
+  pedir<RespuestaSugerencias>(`/ia/proyectos/${proyectoId}/colaboradores?peso_habilidades=${pesoHabilidades}`)
+
+/** Cambiar el rol de un miembro (Ep6-Hu9), retirarlo con motivo y pasar la propiedad (Ep6-Hu10). */
+export const cambiarRolMiembro = (proyectoId: string, usuarioId: string, rol: string) =>
+  pedir<Miembro>(`/proyectos/${proyectoId}/miembros/${usuarioId}`, { method: 'PATCH', json: { rol } })
+export const retirarMiembro = (proyectoId: string, usuarioId: string, motivo: string) =>
+  pedir<void>(`/proyectos/${proyectoId}/miembros/${usuarioId}`, { method: 'DELETE', json: { motivo } })
+export const transferirProyecto = (proyectoId: string, usuarioId: string) =>
+  pedir<void>(`/proyectos/${proyectoId}/transferir`, { method: 'POST', json: { usuario_id: usuarioId } })
 
 export const buscarSemantico = (q: string, en: 'oportunidades' | 'proyectos' = 'oportunidades') =>
   pedir<RespuestaSugerencias>(`/ia/buscar?${new URLSearchParams({ q, en })}`)

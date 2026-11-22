@@ -2,16 +2,20 @@ import uuid
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import or_, select
 
 from app.core.config import get_settings
+from app.core.database import utcnow
 from app.core.deps import DbSession, UsuarioActual
 from app.modules.alianzas.models import Miembro
 from app.modules.ia import historial
-from app.modules.ia.models import EstadoRecomendacion, RecomendacionGuardada, TipoRecomendacion
+from app.modules.ia.models import EstadoRecomendacion, RecomendacionGuardada, TipoRecomendacion, ValoracionDiagnostico
 from app.modules.ia.schemas import (
+    Anular,
     RecomendacionSalida,
+    ResumenValoraciones,
+    Valoracion,
     RespuestaAnalisis,
     RespuestaPitch,
     RespuestaSugerencias,
@@ -61,12 +65,22 @@ def _semantica(db, proyecto: Proyecto, oportunidades: list[Oportunidad]) -> dict
     return similitudes(db, textos.proyecto(proyecto), "oportunidad", oportunidades, textos.oportunidad)[0]
 
 
+def _anuladas(db, proyecto_id: uuid.UUID, tipo: TipoRecomendacion) -> set[uuid.UUID]:
+    """Lo que el equipo descartó: no se vuelve a sugerir (Ep5-Hu6)."""
+    return set(db.scalars(select(RecomendacionGuardada.objetivo_id).where(
+        RecomendacionGuardada.proyecto_id == proyecto_id, RecomendacionGuardada.tipo == tipo,
+        RecomendacionGuardada.estado == EstadoRecomendacion.ANULADA)))
+
+
 @router.post("/proyectos/{proyecto_id}/analisis", response_model=RespuestaAnalisis)
 async def analizar_proyecto(proyecto_id: uuid.UUID, db: DbSession):
     proyecto = obtener_proyecto(db, proyecto_id)
-    oportunidades = _abiertas(db)
+    descartadas = _anuladas(db, proyecto.id, TipoRecomendacion.OPORTUNIDAD)
+    oportunidades = [o for o in _abiertas(db) if o.id not in descartadas]
     semantica = _semantica(db, proyecto, oportunidades)
     respuesta = await analizar(proyecto, oportunidades, semantica)
+    # Ep5-Hu9: se citan los proyectos parecidos en que se apoyan las mejoras.
+    respuesta.similares = proyectos_similares(proyecto_id, db, limite=3).resultados
     # HU-05: las recomendaciones quedan guardadas con fecha y estado «pendiente».
     guardadas = historial.guardar(db, proyecto.id, TipoRecomendacion.OPORTUNIDAD, [
         historial.Item(r.oportunidad_id, r.titulo, r.puntaje, r.razon) for r in respuesta.recomendaciones
@@ -95,9 +109,71 @@ def recomendaciones_guardadas(
         RecomendacionSalida(
             id=r.id, proyecto_id=r.proyecto_id, tipo=r.tipo.value, objetivo_id=r.objetivo_id, titulo=r.titulo,
             puntaje=r.puntaje, razon=r.razon, estado=r.estado.value, creado_en=r.creado_en,
+            motivo=r.motivo or "", decidido_en=r.decidido_en,
         )
         for r in db.scalars(stmt.order_by(RecomendacionGuardada.creado_en.desc()))
     ]
+
+
+def _decidir(db, recomendacion_id: uuid.UUID, usuario: Usuario, estado: EstadoRecomendacion, motivo: str = ""):
+    from app.modules.admin.bitacora import registrar
+    from app.modules.alianzas.router import es_miembro
+
+    r = db.get(RecomendacionGuardada, recomendacion_id)
+    if r is None:
+        raise HTTPException(status_code=404, detail="Recomendación no encontrada")
+    proyecto = obtener_proyecto(db, r.proyecto_id)
+    if not es_miembro(db, proyecto, usuario.id):
+        raise HTTPException(status_code=403, detail="Solo el equipo del proyecto puede decidir sobre sus recomendaciones")
+    if r.estado != EstadoRecomendacion.PENDIENTE:
+        raise HTTPException(status_code=409, detail=f"La recomendación ya fue {r.estado.value}")
+    r.estado, r.motivo, r.decidido_por_id, r.decidido_en = estado, motivo, usuario.id, utcnow()
+    registrar(db, usuario, f"recomendacion.{'aceptar' if estado == EstadoRecomendacion.ACEPTADA else 'anular'}",
+              r.titulo, f"Proyecto «{proyecto.titulo}»" + (f". Motivo: {motivo}" if motivo else ""))
+    db.commit()
+    return RecomendacionSalida(
+        id=r.id, proyecto_id=r.proyecto_id, tipo=r.tipo.value, objetivo_id=r.objetivo_id, titulo=r.titulo,
+        puntaje=r.puntaje, razon=r.razon, estado=r.estado.value, creado_en=r.creado_en, motivo=r.motivo, decidido_en=r.decidido_en,
+    )
+
+
+@router.post("/recomendaciones/{recomendacion_id}/aceptar", response_model=RecomendacionSalida)
+def aceptar_recomendacion(recomendacion_id: uuid.UUID, usuario: UsuarioActual, db: DbSession):
+    """El equipo toma la recomendación (Ep5-Hu5)."""
+    return _decidir(db, recomendacion_id, usuario, EstadoRecomendacion.ACEPTADA)
+
+
+@router.post("/recomendaciones/{recomendacion_id}/anular", response_model=RecomendacionSalida)
+def anular_recomendacion(recomendacion_id: uuid.UUID, datos: Anular, usuario: UsuarioActual, db: DbSession):
+    """El equipo la descarta con un motivo y no se vuelve a sugerir (Ep5-Hu6)."""
+    return _decidir(db, recomendacion_id, usuario, EstadoRecomendacion.ANULADA, datos.motivo.strip())
+
+
+def _resumen_valoraciones(db, proyecto_id: uuid.UUID, usuario: Usuario) -> ResumenValoraciones:
+    valoraciones = list(db.scalars(select(ValoracionDiagnostico).where(ValoracionDiagnostico.proyecto_id == proyecto_id)))
+    mia = next((v.util for v in valoraciones if v.usuario_id == usuario.id), None)
+    return ResumenValoraciones(utiles=sum(v.util for v in valoraciones), no_utiles=sum(not v.util for v in valoraciones), mia=mia)
+
+
+@router.get("/proyectos/{proyecto_id}/diagnostico/valoracion", response_model=ResumenValoraciones)
+def ver_valoraciones(proyecto_id: uuid.UUID, usuario: UsuarioActual, db: DbSession):
+    obtener_proyecto(db, proyecto_id)
+    return _resumen_valoraciones(db, proyecto_id, usuario)
+
+
+@router.post("/proyectos/{proyecto_id}/diagnostico/valoracion", response_model=ResumenValoraciones,
+             status_code=status.HTTP_201_CREATED)
+def valorar_diagnostico(proyecto_id: uuid.UUID, datos: Valoracion, usuario: UsuarioActual, db: DbSession):
+    """Marca las mejoras sugeridas como útiles o no (Ep5-Hu9). Una valoración por persona; se puede cambiar."""
+    obtener_proyecto(db, proyecto_id)
+    v = db.scalar(select(ValoracionDiagnostico).where(ValoracionDiagnostico.proyecto_id == proyecto_id,
+                                                      ValoracionDiagnostico.usuario_id == usuario.id))
+    if v is None:
+        v = ValoracionDiagnostico(proyecto_id=proyecto_id, usuario_id=usuario.id, util=datos.util)
+        db.add(v)
+    v.util, v.comentario = datos.util, datos.comentario.strip()
+    db.commit()
+    return _resumen_valoraciones(db, proyecto_id, usuario)
 
 
 @router.post("/proyectos/{proyecto_id}/pitch/{oportunidad_id}", response_model=RespuestaPitch)
@@ -145,15 +221,18 @@ def _factor_habilidades(u: Usuario, proyecto: Proyecto) -> tuple[float, list[str
 
 
 @router.get("/proyectos/{proyecto_id}/colaboradores", response_model=RespuestaSugerencias)
-def colaboradores_sugeridos(proyecto_id: uuid.UUID, db: DbSession, _: UsuarioActual, limite: int = Query(default=5, le=20)):
+def colaboradores_sugeridos(proyecto_id: uuid.UUID, db: DbSession, _: UsuarioActual, limite: int = Query(default=5, le=20),
+                            peso_habilidades: float = Query(default=PESO_HABILIDADES, ge=0, le=1)):
     """Personas cuyo perfil (habilidades, intereses, programa) encaja con lo que el proyecto necesita.
 
     Solo cuentas activas que no son de administración ni ya están en el equipo. El puntaje combina la
     similitud del perfil completo (70 %) con las habilidades que el proyecto pide de forma directa (30 %).
+    Quien consulta puede mover ese peso con `peso_habilidades` (Ep5-Hu4). Las personas descartadas no vuelven.
     """
     proyecto = obtener_proyecto(db, proyecto_id)
     ya = {m for m in db.scalars(select(Miembro.usuario_id).where(Miembro.proyecto_id == proyecto.id))}
     ya.add(proyecto.creado_por_id)
+    ya |= _anuladas(db, proyecto.id, TipoRecomendacion.COLABORADOR)
     candidatos = [u for u in db.scalars(select(Usuario).where(Usuario.activo.is_(True), Usuario.rol != Rol.ADMIN.value))
                   if u.id not in ya and textos.usuario(u)]
     consulta = textos.necesidades(proyecto)
@@ -164,7 +243,7 @@ def colaboradores_sugeridos(proyecto_id: uuid.UUID, db: DbSession, _: UsuarioAct
         factor, habilidades = _factor_habilidades(u, proyecto)
         if similitud < MINIMO[metodo] and not habilidades:
             continue
-        puntaje = round((1 - PESO_HABILIDADES) * similitud + PESO_HABILIDADES * factor, 3)
+        puntaje = round((1 - peso_habilidades) * similitud + peso_habilidades * factor, 3)
         puntuados.append((puntaje, u, habilidades))
     puntuados.sort(key=lambda x: x[0], reverse=True)
 

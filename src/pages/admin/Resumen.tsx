@@ -10,6 +10,7 @@ const ESTADO: Record<string, { label: string; color: string }> = {
   aceptada: { label: 'Aprobadas', color: 'bg-emerald-600' },
   rechazada: { label: 'Rechazadas', color: 'bg-rose-600' },
   cancelada: { label: 'Retiradas', color: 'bg-slate-400' },
+  anulada: { label: 'Anuladas', color: 'bg-slate-600' },
 }
 
 export function Resumen() {

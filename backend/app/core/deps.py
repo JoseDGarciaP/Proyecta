@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import decode_access_token
+from app.core.security import decode_payload
 from app.modules.usuarios.models import Usuario
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -20,15 +20,23 @@ def get_current_user(db: DbSession, token: Annotated[str, Depends(oauth2_scheme)
         detail="Credenciales inválidas",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    sub = decode_access_token(token)
+    payload = decode_payload(token, "acceso")
+    sub = payload["sub"] if payload else None
     try:
         usuario = db.get(Usuario, uuid.UUID(sub)) if sub else None
     except ValueError:
         usuario = None
     if usuario is None or not usuario.activo:
         raise credenciales_invalidas
+    # Token emitido antes de cerrar sesión (o de cambiar la contraseña): ya no vale.
+    if str(payload.get("sv", "0")) != str(usuario.sesion_version or 0):
+        raise credenciales_invalidas
     if not usuario.verificado:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Confirma tu correo para continuar")
+    from app.modules.aliados.servicio import bloqueo
+
+    if (mensaje := bloqueo(db, usuario)) is not None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=mensaje)
     return usuario
 
 
