@@ -166,6 +166,61 @@ def cuenta_creada(para: str, nombre: str, enlace: str, horas: int) -> Correo:
     return Correo(para=para, asunto="Tu cuenta en Proyecta está lista", texto=texto, html=cuerpo)
 
 
+def _lista_proyectos(titulos: list[str]) -> tuple[str, str]:
+    """(texto, html) con los títulos de los proyectos, escapados."""
+    texto = "\n".join(f"- {t}" for t in titulos)
+    items = "".join(f"<li>{html.escape(t)}</li>" for t in titulos)
+    return texto, f'<ul style="margin:8px 0 12px;padding-left:20px">{items}</ul>'
+
+
+def cuenta_creada_lote(para: str, nombre: str, enlace: str, dias: int, proyectos: list[str]) -> Correo:
+    """Cuenta creada al cargar por lote los proyectos del formulario de registro."""
+    uno = len(proyectos) == 1
+    lista_texto, lista_html = _lista_proyectos(proyectos)
+    registro = "Registramos tu proyecto" if uno else "Registramos tus proyectos"
+    texto = (
+        f"Hola, {nombre}:\n\n{registro} en Proyecta con la información que enviaste en el formulario de registro:\n"
+        f"{lista_texto}\n\nCreamos tu cuenta con este correo. Para entrar, elige tu contraseña aquí:\n{enlace}\n\n"
+        f"Después revisa {'el proyecto' if uno else 'los proyectos'} y ajusta lo que haga falta (estado, avance, ODS, equipo).\n"
+        f"El enlace sirve una sola vez y vence en {dias} días. Si vence, usa «¿Olvidaste tu contraseña?» en la página "
+        "de ingreso. También puedes entrar con «Continuar con Google» usando este mismo correo."
+    )
+    e = html.escape
+    cuerpo = (
+        '<div style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;color:#0f172a;line-height:1.5">'
+        f"<p>Hola, {e(nombre)}:</p><p>{registro} en <b>Proyecta</b> con la información que enviaste en el "
+        f"formulario de registro:</p>{lista_html}"
+        "<p>Creamos tu cuenta con este correo. Para entrar, elige tu contraseña:</p>"
+        f'<p style="margin:20px 0"><a href="{e(enlace, quote=True)}" style="background:#2563eb;color:#fff;'
+        'padding:10px 18px;border-radius:8px;text-decoration:none">Elegir mi contraseña</a></p>'
+        f"<p>Después revisa {'el proyecto' if uno else 'los proyectos'} y ajusta lo que haga falta "
+        "(estado, avance, ODS, equipo).</p>"
+        f'<p style="color:#64748b;font-size:13px">El enlace sirve una sola vez y vence en {dias} días. Si vence, usa '
+        "«¿Olvidaste tu contraseña?» en la página de ingreso. También puedes entrar con «Continuar con Google» "
+        "usando este mismo correo.</p></div>"
+    )
+    return Correo(para=para, asunto="Tu proyecto ya está en Proyecta: elige tu contraseña", texto=texto, html=cuerpo)
+
+
+def proyecto_registrado_lote(para: str, nombre: str, enlace: str, proyectos: list[str]) -> Correo:
+    """Aviso a quien ya tenía cuenta: se le asignaron proyectos en una carga por lote."""
+    uno = len(proyectos) == 1
+    lista_texto, lista_html = _lista_proyectos(proyectos)
+    titulo = "Se registró un nuevo proyecto a tu nombre" if uno else "Se registraron nuevos proyectos a tu nombre"
+    revisa = ("Entra a Proyecta y revisa si este proyecto te pertenece. Si no es tuyo, responde a este correo para corregirlo."
+              if uno else
+              "Entra a Proyecta y revisa si estos proyectos te pertenecen. Si alguno no es tuyo, responde a este correo para corregirlo.")
+    texto = f"Hola, {nombre}:\n\n{titulo} en Proyecta:\n{lista_texto}\n\n{revisa}\n\nMis proyectos: {enlace}"
+    e = html.escape
+    cuerpo = (
+        '<div style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;color:#0f172a;line-height:1.5">'
+        f"<p>Hola, {e(nombre)}:</p><p>{e(titulo)} en <b>Proyecta</b>:</p>{lista_html}<p>{e(revisa)}</p>"
+        f'<p style="margin:20px 0"><a href="{e(enlace, quote=True)}" style="background:#2563eb;color:#fff;'
+        'padding:10px 18px;border-radius:8px;text-decoration:none">Ver mis proyectos</a></p></div>'
+    )
+    return Correo(para=para, asunto=f"Proyecta: {titulo.lower()}", texto=texto, html=cuerpo)
+
+
 def invitacion_proyecto(para: str, quien_invita: str, proyecto: str, detalles: list[tuple[str, str]], enlace: str,
                         dias: int) -> Correo:
     """Invitación a un proyecto para alguien que aún no tiene cuenta en Proyecta."""

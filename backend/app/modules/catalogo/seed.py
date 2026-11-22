@@ -20,4 +20,4 @@ ODS = [
     (17, "Alianzas para lograr los objetivos"),
 ]
 
-AREAS = ["Tecnología", "Ambiente", "Salud", "Educación", "Agroindustria", "Social", "Energía"]
+AREAS = ["Tecnología", "Ambiente", "Salud", "Educación", "Agroindustria", "Social", "Energía", "Seguridad", "Seguridad vial"]

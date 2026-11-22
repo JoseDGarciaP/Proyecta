@@ -61,6 +61,9 @@ export const formularioDe = (p: Proyecto): DatosFormularioProyecto => ({
   actores: p.actores ?? [],
 })
 
+/** Igual que el límite de la API (ProyectoEntrada.resumen). */
+export const RESUMEN_MAX = 300
+
 const separar = (valor: string) => [...new Set(valor.split(',').map((v) => v.trim()).filter(Boolean))]
 
 /** Convierte el formulario en lo que recibe la API (incluyendo actores vinculados). */
@@ -143,8 +146,13 @@ export function FormularioProyecto({
         </div>
 
         <div>
-          <label className="label" htmlFor="resumen">Resumen (una línea)</label>
-          <input id="resumen" required minLength={10} maxLength={160} className="input" value={form.resumen} onChange={(e) => set('resumen', e.target.value)} />
+          <div className="flex items-baseline justify-between gap-2">
+            <label className="label" htmlFor="resumen">Resumen (una o dos frases)</label>
+            <span className={`text-xs tabular-nums ${form.resumen.length >= RESUMEN_MAX ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}`}>
+              {form.resumen.length}/{RESUMEN_MAX}
+            </span>
+          </div>
+          <textarea id="resumen" required minLength={10} maxLength={RESUMEN_MAX} rows={2} className="input" value={form.resumen} onChange={(e) => set('resumen', e.target.value)} />
         </div>
 
         <div>

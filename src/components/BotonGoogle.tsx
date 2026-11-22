@@ -75,7 +75,8 @@ export function BotonGoogle({ alIngresar }: { alIngresar: (credential: string) =
   if (!config?.google_client_id) return null
   return (
     <div className="space-y-3">
-      <div ref={contenedor} className="flex min-h-11 justify-center" />
+      {/* color-scheme claro: evita que el iframe de Google pinte un fondo blanco opaco en modo oscuro */}
+      <div ref={contenedor} className="flex min-h-11 justify-center" style={{ colorScheme: 'light' }} />
       {error && <p className="text-center text-xs text-rose-600">{error}</p>}
       <div className="flex items-center gap-3 text-xs text-slate-400">
         <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />o con tu correo y contraseña

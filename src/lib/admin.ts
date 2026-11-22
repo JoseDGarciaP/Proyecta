@@ -1,5 +1,6 @@
 import { descargarArchivo, pedir } from './http'
 import type {
+  FilaLote, ResultadoLote,
   Actor, Ajustes, AreaAdmin, Estadisticas, ItemCatalogo, Motivo, Oportunidad, PaginaUsuarios, Plantilla,
   ProyectoAdmin, RegistroAdmin, Rol, TipoAporte, UsuarioAdmin, RolDef, PermisoDef, Insignia, Otorgada, InsigniaBreve,
 } from './types'
@@ -109,3 +110,12 @@ export const retirarInsignia = (id: number, usuarioId: string) => pedir<void>(`/
 export const evaluarInsignias = () => pedir<{ otorgadas: number }>('/admin/insignias/evaluar', { method: 'POST' })
 export const candidatos = (q: string) =>
   pedir<{ id: string; nombre: string; email: string; rol_nombre: string }[]>(`/admin/insignias/candidatos?q=${encodeURIComponent(q)}`)
+
+// Carga de proyectos por lote (Excel del formulario de registro)
+export const previaLote = (archivo: File) => {
+  const datos = new FormData()
+  datos.append('archivo', archivo)
+  return pedir<FilaLote[]>('/admin/lote/previa', { method: 'POST', datos })
+}
+export const revisarLote = (filas: FilaLote[]) => pedir<FilaLote[]>('/admin/lote/revisar', { method: 'POST', json: filas })
+export const confirmarLote = (filas: FilaLote[]) => pedir<ResultadoLote>('/admin/lote/confirmar', { method: 'POST', json: filas })
