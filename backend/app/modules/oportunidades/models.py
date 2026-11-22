@@ -27,6 +27,7 @@ class Oportunidad(UuidPk, Timestamps, Base):
     tipo: Mapped[TipoOportunidad] = mapped_column(enum_col(TipoOportunidad))
     descripcion: Mapped[str] = mapped_column(Text, default="")
     monto: Mapped[int | None] = mapped_column(BigInteger)
+    abre_en: Mapped[date] = mapped_column(Date, default=date.today, index=True)
     cierra_en: Mapped[date] = mapped_column(Date, index=True)
     url: Mapped[str] = mapped_column(String(500), default="")
     creado_por_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id", ondelete="SET NULL"))

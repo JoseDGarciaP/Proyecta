@@ -15,14 +15,15 @@ const MAX_MB = 10
 
 export const tamano = (b: number) => (b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)
 
-/** Botón que abre el archivo de una evidencia (lo descarga con la sesión). */
+/** Botón que abre o descarga el archivo de una evidencia (lo descarga con la sesión). */
 export function VerArchivo({ e, alError }: { e: Evidencia; alError?: (m: string) => void }) {
   const [abriendo, setAbriendo] = useState(false)
+  const esDocx = e.archivo_nombre.toLowerCase().endsWith('.docx') || e.archivo_tipo.includes('wordprocessingml')
   return (
     <button className="btn-ghost px-2 py-1 text-xs" disabled={abriendo} title={e.archivo_nombre}
       onClick={() => {
         setAbriendo(true)
-        abrirArchivo(`/evidencias/${e.id}/archivo`).catch((err: Error) => alError?.(err.message)).finally(() => setAbriendo(false))
+        abrirArchivo(`/evidencias/${e.id}/archivo`, esDocx ? e.archivo_nombre : undefined).catch((err: Error) => alError?.(err.message)).finally(() => setAbriendo(false))
       }}>
       {abriendo ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Eye size={13} aria-hidden />} Ver archivo
     </button>
@@ -72,7 +73,7 @@ function Formulario({ proyectoId, proyectos, alSubir }: {
       <label className="flex cursor-pointer items-center gap-3 rounded-lg bg-slate-50 p-3 text-sm hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800">
         <Paperclip size={16} className="text-slate-500" aria-hidden />
         <span className="min-w-0 flex-1 truncate">
-          {archivo ? <><b>{archivo.name}</b> · {tamano(archivo.size)}</> : <span className="text-slate-500">Elegir archivo (PDF, PNG, JPG o WEBP, hasta {MAX_MB} MB)</span>}
+          {archivo ? <><b>{archivo.name}</b> · {tamano(archivo.size)}</> : <span className="text-slate-500">Elegir archivo (PDF, DOCX, PNG, JPG o WEBP, hasta {MAX_MB} MB)</span>}
         </span>
         <input ref={entrada} type="file" accept={TIPOS_ARCHIVO} className="sr-only" aria-label="Archivo"
           onChange={(e) => elegir(e.target.files?.[0] ?? null)} />

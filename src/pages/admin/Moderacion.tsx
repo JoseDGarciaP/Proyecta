@@ -146,7 +146,7 @@ function Oportunidades() {
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-slate-900 dark:text-white">{o.titulo}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {TIPOS_OPORTUNIDAD[o.tipo]} · {o.entidad || 'Sin entidad'} · cierra {formatDate(o.cierra_en)}{o.monto ? ` · ${formatCOP(o.monto)}` : ''}
+                  {TIPOS_OPORTUNIDAD[o.tipo]} · {o.entidad || 'Sin entidad'}{o.abre_en ? ` · abre ${formatDate(o.abre_en)}` : ''} · cierra {formatDate(o.cierra_en)}{o.monto ? ` · ${formatCOP(o.monto)}` : ''}
                 </p>
               </div>
               {o.url && <a href={o.url} target="_blank" rel="noreferrer" className="rounded p-1 text-slate-500 hover:text-slate-800" aria-label="Abrir enlace"><ExternalLink size={14} /></a>}
@@ -167,9 +167,11 @@ function Oportunidades() {
 function FormOportunidad({ o, alCerrar, alGuardar }: { o: Oportunidad | null; alCerrar: () => void; alGuardar: () => void }) {
   const areas = useAreas()
   const ods = useOds()
+  const hoy = new Date().toISOString().slice(0, 10)
+  const manana = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
   const [f, setF] = useState<OportunidadEntrada>({
     titulo: o?.titulo ?? '', entidad: o?.entidad ?? '', tipo: o?.tipo ?? 'convocatoria', descripcion: o?.descripcion ?? '',
-    monto: o?.monto ?? null, cierra_en: o?.cierra_en ?? new Date().toISOString().slice(0, 10), url: o?.url ?? '',
+    monto: o?.monto ?? null, abre_en: o?.abre_en ?? hoy, cierra_en: o?.cierra_en ?? manana, url: o?.url ?? '',
     areas: o?.areas ?? [], ods: o?.ods ?? [],
   })
   const [ocupado, setOcupado] = useState(false)
@@ -180,7 +182,12 @@ function FormOportunidad({ o, alCerrar, alGuardar }: { o: Oportunidad | null; al
     <Modal titulo={o ? 'Editar oportunidad' : 'Nueva oportunidad'} alCerrar={alCerrar} ancho="max-w-2xl">
       <form className="space-y-3" onSubmit={async (e) => {
         e.preventDefault()
+        if (f.cierra_en <= f.abre_en) {
+          setError('La fecha de cierre debe ser mayor a la fecha de apertura.')
+          return
+        }
         setOcupado(true)
+        setError('')
         try {
           if (o) await editarOportunidad(o.id, f)
           else await crearOportunidad(f)
@@ -199,9 +206,11 @@ function FormOportunidad({ o, alCerrar, alGuardar }: { o: Oportunidad | null; al
             <select className="input" value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value as Oportunidad['tipo'] })}>
               {Object.entries(TIPOS_OPORTUNIDAD).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select></label>
-          <label className="block"><span className="label">Cierra</span>
+          <label className="block"><span className="label">Fecha de apertura</span>
+            <input className="input" type="date" required value={f.abre_en} onChange={(e) => setF({ ...f, abre_en: e.target.value })} /></label>
+          <label className="block"><span className="label">Fecha de cierre</span>
             <input className="input" type="date" required value={f.cierra_en} onChange={(e) => setF({ ...f, cierra_en: e.target.value })} /></label>
-          <label className="block"><span className="label">Monto (COP, opcional)</span>
+          <label className="block sm:col-span-2"><span className="label">Monto (COP, opcional)</span>
             <input className="input tabular-nums" type="number" min={0} value={f.monto ?? ''} onChange={(e) => setF({ ...f, monto: e.target.value ? Number(e.target.value) : null })} /></label>
         </div>
         <label className="block"><span className="label">Enlace</span>

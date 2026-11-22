@@ -70,6 +70,7 @@ export interface Oportunidad {
   entidad: string
   tipo: TipoOportunidad
   monto: number | null
+  abre_en?: string
   cierra_en: string
   areas: Area[]
   url: string

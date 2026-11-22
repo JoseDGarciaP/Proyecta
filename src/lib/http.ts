@@ -57,8 +57,12 @@ export async function pedir<T>(ruta: string, { method = 'GET', json, form, datos
   return datos as T
 }
 
-/** Descarga un archivo protegido (con el token) y lo abre en otra pestaña. */
-export async function abrirArchivo(ruta: string): Promise<void> {
+/** Descarga un archivo protegido (con el token) y lo abre en otra pestaña (o lo descarga si se indica nombreDescarga). */
+export async function abrirArchivo(ruta: string, nombreDescarga?: string): Promise<void> {
+  if (nombreDescarga) {
+    await descargarArchivo(ruta, nombreDescarga)
+    return
+  }
   const t = token.leer()
   const ventana = window.open('', '_blank')  // se abre ya para que el navegador no la bloquee
   const res = await fetch(`${base}/api${ruta}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
