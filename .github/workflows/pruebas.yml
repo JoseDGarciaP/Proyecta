@@ -1,0 +1,47 @@
+# Corre las pruebas en cada pull request y en cada push a main.
+# Para que un PR solo se pueda unir con todo en verde: Settings → Branches → regla para main →
+# "Require status checks to pass" y marcar los trabajos "backend" y "frontend".
+name: Pruebas
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      # sentence-transformers (PyTorch) se omite: las pruebas usan el respaldo por palabras clave.
+      - name: Instalar dependencias
+        run: |
+          grep -v sentence-transformers requirements.txt > req-ci.txt
+          pip install -r req-ci.txt
+      - name: Una sola cabeza de migraciones
+        run: |
+          cabezas=$(alembic heads | wc -l)
+          alembic heads
+          if [ "$cabezas" -ne 1 ]; then echo "Hay $cabezas cabezas de Alembic: renumera la migración nueva"; exit 1; fi
+      - name: Pytest
+        run: pytest -q -k "not reales"
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
