@@ -1,4 +1,4 @@
-import { Award, Ban, Bell, CheckCircle2, ClipboardCheck, FileBadge, Handshake, Mail, MessageSquare, Send, ShieldAlert, TrendingUp, UserCog, XCircle } from 'lucide-react'
+import { Award, Ban, Bell, CalendarClock, CheckCircle2, ClipboardCheck, FileBadge, FolderKanban, Handshake, Mail, MessageSquare, MessageSquareText, Send, ShieldAlert, TrendingUp, UserCog, XCircle } from 'lucide-react'
 import type { TipoNotificacion } from '@/lib/types'
 
 const ICONOS: Record<TipoNotificacion, { Icono: typeof Bell; clase: string }> = {
@@ -15,6 +15,9 @@ const ICONOS: Record<TipoNotificacion, { Icono: typeof Bell; clase: string }> = 
   postulacion: { Icono: Send, clase: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300' },
   revision: { Icono: ClipboardCheck, clase: 'bg-accent-100 text-accent-700 dark:bg-accent-500/15 dark:text-accent-300' },
   moderacion: { Icono: ShieldAlert, clase: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' },
+  proyecto: { Icono: FolderKanban, clase: 'bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300' },
+  observacion: { Icono: MessageSquareText, clase: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300' },
+  convocatoria: { Icono: CalendarClock, clase: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' },
 }
 
 export function IconoAviso({ tipo }: { tipo: TipoNotificacion }) {

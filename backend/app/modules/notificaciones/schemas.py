@@ -15,6 +15,7 @@ class NotificacionSalida(BaseModel):
     cuerpo: str
     enlace: str
     leida: bool
+    archivada: bool = False
     correo_enviado: bool
     creada_en: datetime
 

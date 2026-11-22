@@ -71,7 +71,13 @@ export const eliminarProyectoAdmin = (id: string, motivo: string) =>
 export type OportunidadEntrada = Omit<Oportunidad, 'id' | 'dias_restantes'> & { abre_en: string; descripcion: string; ods: number[] }
 export const crearOportunidad = (o: OportunidadEntrada) => pedir<Oportunidad>('/oportunidades', { method: 'POST', json: o })
 export const editarOportunidad = (id: string, o: OportunidadEntrada) => pedir<Oportunidad>(`/oportunidades/${id}`, { method: 'PUT', json: o })
-export const eliminarOportunidad = (id: string) => pedir<void>(`/oportunidades/${id}`, { method: 'DELETE' })
+/** Si ya tiene postulaciones la API la archiva y avisa a esos equipos (Ep6-Hu5). */
+export const eliminarOportunidad = (id: string, motivo = '') => pedir<void>(`/oportunidades/${id}`, { method: 'DELETE', json: { motivo } })
+export const oportunidadesArchivadas = () => pedir<Oportunidad[]>('/oportunidades?archivadas=true')
+export const restaurarOportunidad = (id: string) => pedir<Oportunidad>(`/oportunidades/${id}/restaurar`, { method: 'POST' })
+/** Registro de participaciones en Excel (Ep6-Hu3). */
+export const exportarPostulaciones = (estado = '') =>
+  descargarArchivo(`/admin/postulaciones/exportar.xlsx${estado ? `?estado=${estado}` : ''}`, 'participaciones-proyecta.xlsx')
 
 export type ActorEntrada = Omit<Actor, 'id' | 'proyectos'>
 export const crearActor = (a: ActorEntrada) => pedir<Actor>('/actores', { method: 'POST', json: a })
@@ -79,7 +85,40 @@ export const editarActor = (id: string, a: ActorEntrada) => pedir<Actor>(`/actor
 export const eliminarActor = (id: string) => pedir<void>(`/actores/${id}`, { method: 'DELETE' })
 
 // Bitácora
-export const bitacora = (accion = '') => pedir<RegistroAdmin[]>(`/admin/registro${accion ? `?accion=${encodeURIComponent(accion)}` : ''}`)
+/** Bitácora con filtros por acción, persona y fechas (Ep4-Hu26). */
+export const bitacora = (accion = '', usuario = '', desde = '', hasta = '') => {
+  const p = new URLSearchParams(Object.entries({ accion, usuario, desde, hasta }).filter(([, v]) => v))
+  return pedir<RegistroAdmin[]>(`/admin/registro${p.size ? `?${p}` : ''}`)
+}
+
+/** Ocultar sin borrar y restaurar (Ep4-Hu27). */
+export const ocultarProyectoAdmin = (id: string, motivo: string) =>
+  pedir<void>(`/admin/proyectos/${id}/ocultar`, { method: 'POST', json: { motivo } })
+export const restaurarProyectoAdmin = (id: string) => pedir<void>(`/admin/proyectos/${id}/restaurar`, { method: 'POST' })
+
+export interface ConteoClave { clave: string; total: number }
+export interface EstadisticasDetalle {
+  proyectos: number
+  por_programa: ConteoClave[]
+  por_area: ConteoClave[]
+  por_estado: ConteoClave[]
+  por_mes: { mes: string; proyectos: number; alianzas: number; alianzas_aceptadas: number; postulaciones: number; postulaciones_aceptadas: number }[]
+  postulaciones: number
+  tasa_exito_postulaciones: number | null
+  recomendaciones_generadas: number
+  recomendaciones_aceptadas: number
+  recomendaciones_anuladas: number
+  tasa_aceptacion_recomendaciones: number | null
+}
+const periodo = (desde: string, hasta: string) => {
+  const p = new URLSearchParams(Object.entries({ desde, hasta }).filter(([, v]) => v))
+  return p.size ? `?${p}` : ''
+}
+/** Estadísticas por programa, mes y tasas, con filtro de fechas (Ep4-Hu28, Ep4-Hu29). */
+export const estadisticasDetalle = (desde = '', hasta = '') => pedir<EstadisticasDetalle>(`/admin/estadisticas/detalle${periodo(desde, hasta)}`)
+/** El panel en Excel con fecha de generación (Ep4-Hu30). */
+export const descargarReportePanel = (desde = '', hasta = '') =>
+  descargarArchivo(`/admin/reporte.xlsx${periodo(desde, hasta)}`, 'reporte-panel-proyecta.xlsx')
 
 // Roles y permisos (solo el rol Administrador)
 export const listarPermisos = () => pedir<PermisoDef[]>('/admin/permisos')

@@ -117,6 +117,13 @@ Cada persona elige en su perfil qué correos recibe.
 - **Insignias**, **Niveles y XP** y **Evidencias**.
 - **Bitácora:** quién hizo qué y cuándo (incluyendo la trazabilidad de reportes exportados).
 
+## Documentación
+
+- [Manual de usuario por rol](docs/manual-usuario.md)
+- [Plan de pruebas con usuarios](docs/pruebas-con-usuarios.md)
+- [Arquitectura](docs/arquitectura.md)
+- API: con el backend corriendo, la documentación interactiva está en `/docs` (Swagger) y `/redoc`.
+
 ## Ejecución en desarrollo local
 
 - **Modo demostración (solo interfaz, sin backend):**

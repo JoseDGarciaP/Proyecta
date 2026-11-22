@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Download, Loader2 } from 'lucide-react'
-import { estadisticas, exportarReporteInstitucional } from '@/lib/admin'
+import { descargarReportePanel, estadisticas, estadisticasDetalle, exportarReporteInstitucional, type ConteoClave } from '@/lib/admin'
 import { Skeleton } from '@/components/ui'
 import { Aviso, Tarjeta, useCarga } from './comun'
 
@@ -133,7 +133,90 @@ export function Resumen() {
           )}
         </Tarjeta>
       </div>
+
+      <DetallePeriodo />
     </div>
+  )
+}
+
+const pct = (x: number | null) => (x === null ? 'Sin datos' : `${Math.round(x * 100)} %`)
+
+function Barras({ datos }: { datos: ConteoClave[] }) {
+  const max = Math.max(1, ...datos.map((d) => d.total))
+  if (datos.length === 0) return <p className="text-sm text-slate-500">Sin datos en el periodo.</p>
+  return (
+    <ul className="space-y-2 text-sm">
+      {datos.map((c) => (
+        <li key={c.clave} className="flex items-center gap-3">
+          <span className="w-40 truncate text-slate-600 dark:text-slate-300" title={c.clave}>{c.clave}</span>
+          <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+            <span className="block h-full rounded-full bg-brand-600 dark:bg-brand-300" style={{ width: `${(c.total / max) * 100}%` }} />
+          </span>
+          <span className="w-8 text-right font-semibold tabular-nums">{c.total}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Estadísticas por periodo: programa, mes, éxito de postulaciones y recomendaciones (Ep4-Hu28 a Hu30). */
+function DetallePeriodo() {
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const { datos: d, error } = useCarga(() => estadisticasDetalle(desde, hasta), [desde, hasta])
+  const [bajando, setBajando] = useState(false)
+  const bajar = async () => {
+    setBajando(true)
+    try {
+      await descargarReportePanel(desde, hasta)
+    } finally {
+      setBajando(false)
+    }
+  }
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <h2 className="mr-auto font-semibold text-slate-900 dark:text-white">Por periodo</h2>
+        <label className="text-xs text-slate-500">Desde <input type="date" className="input mt-1" value={desde} onChange={(e) => setDesde(e.target.value)} /></label>
+        <label className="text-xs text-slate-500">Hasta <input type="date" className="input mt-1" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label>
+        <button type="button" className="btn-ghost text-xs" onClick={bajar} disabled={bajando}>
+          {bajando ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Download size={14} aria-hidden />} Exportar panel (Excel)
+        </button>
+      </div>
+      <Aviso>{error}</Aviso>
+      {!d ? <Skeleton className="h-64" /> : (
+        <>
+          <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="card p-4"><dt className="text-xs text-slate-500">Proyectos registrados</dt><dd className="mt-1 text-2xl font-semibold tabular-nums">{d.proyectos}</dd></div>
+            <div className="card p-4"><dt className="text-xs text-slate-500">Postulaciones</dt><dd className="mt-1 text-2xl font-semibold tabular-nums">{d.postulaciones}</dd>
+              <dd className="text-xs text-slate-500">Éxito: {pct(d.tasa_exito_postulaciones)}</dd></div>
+            <div className="card p-4"><dt className="text-xs text-slate-500">Recomendaciones</dt><dd className="mt-1 text-2xl font-semibold tabular-nums">{d.recomendaciones_generadas}</dd>
+              <dd className="text-xs text-slate-500">{d.recomendaciones_aceptadas} aceptadas · {d.recomendaciones_anuladas} descartadas</dd></div>
+            <div className="card p-4"><dt className="text-xs text-slate-500">Aceptadas frente a generadas</dt><dd className="mt-1 text-2xl font-semibold tabular-nums">{pct(d.tasa_aceptacion_recomendaciones)}</dd></div>
+          </dl>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Tarjeta titulo="Proyectos por programa"><Barras datos={d.por_programa} /></Tarjeta>
+            <Tarjeta titulo="Proyectos por área"><Barras datos={d.por_area} /></Tarjeta>
+          </div>
+          <Tarjeta titulo="Evolución mensual" descripcion="Proyectos, alianzas y postulaciones creadas cada mes.">
+            {d.por_mes.length === 0 ? <p className="text-sm text-slate-500">Sin datos en el periodo.</p> : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] text-sm">
+                  <thead className="text-left text-xs text-slate-500">
+                    <tr><th className="py-2">Mes</th><th>Proyectos</th><th>Alianzas</th><th>Aceptadas</th><th>Postulaciones</th><th>Seleccionadas</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 tabular-nums dark:divide-slate-800">
+                    {d.por_mes.map((m) => (
+                      <tr key={m.mes}><td className="py-1.5">{m.mes}</td><td>{m.proyectos}</td><td>{m.alianzas}</td><td>{m.alianzas_aceptadas}</td><td>{m.postulaciones}</td><td>{m.postulaciones_aceptadas}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Tarjeta>
+        </>
+      )}
+    </section>
   )
 }
 

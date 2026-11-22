@@ -149,6 +149,28 @@ def listar(db: DbSession, oportunidad_id: uuid.UUID | None = None, estado: Estad
     return [PostulacionSalida.de(p) for p in db.scalars(stmt.order_by(Postulacion.creado_en.desc()).limit(limite)).unique()]
 
 
+@admin.get("/exportar.xlsx")
+def exportar(db: DbSession, oportunidad_id: uuid.UUID | None = None, estado: EstadoPostulacion | None = None):
+    """Registro de participaciones en Excel, con los mismos filtros del listado (Ep6-Hu3)."""
+    from app.core import excel
+
+    stmt = select(Postulacion)
+    if oportunidad_id:
+        stmt = stmt.where(Postulacion.oportunidad_id == oportunidad_id)
+    if estado:
+        stmt = stmt.where(Postulacion.estado == estado)
+    filas = [
+        (p.oportunidad.titulo, p.oportunidad.entidad, p.oportunidad.cierra_en, p.proyecto.titulo,
+         p.usuario.nombre if p.usuario else "", ESTADO_TEXTO.get(p.estado.value, p.estado.value), p.nota, p.comentario,
+         p.creado_en.strftime("%Y-%m-%d"), p.decidida_en.strftime("%Y-%m-%d") if p.decidida_en else "")
+        for p in db.scalars(stmt.order_by(Postulacion.creado_en.desc())).unique()
+    ]
+    contenido = excel.libro([("Participaciones", ["Convocatoria", "Entidad", "Cierre", "Proyecto", "Postuló", "Estado",
+                                                  "Nota", "Comentario", "Fecha", "Decidida"], filas)],
+                            "Registro de participaciones en convocatorias")
+    return excel.respuesta("participaciones-proyecta.xlsx", contenido)
+
+
 @admin.patch("/{postulacion_id}", response_model=PostulacionSalida)
 def decidir(postulacion_id: uuid.UUID, datos: Decision, yo: Admin, db: DbSession, tareas: BackgroundTasks):
     p = db.get(Postulacion, postulacion_id)

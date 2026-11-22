@@ -1,4 +1,4 @@
-import { abrirArchivo, pedir } from './http'
+import { abrirArchivo, descargarArchivo, pedir } from './http'
 
 /** Observación pública sobre un proyecto (Ep4-Hu19). */
 export interface Observacion {
@@ -80,3 +80,20 @@ export const registrarAporte = (proyectoId: string, datos: NuevoAporte) =>
 export const revisarAporte = (id: string, accion: 'validar' | 'rechazar', comentario = '') =>
   pedir<Aporte>(`/aportes/${id}/${accion}`, { method: 'POST', json: { comentario } })
 export const borrarAporte = (id: string) => pedir<void>(`/aportes/${id}`, { method: 'DELETE' })
+
+/** Historial personal con filtro por tipo y año (Ep4-Hu10, Ep4-Hu16). */
+export interface EventoHistorial {
+  tipo: 'proyecto' | 'alianza' | 'postulacion' | 'aporte' | 'logro'
+  fecha: string
+  titulo: string
+  detalle: string
+  estado: string
+  enlace: string
+}
+const filtroHistorial = (tipo: string, anio: string) => {
+  const p = new URLSearchParams(Object.entries({ tipo, anio }).filter(([, v]) => v))
+  return p.size ? `?${p}` : ''
+}
+export const miHistorial = (tipo = '', anio = '') => pedir<EventoHistorial[]>(`/usuarios/yo/historial${filtroHistorial(tipo, anio)}`)
+export const exportarMiHistorial = (tipo = '', anio = '') =>
+  descargarArchivo(`/usuarios/yo/historial.xlsx${filtroHistorial(tipo, anio)}`, 'mi-historial-proyecta.xlsx')

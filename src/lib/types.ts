@@ -370,6 +370,9 @@ export type TipoNotificacion =
   | 'evidencia'
   | 'postulacion'
   | 'revision'
+  | 'proyecto'
+  | 'observacion'
+  | 'convocatoria'
 
 export interface Notificacion {
   id: string
@@ -378,6 +381,7 @@ export interface Notificacion {
   cuerpo: string
   enlace: string
   leida: boolean
+  archivada?: boolean
   correo_enviado: boolean
   creada_en: string
 }
@@ -466,6 +470,8 @@ export interface ProyectoAdmin {
   miembros: number
   solicitudes_pendientes: number
   creado_en: string
+  archivado?: boolean
+  archivado_motivo?: string
 }
 
 export interface RegistroAdmin {

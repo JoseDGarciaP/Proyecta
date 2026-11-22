@@ -522,7 +522,7 @@ def listar_proyectos(db: DbSession, q: str | None = None, limite: int = Query(de
             responsable_email=dueno.email if dueno else None,
             miembros=miembros_por_proy.get(p.id, 0),
             solicitudes_pendientes=pendientes_por_proy.get(p.id, 0),
-            creado_en=p.creado_en,
+            creado_en=p.creado_en, archivado=p.archivado, archivado_motivo=p.archivado_motivo or "",
         ))
     return salida
 
@@ -544,13 +544,55 @@ def eliminar_proyecto(proyecto_id: uuid.UUID, datos: Eliminacion, admin: Admin, 
     db.commit()
 
 
+@r_moderacion.post("/proyectos/{proyecto_id}/ocultar", status_code=status.HTTP_204_NO_CONTENT)
+def ocultar_proyecto(proyecto_id: uuid.UUID, datos: Eliminacion, admin: Admin, db: DbSession, tareas: BackgroundTasks):
+    """Oculta el proyecto del listado público sin borrarlo y le explica el motivo al responsable (Ep4-Hu27)."""
+    proyecto = db.get(Proyecto, proyecto_id)
+    if proyecto is None:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    motivo = datos.motivo.strip()
+    proyecto.archivado, proyecto.archivado_motivo = True, f"Oculto por moderación: {motivo}"
+    if proyecto.creado_por is not None and proyecto.creado_por_id != admin.id:
+        notificar(db, proyecto.creado_por, TipoNotificacion.MODERACION, f"Se ocultó tu proyecto «{proyecto.titulo}»",
+                  f"Motivo: {motivo}", f"/proyectos/{proyecto.id}", tareas,
+                  detalles=[("Proyecto", proyecto.titulo), ("Motivo", motivo)])
+    registrar(db, admin, "proyecto.ocultar", proyecto.titulo, f"Motivo: {motivo}")
+    db.commit()
+
+
+@r_moderacion.post("/proyectos/{proyecto_id}/restaurar", status_code=status.HTTP_204_NO_CONTENT)
+def restaurar_proyecto(proyecto_id: uuid.UUID, admin: Admin, db: DbSession, tareas: BackgroundTasks):
+    proyecto = db.get(Proyecto, proyecto_id)
+    if proyecto is None:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    proyecto.archivado, proyecto.archivado_motivo = False, ""
+    if proyecto.creado_por is not None and proyecto.creado_por_id != admin.id:
+        notificar(db, proyecto.creado_por, TipoNotificacion.MODERACION, f"Se restauró tu proyecto «{proyecto.titulo}»",
+                  "Vuelve a estar visible en Proyecta.", f"/proyectos/{proyecto.id}", tareas)
+    registrar(db, admin, "proyecto.restaurar", proyecto.titulo)
+    db.commit()
+
+
 # ---- Bitácora --------------------------------------------------------------------------------
 
 @r_bitacora.get("/registro", response_model=list[RegistroSalida])
-def bitacora(db: DbSession, limite: int = Query(default=100, ge=1, le=500), accion: str | None = None):
+def bitacora(db: DbSession, limite: int = Query(default=100, ge=1, le=500), accion: str | None = None,
+             usuario: str | None = Query(default=None, description="Nombre o correo de quien hizo la acción"),
+             desde: date | None = None, hasta: date | None = None):
+    """Bitácora con filtros por acción, persona y fechas (Ep4-Hu26)."""
+    from datetime import datetime, time, timezone
+
     stmt = select(RegistroAdmin)
     if accion:
         stmt = stmt.where(RegistroAdmin.accion.startswith(accion))
+    if usuario:
+        patron = f"%{usuario.strip()}%"
+        stmt = stmt.join(Usuario, Usuario.id == RegistroAdmin.admin_id).where(
+            or_(Usuario.nombre.ilike(patron), Usuario.email.ilike(patron)))
+    if desde:
+        stmt = stmt.where(RegistroAdmin.creado_en >= datetime.combine(desde, time.min, tzinfo=timezone.utc))
+    if hasta:
+        stmt = stmt.where(RegistroAdmin.creado_en < datetime.combine(hasta + timedelta(days=1), time.min, tzinfo=timezone.utc))
     return [
         RegistroSalida(id=r.id, admin_nombre=r.admin.nombre if r.admin else "Admin eliminado", accion=r.accion,
                        objeto=r.objeto, detalle=r.detalle, creado_en=r.creado_en)

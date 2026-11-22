@@ -13,8 +13,9 @@ router = APIRouter(prefix="/api/notificaciones", tags=["notificaciones"])
 
 @router.get("", response_model=list[NotificacionSalida])
 def listar(usuario: UsuarioActual, db: DbSession, solo_no_leidas: bool = False,
-           limite: int = Query(default=30, ge=1, le=100), offset: int = 0):
-    stmt = select(Notificacion).where(Notificacion.usuario_id == usuario.id)
+           limite: int = Query(default=30, ge=1, le=100), offset: int = 0,
+           archivadas: bool = Query(default=False, description="Ver las archivadas (más de 90 días o archivadas a mano)")):
+    stmt = select(Notificacion).where(Notificacion.usuario_id == usuario.id, Notificacion.archivada.is_(archivadas))
     if solo_no_leidas:
         stmt = stmt.where(Notificacion.leida.is_(False))
     return db.scalars(stmt.order_by(Notificacion.creada_en.desc()).limit(limite).offset(offset)).all()
@@ -22,7 +23,8 @@ def listar(usuario: UsuarioActual, db: DbSession, solo_no_leidas: bool = False,
 
 @router.get("/conteo", response_model=Conteo)
 def conteo(usuario: UsuarioActual, db: DbSession):
-    n = db.scalar(select(func.count()).where(Notificacion.usuario_id == usuario.id, Notificacion.leida.is_(False)))
+    n = db.scalar(select(func.count()).where(Notificacion.usuario_id == usuario.id, Notificacion.leida.is_(False),
+                                         Notificacion.archivada.is_(False)))
     return Conteo(no_leidas=n or 0)
 
 
@@ -32,6 +34,16 @@ def marcar_leida(notificacion_id: uuid.UUID, usuario: UsuarioActual, db: DbSessi
     if aviso is None or aviso.usuario_id != usuario.id:
         raise HTTPException(status_code=404, detail="Notificación no encontrada")
     aviso.leida = True
+    db.commit()
+    return aviso
+
+
+@router.post("/{notificacion_id}/archivar", response_model=NotificacionSalida)
+def archivar(notificacion_id: uuid.UUID, usuario: UsuarioActual, db: DbSession, deshacer: bool = False):
+    aviso = db.get(Notificacion, notificacion_id)
+    if aviso is None or aviso.usuario_id != usuario.id:
+        raise HTTPException(status_code=404, detail="Notificación no encontrada")
+    aviso.archivada, aviso.leida = not deshacer, True
     db.commit()
     return aviso
 

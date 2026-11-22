@@ -5,8 +5,12 @@ import type { Notificacion, PreferenciasCorreo } from './types'
 export const EVENTO_AVISOS = 'proyecta:avisos'
 const avisar = () => window.dispatchEvent(new Event(EVENTO_AVISOS))
 
-export const listarAvisos = (soloNoLeidas = false, limite = 30, offset = 0) =>
-  pedir<Notificacion[]>(`/notificaciones?${new URLSearchParams({ solo_no_leidas: String(soloNoLeidas), limite: String(limite), offset: String(offset) })}`)
+export const listarAvisos = (soloNoLeidas = false, limite = 30, offset = 0, archivadas = false) =>
+  pedir<Notificacion[]>(`/notificaciones?${new URLSearchParams({ solo_no_leidas: String(soloNoLeidas), limite: String(limite), offset: String(offset), archivadas: String(archivadas) })}`)
+
+/** Archivar a mano (las de más de 90 días se archivan solas) o sacar del archivo (Ep6-Hu15). */
+export const archivarAviso = (id: string, deshacer = false) =>
+  pedir<Notificacion>(`/notificaciones/${id}/archivar?deshacer=${deshacer}`, { method: 'POST' }).finally(avisar)
 
 export const contarAvisos = () => pedir<{ no_leidas: number }>('/notificaciones/conteo')
 

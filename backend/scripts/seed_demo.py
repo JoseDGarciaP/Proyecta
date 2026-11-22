@@ -19,7 +19,7 @@ DATOS = json.loads((Path(__file__).parent / "datos_demo.json").read_text(encodin
 # ODS sugeridos por área para que la recomendación tenga con qué trabajar
 ODS_POR_AREA = {
     "Tecnología": [9], "Ambiente": [11, 13], "Salud": [3], "Educación": [4],
-    "Agroindustria": [2, 8], "Social": [8, 10], "Energía": [7],
+    "Agroindustria": [2, 8], "Social": [8, 10], "Energía": [7], "Seguridad vial": [3, 11],
 }
 
 
@@ -45,6 +45,7 @@ def main() -> None:
         for p in DATOS["proyectos"]:
             proyecto = Proyecto(
                 titulo=p["titulo"], resumen=p["resumen"], descripcion=p["descripcion"], estado=p["estado"],
+                problema=p.get("problema", ""), objetivos=p.get("objetivos", ""),
                 avance=p["avance"], presupuesto=p["presupuesto"], lider=p["lider"], equipo=p["equipo"],
                 etiquetas=p["etiquetas"], fecha_inicio=date.fromisoformat(p["fecha_inicio"]),
                 fecha_fin=date.fromisoformat(p["fecha_fin"]) if p["fecha_fin"] else None,
