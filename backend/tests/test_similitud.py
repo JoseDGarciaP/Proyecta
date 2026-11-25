@@ -130,3 +130,18 @@ def test_colaboradores_suman_habilidades_requeridas_y_excluyen_inactivos(client,
     assert client.patch(f"/api/admin/usuarios/{tres_id}", json={"activo": False}, headers=admin).status_code == 200
     res = client.get(f"/api/ia/proyectos/{pid}/colaboradores", headers=estudiante).json()
     assert "Tres Habilidades" not in [r["titulo"] for r in res["resultados"]]
+
+
+def test_similitudes_no_aplica_umbral():
+    """`similitudes()` devuelve también los valores bajo el umbral: antes llegaban como 0 y
+    colaboradores sugeridos perdía la parte de similitud (70 %) de quien estaba cerca del corte."""
+    import uuid
+    from types import SimpleNamespace
+
+    from app.modules.similitud.servicio import MINIMO, similitudes
+
+    consulta = "riego agua sensores cultivo cebolla finca productor humedad suelo temperatura plataforma web"
+    lejano = SimpleNamespace(id=uuid.uuid4(), t="agua potable escuela rural niños comedor transporte biblioteca deporte música danza teatro pintura cocina idioma lectura")
+    sims, metodo = similitudes(None, consulta, "usuario", [lejano], lambda c: c.t)
+    assert metodo == "lexico"
+    assert 0 < sims[lejano.id] < MINIMO["lexico"]
