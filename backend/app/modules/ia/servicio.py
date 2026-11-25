@@ -8,7 +8,7 @@ El texto lo redacta el proveedor elegido en IA_PROVEEDOR:
 Si el proveedor no responde, se usa la heurística y la respuesta se marca como simulada.
 
 La recomendación es explicable: cada sugerencia dice por qué se hace. Cuando hay modelo de
-embeddings, la similitud semántica entre proyecto y oportunidad pesa un 30 % del puntaje.
+embeddings, la similitud semántica entre proyecto y oportunidad pesa la mitad del puntaje.
 """
 
 import json
@@ -25,6 +25,9 @@ from app.modules.proyectos.schemas import ProyectoSalida
 
 API_URL = "https://api.anthropic.com/v1/messages"
 SOLO_SEMANTICA = 0.5
+# Con embeddings, mitad reglas y mitad texto. Antes era 70/30 y solo si la similitud pasaba 0,3: una
+# oportunidad con texto parecido quedaba por debajo de otra sin relación que solo compartía el área.
+PESO_SEMANTICA = 0.5
 
 
 def puntuar(
@@ -35,7 +38,8 @@ def puntuar(
 ) -> list[Recomendacion]:
     """Afinidad: área (0.5) + ODS en común (0.2) + etiquetas (0.15) + vigencia (0.15). Solo oportunidades abiertas.
 
-    Con `semantica` (similitud 0–1 por oportunidad) el puntaje es 70 % reglas + 30 % similitud.
+    Con `semantica` (similitud 0–1 por oportunidad) el puntaje es 50 % reglas + 50 % similitud, siempre:
+    un texto poco parecido baja el puntaje aunque coincida el área.
     """
     hoy = date.today()
     etiquetas = {e.lower() for e in proyecto.etiquetas}
@@ -62,11 +66,14 @@ def puntuar(
             puntaje += 0.15
             razones.append("coincide con las etiquetas del proyecto")
 
-        similitud = (semantica or {}).get(op.id, 0.0)
-        # Sin coincidencias de reglas, solo se sugiere si el parecido semántico es alto.
-        if similitud >= (0.3 if razones else SOLO_SEMANTICA):
-            puntaje = 0.7 * puntaje + 0.3 * similitud
-            razones.append(f"su descripción se parece a la del proyecto ({round(similitud * 100)} %)")
+        if semantica is not None:
+            similitud = max(semantica.get(op.id, 0.0), 0.0)
+            # Sin coincidencias de reglas, solo se sugiere si el parecido semántico es alto.
+            if not razones and similitud < SOLO_SEMANTICA:
+                continue
+            puntaje = (1 - PESO_SEMANTICA) * puntaje + PESO_SEMANTICA * similitud
+            if similitud >= 0.3:
+                razones.append(f"su descripción se parece a la del proyecto ({round(similitud * 100)} %)")
 
         if razones:
             razones.append(f"sigue abierta hasta el {op.cierra_en.isoformat()}")

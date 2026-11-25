@@ -157,3 +157,22 @@ def test_similares_premia_area_y_etiquetas(client, estudiante, embeddings_falsos
     misma_area = SimpleNamespace(area_id=1, etiquetas=["educación"])
     assert puntaje_similar(base, afin, 0.45) > puntaje_similar(base, misma_area, 0.45)
     assert puntaje_similar(base, misma_area, 0.45) < UMBRAL_SIMILARES <= puntaje_similar(base, afin, 0.45)
+
+
+def test_oportunidad_parecida_supera_a_la_que_solo_comparte_area():
+    """Antes, con similitud < 0,3 el puntaje quedaba 100 % reglas y superaba a una oportunidad parecida."""
+    import uuid
+    from datetime import date, timedelta
+    from types import SimpleNamespace
+
+    from app.modules.ia.servicio import puntuar
+
+    area = SimpleNamespace(nombre="Tecnología")
+    proyecto = SimpleNamespace(area=area, etiquetas=["TDAH"], ods=[])
+    abierta = date.today() + timedelta(days=30)
+    ajena = SimpleNamespace(id=uuid.uuid4(), titulo="Datos de accidentalidad", entidad="", descripcion="",
+                            areas=[area], ods=[], cierra_en=abierta)
+    parecida = SimpleNamespace(id=uuid.uuid4(), titulo="Salud mental", entidad="", descripcion="",
+                               areas=[SimpleNamespace(nombre="Salud")], ods=[], cierra_en=abierta)
+    recs = puntuar(proyecto, [ajena, parecida], semantica={ajena.id: 0.1, parecida.id: 0.75})
+    assert [r.titulo for r in recs] == ["Salud mental", "Datos de accidentalidad"]
