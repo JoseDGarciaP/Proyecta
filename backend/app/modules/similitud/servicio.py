@@ -84,6 +84,28 @@ def lexica(a: str, b: str) -> float:
     return len(pa & pb) / math.sqrt(len(pa) * len(pb))
 
 
+def _calcular(
+    db: Session,
+    consulta: str,
+    entidad: str,
+    candidatos: Sequence[Any],
+    texto: Callable[[Any], str],
+    consulta_ref: tuple[str, Any, Callable[[Any], str]] | None = None,
+) -> tuple[dict[uuid.UUID, float], Metodo]:
+    """Similitud de cada candidato con la consulta, sin umbral."""
+    cod = codificador.obtener()
+    if cod is None:
+        return {c.id: lexica(consulta, texto(c)) for c in candidatos}, "lexico"
+    asegurar(db, entidad, candidatos, texto, cod)
+    if consulta_ref:
+        ent, obj, fn = consulta_ref
+        asegurar(db, ent, [obj], fn, cod)
+        vector = list(map(float, db.get(Embedding, (ent, obj.id)).vector))
+    else:
+        vector = cod.codificar([consulta])[0]
+    return _cercanos(db, entidad, cod.nombre, vector, [c.id for c in candidatos]), "semantico"
+
+
 def ordenar(
     db: Session,
     consulta: str,
@@ -93,26 +115,12 @@ def ordenar(
     limite: int = 5,
     consulta_ref: tuple[str, Any, Callable[[Any], str]] | None = None,
 ) -> tuple[list[Resultado], Metodo]:
-    """Candidatos más parecidos a `consulta`, de mayor a menor similitud.
+    """Candidatos más parecidos a `consulta` que superan el umbral, de mayor a menor similitud.
 
     `consulta_ref` = (entidad, objeto, texto) reutiliza el vector guardado de la consulta cuando es
     una entidad (p. ej. «proyectos similares a este»), en lugar de recalcularlo.
     """
-    cod = codificador.obtener()
-    if cod is None:
-        metodo: Metodo = "lexico"
-        sims = {c.id: lexica(consulta, texto(c)) for c in candidatos}
-    else:
-        metodo = "semantico"
-        asegurar(db, entidad, candidatos, texto, cod)
-        if consulta_ref:
-            ent, obj, fn = consulta_ref
-            asegurar(db, ent, [obj], fn, cod)
-            vector = db.get(Embedding, (ent, obj.id)).vector
-            vector = list(map(float, vector))
-        else:
-            vector = cod.codificar([consulta])[0]
-        sims = _cercanos(db, entidad, cod.nombre, vector, [c.id for c in candidatos])
+    sims, metodo = _calcular(db, consulta, entidad, candidatos, texto, consulta_ref)
     minimo = MINIMO[metodo]
     salida = [Resultado(c, round(sims.get(c.id, 0.0), 3)) for c in candidatos]
     salida = [r for r in salida if r.similitud >= minimo]
@@ -121,6 +129,12 @@ def ordenar(
 
 def similitudes(db: Session, consulta: str, entidad: str, candidatos: Sequence[Any],
                 texto: Callable[[Any], str]) -> tuple[dict[uuid.UUID, float], Metodo]:
-    """Similitud de todos los candidatos (sin umbral), para combinarla con otras señales."""
-    resultados, metodo = ordenar(db, consulta, entidad, candidatos, texto, limite=len(candidatos) or 1)
-    return {r.objeto.id: r.similitud for r in resultados}, metodo
+    """Similitud de todos los candidatos (sin umbral), para combinarla con otras señales.
+
+    Antes pasaba por `ordenar()` y los valores bajo el umbral llegaban como 0: en colaboradores
+    sugeridos eso borraba la parte de similitud (70 %) de quien estaba cerca del umbral.
+    """
+    if not candidatos:
+        return {}, ("semantico" if codificador.obtener() else "lexico")
+    sims, metodo = _calcular(db, consulta, entidad, candidatos, texto)
+    return {i: round(max(s, 0.0), 3) for i, s in sims.items()}, metodo

@@ -12,10 +12,20 @@ def _unir(*partes: str) -> str:
     return ". ".join(p.strip() for p in partes if p and p.strip())
 
 
+# El modelo (paraphrase-multilingual-MiniLM-L12-v2) solo lee ~128 tokens y corta el resto.
+# Por eso lo que más distingue a cada entidad (título, área, etiquetas, necesidades) va primero
+# y la descripción larga al final: si algo se pierde, que sea el final de la descripción.
+
+TIPOS_OPORTUNIDAD = {"convocatoria": "Convocatoria", "financiacion": "Financiación",
+                     "mentoria": "Mentoría", "infraestructura": "Infraestructura"}
+
+
 def proyecto(p: Proyecto) -> str:
-    return _unir(p.titulo, p.resumen, p.descripcion, f"Área: {p.area.nombre}",
+    return _unir(p.titulo, f"Área: {p.area.nombre}",
                  "Etiquetas: " + ", ".join(p.etiquetas) if p.etiquetas else "",
-                 f"Necesidades: {p.necesidades}" if p.necesidades else "")
+                 p.resumen,
+                 f"Necesidades: {p.necesidades}" if p.necesidades else "",
+                 p.descripcion)
 
 
 def necesidades(p: Proyecto) -> str:
@@ -24,12 +34,20 @@ def necesidades(p: Proyecto) -> str:
 
 
 def oportunidad(o: Oportunidad) -> str:
-    return _unir(o.titulo, o.entidad, o.descripcion, "Áreas: " + ", ".join(a.nombre for a in o.areas) if o.areas else "")
+    tipo = getattr(o.tipo, "value", o.tipo)
+    return _unir(o.titulo, TIPOS_OPORTUNIDAD.get(tipo, ""),
+                 "Áreas: " + ", ".join(a.nombre for a in o.areas) if o.areas else "",
+                 o.entidad, o.descripcion)
 
 
 def usuario(u: Usuario) -> str:
-    return _unir(u.programa or "", "Habilidades: " + ", ".join(u.habilidades) if u.habilidades else "",
-                 "Intereses: " + ", ".join(u.intereses) if u.intereses else "", u.bio or "")
+    """Perfil para comparar. Vacío si solo tiene el programa: con eso todos los de una carrera
+    quedarían con el mismo vector y las sugerencias no dirían nada."""
+    if not (u.habilidades or u.intereses or (u.bio or "").strip()):
+        return ""
+    return _unir("Habilidades: " + ", ".join(u.habilidades) if u.habilidades else "",
+                 "Intereses: " + ", ".join(u.intereses) if u.intereses else "",
+                 u.bio or "", u.programa or "")
 
 
 VACIAS = set(
