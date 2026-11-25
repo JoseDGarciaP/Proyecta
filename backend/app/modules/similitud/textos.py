@@ -55,8 +55,17 @@ def afinidad_proyectos(a: Proyecto, b: Proyecto) -> float:
 
     El modelo da puntajes altos a cualquier par de «sistema web» o «aplicación»; las etiquetas que eligió
     cada equipo dicen de qué trata de verdad. El área no cuenta: casi todos son «Tecnología»."""
-    comunes = palabras(" ".join(a.etiquetas)) & palabras(" ".join(b.etiquetas))
+    comunes = (palabras(" ".join(a.etiquetas)) & palabras(" ".join(b.etiquetas))) - GENERICAS
     return 0.5 * min(len(comunes), 2)
+
+
+# Palabras que casi todos los proyectos ponen en sus etiquetas y no dicen de qué tratan
+# («aplicación móvil», «gestión», «transformación digital»…). Ya sin tildes ni plural, como las deja palabras().
+GENERICAS = {
+    "aplicacion", "aplicativo", "app", "movil", "web", "sistema", "plataforma", "software", "tecnologia",
+    "tecnologica", "digital", "gestion", "informacion", "desarrollo", "herramienta", "transformacion",
+    "innovacion", "proyecto", "ods", "uso", "servicio", "linea", "virtual", "inteligente",
+}
 
 
 VACIAS = set(
