@@ -50,6 +50,15 @@ def usuario(u: Usuario) -> str:
                  u.bio or "", u.programa or "")
 
 
+def afinidad_proyectos(a: Proyecto, b: Proyecto) -> float:
+    """Etiquetas en común entre dos proyectos (0–1): 0,5 por cada palabra compartida, máximo 2.
+
+    El modelo da puntajes altos a cualquier par de «sistema web» o «aplicación»; las etiquetas que eligió
+    cada equipo dicen de qué trata de verdad. El área no cuenta: casi todos son «Tecnología»."""
+    comunes = palabras(" ".join(a.etiquetas)) & palabras(" ".join(b.etiquetas))
+    return 0.5 * min(len(comunes), 2)
+
+
 VACIAS = set(
     "de la el en y a los las del se por con para un una su al es lo como mas más o sus que "
     "este esta estos estas entre sobre sin ser son desde hasta the and of for to in".split()

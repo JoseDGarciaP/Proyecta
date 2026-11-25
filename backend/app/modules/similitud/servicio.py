@@ -128,7 +128,8 @@ def ordenar(
 
 
 def similitudes(db: Session, consulta: str, entidad: str, candidatos: Sequence[Any],
-                texto: Callable[[Any], str]) -> tuple[dict[uuid.UUID, float], Metodo]:
+                texto: Callable[[Any], str],
+                consulta_ref: tuple[str, Any, Callable[[Any], str]] | None = None) -> tuple[dict[uuid.UUID, float], Metodo]:
     """Similitud de todos los candidatos (sin umbral), para combinarla con otras señales.
 
     Antes pasaba por `ordenar()` y los valores bajo el umbral llegaban como 0: en colaboradores
@@ -136,5 +137,5 @@ def similitudes(db: Session, consulta: str, entidad: str, candidatos: Sequence[A
     """
     if not candidatos:
         return {}, ("semantico" if codificador.obtener() else "lexico")
-    sims, metodo = _calcular(db, consulta, entidad, candidatos, texto)
+    sims, metodo = _calcular(db, consulta, entidad, candidatos, texto, consulta_ref)
     return {i: round(max(s, 0.0), 3) for i, s in sims.items()}, metodo

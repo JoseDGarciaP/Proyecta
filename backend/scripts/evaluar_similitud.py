@@ -17,6 +17,7 @@ from sqlalchemy import select
 
 from app.core.database import SessionLocal
 from app.models import Oportunidad, Proyecto, Usuario
+from app.modules.ia.router import UMBRAL_SIMILARES, puntaje_similar
 from app.modules.similitud import codificador, textos
 from app.modules.similitud.servicio import MINIMO, _calcular
 from app.modules.usuarios.models import Rol
@@ -40,7 +41,7 @@ def _distribucion(nombre: str, valores: list[float], minimo: float) -> None:
     v = sorted(valores)
     cuartiles = statistics.quantiles(v, n=4) if len(v) > 1 else [v[0]] * 3
     sobre = sum(x >= minimo for x in v)
-    print(f"{nombre:<26} n={len(v):<5} mín={v[0]:.2f}  p25={cuartiles[0]:.2f}  mediana={cuartiles[1]:.2f}  "
+    print(f"{nombre:<36} n={len(v):<5} mín={v[0]:.2f}  p25={cuartiles[0]:.2f}  mediana={cuartiles[1]:.2f}  "
           f"p75={cuartiles[2]:.2f}  máx={v[-1]:.2f}  ≥umbral={sobre} ({100 * sobre / len(v):.0f} %)")
 
 
@@ -69,16 +70,22 @@ def main() -> None:
             otros = [x for x in proyectos if x.id != p.id]
             sims, _ = _calcular(db, textos.proyecto(p), "proyecto", otros, textos.proyecto,
                                 consulta_ref=("proyecto", p, textos.proyecto))
-            todos["proyecto↔proyecto"] += _bloque("Proyectos parecidos", sims, por_id, MINIMO[metodo],
+            if metodo == "semantico":  # misma regla que la plataforma: texto + área y etiquetas
+                sims = {i: puntaje_similar(p, por_id[i], s) for i, s in sims.items()}
+                minimo_p = UMBRAL_SIMILARES
+            else:
+                minimo_p = MINIMO[metodo]
+            todos["proyecto↔proyecto"] += _bloque("Proyectos parecidos", sims, por_id, minimo_p,
                                                    lambda o: f"{o.titulo} ({o.area.nombre})")
             sims, _ = _calcular(db, textos.necesidades(p), "usuario", usuarios, textos.usuario)
             todos["necesidades↔persona"] += _bloque("Personas", sims, por_id, MINIMO[metodo],
                                                      lambda u: f"{u.nombre}: {', '.join(u.habilidades[:4])}")
             print()
 
-        print(f"Distribución de puntajes (método {metodo}, umbral {MINIMO[metodo]}):")
+        print(f"Distribución de puntajes (método {metodo}):")
         for nombre, valores in todos.items():
-            _distribucion(nombre, valores, MINIMO[metodo])
+            umbral = UMBRAL_SIMILARES if nombre == "proyecto↔proyecto" and metodo == "semantico" else MINIMO[metodo]
+            _distribucion(f"{nombre} (umbral {umbral})", valores, umbral)
 
 
 if __name__ == "__main__":
