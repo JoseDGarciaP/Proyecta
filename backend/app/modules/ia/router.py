@@ -186,13 +186,29 @@ async def redactar_pitch_postulacion(proyecto_id: uuid.UUID, oportunidad_id: uui
     return await generar_pitch(proyecto, oportunidad)
 
 
+# Proyectos parecidos con embeddings: 80 % similitud del texto + 20 % etiquetas en común.
+# Calibrado con los 25 proyectos reales (25-nov-2026): con solo el texto, el 81 % de los pares pasaba
+# el umbral de 0,3 y salían «parecidos» proyectos que solo comparten ser una aplicación web.
+PESO_AFINIDAD = 0.2
+UMBRAL_SIMILARES = 0.42
+
+
+def puntaje_similar(proyecto: Proyecto, otro: Proyecto, similitud: float) -> float:
+    return round((1 - PESO_AFINIDAD) * similitud + PESO_AFINIDAD * textos.afinidad_proyectos(proyecto, otro), 3)
+
+
 @router.get("/proyectos/{proyecto_id}/similares", response_model=RespuestaSugerencias)
 def proyectos_similares(proyecto_id: uuid.UUID, db: DbSession, limite: int = Query(default=4, le=20)):
     """Proyectos parecidos: posibles duplicados o equipos con quienes articularse."""
     proyecto = obtener_proyecto(db, proyecto_id)
     otros = list(db.scalars(select(Proyecto).where(Proyecto.id != proyecto.id)).unique())
-    resultados, metodo = ordenar(db, textos.proyecto(proyecto), "proyecto", otros, textos.proyecto, limite,
-                                 consulta_ref=("proyecto", proyecto, textos.proyecto))
+    if codificador.obtener() is None:
+        resultados, metodo = ordenar(db, textos.proyecto(proyecto), "proyecto", otros, textos.proyecto, limite)
+    else:
+        sims, metodo = similitudes_ref(db, proyecto, otros)
+        puntuados = [Resultado(o, puntaje_similar(proyecto, o, sims.get(o.id, 0.0))) for o in otros]
+        resultados = sorted((r for r in puntuados if r.similitud >= UMBRAL_SIMILARES),
+                            key=lambda r: r.similitud, reverse=True)[:limite]
     return RespuestaSugerencias(metodo=metodo, resultados=[
         Sugerencia(
             id=r.objeto.id, tipo="proyecto", titulo=r.objeto.titulo, detalle=f"{r.objeto.area.nombre} · {r.objeto.lider}",
@@ -201,6 +217,12 @@ def proyectos_similares(proyecto_id: uuid.UUID, db: DbSession, limite: int = Que
         )
         for r in resultados
     ])
+
+
+def similitudes_ref(db, proyecto: Proyecto, otros: list[Proyecto]) -> tuple[dict[uuid.UUID, float], str]:
+    """Similitud del texto de `proyecto` con cada uno de `otros`, reutilizando su vector guardado."""
+    return similitudes(db, textos.proyecto(proyecto), "proyecto", otros, textos.proyecto,
+                       consulta_ref=("proyecto", proyecto, textos.proyecto))
 
 
 # Peso de la coincidencia directa de habilidades frente a la similitud del perfil completo.

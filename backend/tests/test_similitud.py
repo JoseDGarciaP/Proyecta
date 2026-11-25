@@ -145,3 +145,15 @@ def test_similitudes_no_aplica_umbral():
     sims, metodo = similitudes(None, consulta, "usuario", [lejano], lambda c: c.t)
     assert metodo == "lexico"
     assert 0 < sims[lejano.id] < MINIMO["lexico"]
+
+
+def test_similares_premia_area_y_etiquetas(client, estudiante, embeddings_falsos):
+    """Con texto igual de parecido, gana el que comparte etiquetas; sin ellas hace falta más texto."""
+    from app.modules.ia.router import UMBRAL_SIMILARES, puntaje_similar
+    from types import SimpleNamespace
+
+    base = SimpleNamespace(area_id=1, etiquetas=["IoT", "sensores"])
+    afin = SimpleNamespace(area_id=2, etiquetas=["sensores de suelo", "IoT"])
+    misma_area = SimpleNamespace(area_id=1, etiquetas=["educación"])
+    assert puntaje_similar(base, afin, 0.45) > puntaje_similar(base, misma_area, 0.45)
+    assert puntaje_similar(base, misma_area, 0.45) < UMBRAL_SIMILARES <= puntaje_similar(base, afin, 0.45)
